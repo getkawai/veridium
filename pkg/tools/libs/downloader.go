@@ -3,6 +3,7 @@ package libs
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/download"
 )
@@ -17,22 +18,27 @@ type Downloader interface {
 	LibraryName(os string) string
 }
 
-var downloaders = make(map[LibraryType]Downloader)
+var (
+	downloadersMu sync.RWMutex
+	downloaders   = make(map[LibraryType]Downloader)
+)
 
 func registerDownloader(libType LibraryType, d Downloader) {
+	downloadersMu.Lock()
+	defer downloadersMu.Unlock()
 	downloaders[libType] = d
 }
 
-func getDownloader(libType LibraryType) Downloader {
-	return downloaders[libType]
-}
-
+// GetDownloader returns the registered downloader for the given library type.
+// Returns nil if no downloader is registered for the type.
 func GetDownloader(libType LibraryType) Downloader {
+	downloadersMu.RLock()
+	defer downloadersMu.RUnlock()
 	return downloaders[libType]
 }
 
 func (lib *Libs) getLatestVersion() (string, error) {
-	downloader := getDownloader(lib.libType)
+	downloader := GetDownloader(lib.libType)
 	if downloader == nil {
 		return "", ErrUnsupportedLibrary
 	}
@@ -40,7 +46,7 @@ func (lib *Libs) getLatestVersion() (string, error) {
 }
 
 func (lib *Libs) downloadLibrary(ctx context.Context, version, dest string, progress download.ProgressCallback) error {
-	downloader := getDownloader(lib.libType)
+	downloader := GetDownloader(lib.libType)
 	if downloader == nil {
 		return ErrUnsupportedLibrary
 	}

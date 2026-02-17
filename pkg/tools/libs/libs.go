@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/download"
 	"github.com/kawai-network/veridium/pkg/tools/defaults"
+	"github.com/kawai-network/veridium/pkg/tools/network"
 )
 
 const (
@@ -368,13 +367,7 @@ func isTagMatch(tag VersionTag, libs *Libs) bool {
 	return tag.Latest == tag.Version && tag.Arch == libs.arch.String() && tag.OS == libs.os.String() && tag.Processor == libs.processor.String()
 }
 
+// hasNetwork checks network connectivity using the shared network utility.
 func hasNetwork() bool {
-	conn, err := net.DialTimeout("tcp", "8.8.8.8:53", 3*time.Second)
-	if err != nil {
-		return false
-	}
-
-	conn.Close()
-
-	return true
+	return network.HasNetwork()
 }

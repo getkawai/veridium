@@ -3,17 +3,16 @@ package models
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/kawai-network/veridium/pkg/kronk/model"
 	"github.com/kawai-network/veridium/pkg/tools/downloader"
+	"github.com/kawai-network/veridium/pkg/tools/network"
 )
 
 // Logger represents a logger for capturing events.
@@ -359,13 +358,7 @@ func extractFileName(modelFileURL string) (string, error) {
 	return name, nil
 }
 
+// hasNetwork checks network connectivity using the shared network utility.
 func hasNetwork() bool {
-	conn, err := net.DialTimeout("tcp", "8.8.8.8:53", 3*time.Second)
-	if err != nil {
-		return false
-	}
-
-	conn.Close()
-
-	return true
+	return network.HasNetwork()
 }

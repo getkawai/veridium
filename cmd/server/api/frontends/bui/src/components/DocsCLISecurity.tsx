@@ -56,7 +56,7 @@ export default function DocsCLISecurity() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Admin token (required when auth enabled)</td>
                   </tr>
@@ -65,7 +65,7 @@ export default function DocsCLISecurity() {
               <h5>Example</h5>
               <pre className="code-block">
                 <code>{`# Create a new private key
-export KRONK_TOKEN=<admin-token>
+export API_KEY=<admin-token>
 kronk security key create`}</code>
               </pre>
             </div>
@@ -105,7 +105,7 @@ kronk security key create`}</code>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Admin token (required when auth enabled)</td>
                   </tr>
@@ -114,7 +114,7 @@ kronk security key create`}</code>
               <h5>Example</h5>
               <pre className="code-block">
                 <code>{`# Delete a private key
-export KRONK_TOKEN=<admin-token>
+export API_KEY=<admin-token>
 kronk security key delete --keyid abc123`}</code>
               </pre>
             </div>
@@ -150,7 +150,7 @@ kronk security key delete --keyid abc123`}</code>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Admin token (required when auth enabled)</td>
                   </tr>
@@ -159,7 +159,7 @@ kronk security key delete --keyid abc123`}</code>
               <h5>Example</h5>
               <pre className="code-block">
                 <code>{`# List all private keys
-export KRONK_TOKEN=<admin-token>
+export API_KEY=<admin-token>
 kronk security key list`}</code>
               </pre>
             </div>
@@ -211,7 +211,7 @@ kronk security key list`}</code>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Admin token (required when auth enabled)</td>
                   </tr>
@@ -220,7 +220,7 @@ kronk security key list`}</code>
               <h5>Example</h5>
               <pre className="code-block">
                 <code>{`# Create a token with 24 hour duration
-export KRONK_TOKEN=<admin-token>
+export API_KEY=<admin-token>
 kronk security token create --duration 24h --endpoints chat-completions,embeddings
 
 # Create a token with rate limits

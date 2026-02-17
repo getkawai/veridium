@@ -10,11 +10,11 @@ export default function DocsAPIEmbeddings() {
         <div className="doc-content">
           <div className="card" id="overview">
             <h3>Overview</h3>
-            <p>All endpoints are prefixed with <code>/v1</code>. Base URL: <code>http://localhost:8080</code></p>
+            <p>All endpoints are prefixed with <code>/v1</code>. Base URL: <code>https://api.getkawai.com</code></p>
             <h4>Authentication</h4>
             <p>When authentication is enabled, include the token in the Authorization header:</p>
             <pre className="code-block">
-              <code>Authorization: Bearer YOUR_TOKEN</code>
+              <code>Authorization: Bearer API_KEY</code>
             </pre>
           </div>
 
@@ -25,7 +25,7 @@ export default function DocsAPIEmbeddings() {
             <div className="doc-section" id="embeddings-post--embeddings">
               <h4><span className="method-post">POST</span> /embeddings</h4>
               <p className="doc-description">Create embeddings for the given input text. The model must support embedding generation.</p>
-              <p><strong>Authentication:</strong> Required when auth is enabled. Token must have 'embeddings' endpoint access.</p>
+              <p><strong>Authentication:</strong> Required when auth is enabled. Uses wallet-based API keys.</p>
               <h5>Headers</h5>
               <table className="flags-table">
                 <thead>
@@ -85,8 +85,8 @@ export default function DocsAPIEmbeddings() {
               <h5>Example</h5>
               <p className="example-label"><strong>Generate embeddings for text:</strong></p>
               <pre className="code-block">
-                <code>{`curl -X POST http://localhost:8080/v1/embeddings \\
-  -H "Authorization: Bearer $KRONK_TOKEN" \\
+                <code>{`curl -X POST https://api.getkawai.com/v1/embeddings \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "embeddinggemma-300m-qat-Q8_0",

@@ -16,8 +16,8 @@ type SetupResult struct {
 	LibraryReady    bool
 	WhisperReady    bool
 	StableDiffReady bool
+	TTSReady        bool
 	LLMReady        bool
-	LLMModel        string
 	Errors          []error
 }
 

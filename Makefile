@@ -10,7 +10,6 @@
         contracts-upgrade contracts-clean contracts-validate \
         contracts-gas-snapshot contracts-gas-compare \
         admin-register admin-register-dry \
-        docs-install docs-serve docs-build docs-clean docs-deploy \
         release-prepare release-version \
         release-darwin release-darwin-package release-darwin-archive \
         release-linux release-linux-deb release-linux-rpm release-linux-appimage release-linux-archive \
@@ -83,6 +82,7 @@ help:
 	@echo "  make db-generate      Generate Go code from SQL (sqlc)"
 	@echo "  make bindings-generate Generate TypeScript bindings (wails)"
 	@echo "  make constants-generate Generate constants from .env"
+	@echo "  make api-docs-generate Generate API documentation (Markdown + TSX)"
 	@echo ""
 	@echo "Database:"
 	@echo "  make db-dump          Dump database to seed file"
@@ -150,21 +150,6 @@ help:
 	@echo "  make cleanup-kv-proofs        Delete Merkle proofs"
 	@echo "  make cleanup-kv-settlements   Delete settlement periods"
 	@echo "  make cleanup-kv-all           Delete ALL mining data (⚠️  DANGEROUS)"
-	@echo ""
-	@echo "Documentation (MkDocs):"
-	@echo "  make docs-install        Install MkDocs in Python venv"
-	@echo "  make docs-serve          Start local docs server (http://localhost:8000)"
-	@echo "  make docs-build          Build static documentation site (./site/)"
-	@echo "  make docs-build-website  Build docs to kawai-website/docs/"
-	@echo "  make docs-clean          Clean documentation build artifacts"
-	@echo "  make docs-deploy         Deploy documentation to GitHub Pages"
-	@echo "  make docs-venv-clean     Remove Python virtual environment"
-	@echo ""
-	@echo "Website (kawai-website):"
-	@echo "  make website-install  Install website dependencies (npm)"
-	@echo "  make website-serve    Start local website server (http://localhost:3000)"
-	@echo "  make website-dev      Start website with auto-reload"
-	@echo "  make website-clean    Clean website node_modules"
 	@echo ""
 	@echo "Contributor Node (cmd/server):"
 	@echo "  make contributor            Run contributor node (builds if needed)"
@@ -382,6 +367,11 @@ constants-generate:
 	@echo "🔄 Generating constants from .env..."
 	go run cmd/obfuscator-gen/main.go
 	@echo "✅ Constants generated!"
+
+api-docs-generate:
+	@echo "🔄 Generating API documentation..."
+	go run ./cmd/server/api/tooling/docs
+	@echo "✅ API documentation generated!"
 
 # ==============================================================================
 # Database
@@ -885,138 +875,8 @@ cleanup-kv-all:
 	@go run cmd/cleanup-kv-mining-data/main.go --all --confirm DELETE
 
 # ==============================================================================
-# Documentation (MkDocs)
+# Mainnet Deployment (with safety confirmations)
 # ==============================================================================
-
-# Python virtual environment for docs
-VENV_DIR := venv
-PYTHON := python3
-PIP := $(VENV_DIR)/bin/pip
-MKDOCS := $(VENV_DIR)/bin/mkdocs
-
-docs-install:
-	@echo "📚 Setting up documentation environment..."
-	@if [ ! -d "$(VENV_DIR)" ]; then \
-		echo "Creating Python virtual environment..."; \
-		$(PYTHON) -m venv $(VENV_DIR); \
-	fi
-	@echo "Installing MkDocs and dependencies..."
-	@$(PIP) install --upgrade pip
-	@$(PIP) install mkdocs-material pymdown-extensions
-	@echo "✅ MkDocs installed successfully!"
-	@echo "💡 Use 'make docs-serve' to start the documentation server"
-
-docs-serve:
-	@if [ ! -f "$(MKDOCS)" ]; then \
-		echo "❌ MkDocs not installed. Run 'make docs-install' first."; \
-		exit 1; \
-	fi
-	@echo "🔍 Checking for processes on port 8000..."
-	@lsof -ti:8000 | xargs kill -9 2>/dev/null || true
-	@echo "📖 Starting MkDocs development server..."
-	@echo "🌐 Open http://localhost:8000 in your browser"
-	@echo "⏹️  Press Ctrl+C to stop"
-	@$(MKDOCS) serve
-
-docs-build:
-	@if [ ! -f "$(MKDOCS)" ]; then \
-		echo "❌ MkDocs not installed. Run 'make docs-install' first."; \
-		exit 1; \
-	fi
-	@echo "🔨 Building static documentation site..."
-	@$(MKDOCS) build
-	@echo "✅ Documentation built to ./site/"
-
-docs-build-website:
-	@if [ ! -f "$(MKDOCS)" ]; then \
-		echo "❌ MkDocs not installed. Run 'make docs-install' first."; \
-		exit 1; \
-	fi
-	@if [ ! -d "$(WEBSITE_DIR)" ]; then \
-		echo "❌ kawai-website directory not found!"; \
-		exit 1; \
-	fi
-	@echo "🗑️  Removing old docs..."
-	@rm -rf $(WEBSITE_DIR)/docs
-	@echo "🔨 Building documentation to kawai-website/docs/..."
-	@$(MKDOCS) build -d $(WEBSITE_DIR)/docs
-	@echo "✅ Documentation built to $(WEBSITE_DIR)/docs/"
-	@echo "💡 Next: cd $(WEBSITE_DIR) && git add docs && git commit && git push"
-
-docs-clean:
-	@echo "🧹 Cleaning documentation build artifacts..."
-	@rm -rf site/
-	@echo "✅ Documentation cleaned!"
-
-docs-deploy:
-	@if [ ! -f "$(MKDOCS)" ]; then \
-		echo "❌ MkDocs not installed. Run 'make docs-install' first."; \
-		exit 1; \
-	fi
-	@echo "🚀 Deploying documentation to GitHub Pages..."
-	@$(MKDOCS) gh-deploy --force
-	@echo "✅ Documentation deployed!"
-
-docs-venv-clean:
-	@echo "🧹 Removing Python virtual environment..."
-	@rm -rf $(VENV_DIR)
-	@echo "✅ Virtual environment removed!"
-
-# ==============================================================================
-# Website (kawai-website)
-# ==============================================================================
-
-WEBSITE_DIR := kawai-website
-
-website-install:
-	@echo "📦 Installing website dependencies..."
-	@if [ ! -d "$(WEBSITE_DIR)" ]; then \
-		echo "❌ $(WEBSITE_DIR) directory not found!"; \
-		echo "💡 Make sure kawai-website is cloned in the same parent directory"; \
-		exit 1; \
-	fi
-	@cd $(WEBSITE_DIR) && npm install
-	@echo "✅ Website dependencies installed!"
-
-website-serve:
-	@if [ ! -d "$(WEBSITE_DIR)" ]; then \
-		echo "❌ $(WEBSITE_DIR) directory not found!"; \
-		exit 1; \
-	fi
-	@if [ ! -d "$(WEBSITE_DIR)/node_modules" ]; then \
-		echo "❌ Dependencies not installed. Run 'make website-install' first."; \
-		exit 1; \
-	fi
-	@echo "🌐 Starting website server..."
-	@echo "🔗 Open http://localhost:3000 in your browser"
-	@echo "⏹️  Press Ctrl+C to stop"
-	@cd $(WEBSITE_DIR) && npm run serve
-
-website-dev:
-	@if [ ! -d "$(WEBSITE_DIR)" ]; then \
-		echo "❌ $(WEBSITE_DIR) directory not found!"; \
-		exit 1; \
-	fi
-	@if [ ! -d "$(WEBSITE_DIR)/node_modules" ]; then \
-		echo "❌ Dependencies not installed. Run 'make website-install' first."; \
-		exit 1; \
-	fi
-	@echo "🔥 Starting website with auto-reload..."
-	@echo "🔗 Open http://localhost:3000 in your browser"
-	@echo "⏹️  Press Ctrl+C to stop"
-	@cd $(WEBSITE_DIR) && npm run dev
-
-website-clean:
-	@echo "🧹 Cleaning website dependencies..."
-	@if [ -d "$(WEBSITE_DIR)/node_modules" ]; then \
-		cd $(WEBSITE_DIR) && rm -rf node_modules; \
-		echo "✅ Website dependencies cleaned!"; \
-	else \
-		echo "⚠️  No node_modules to clean"; \
-	fi
-
-
-# ✅ MAINNET DEPLOYMENT TARGETS (with safety confirmations)
 contracts-deploy-mainnet:
 	@echo "🚀 Deploying to Monad Mainnet..."
 	@echo "⚠️  WARNING: This will deploy to PRODUCTION mainnet!"

@@ -26,10 +26,10 @@ var ErrServerBusy = errors.New("server busy: all model slots have active request
 // Config represents setting for the kronk manager.
 //
 // CatalogRepo represents the Github repo for where the catalog is. If left empty
-// then api.github.com/repos/ardanlabs/kronk_catalogs/contents/catalogs is used.
+// then api.github.com/repos/kawai-network/veridium_catalogs/contents/catalogs is used.
 //
 // TemplateRepo represents the Github repo for where the templates are. If left empty
-// then api.github.com/repos/ardanlabs/kronk_catalogs/contents/templates is used.
+// then api.github.com/repos/kawai-network/veridium_catalogs/contents/templates is used.
 //
 // MaxInCache: Defines the maximum number of unique models will be available at a
 // time. Defaults to 3 if the value is 0.

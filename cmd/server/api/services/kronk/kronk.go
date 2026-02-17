@@ -143,10 +143,10 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		}
 
 		Catalog struct {
-			GithubRepo string `conf:"default:https://api.github.com/repos/ardanlabs/kronk_catalogs/contents/catalogs"`
+			GithubRepo string `conf:"default:https://api.github.com/repos/kawai-network/veridium_catalogs/contents/catalogs"`
 		}
 		Templates struct {
-			GithubRepo string `conf:"default:https://api.github.com/repos/ardanlabs/kronk_catalogs/contents/templates"`
+			GithubRepo string `conf:"default:https://api.github.com/repos/kawai-network/veridium_catalogs/contents/templates"`
 		}
 		Cache struct {
 			ModelsInCache        int           `conf:"default:3"`

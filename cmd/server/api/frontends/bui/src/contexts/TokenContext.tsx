@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 
-const TOKEN_STORAGE_KEY = 'kronk_token';
+const TOKEN_STORAGE_KEY = 'API_KEY';
 
 interface TokenContextType {
   token: string;

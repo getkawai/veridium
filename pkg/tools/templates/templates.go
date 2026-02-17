@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultGithubPath = "https://api.github.com/repos/ardanlabs/kronk_catalogs/contents/templates"
+	defaultGithubPath = "https://api.github.com/repos/kawai-network/veridium_catalogs/contents/templates"
 	localFolder       = "templates"
 	shaFile           = ".template_shas.json"
 )

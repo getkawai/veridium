@@ -29,6 +29,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/jupiterrider/ffi v0.5.1
 	github.com/kaptinlin/jsonschema v0.6.2
+	github.com/kawai-network/TTS.cpp/bindings/go v0.1.2
 	github.com/kawai-network/grab v0.1.0
 	github.com/kawai-network/stablediffusion v0.1.1
 	github.com/kawai-network/whisper v0.4.0

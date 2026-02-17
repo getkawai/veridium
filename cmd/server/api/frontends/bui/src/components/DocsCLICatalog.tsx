@@ -57,7 +57,7 @@ export default function DocsCLICatalog() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Authentication token for the kronk server (required when auth enabled)</td>
                   </tr>
@@ -121,7 +121,7 @@ kronk catalog list --filter-category embedding`}</code>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Authentication token for the kronk server (required when auth enabled)</td>
                   </tr>
@@ -182,7 +182,7 @@ kronk catalog pull llama-3.2-1b-q4 --local`}</code>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Authentication token for the kronk server (required when auth enabled)</td>
                   </tr>
@@ -243,7 +243,7 @@ kronk catalog show llama-3.2-1b-q4 --local`}</code>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Authentication token for the kronk server (required when auth enabled)</td>
                   </tr>

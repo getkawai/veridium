@@ -16,11 +16,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/ardanlabs/kronk/sdk/kronk"
-	"github.com/ardanlabs/kronk/sdk/kronk/model"
-	"github.com/ardanlabs/kronk/sdk/tools/defaults"
-	"github.com/ardanlabs/kronk/sdk/tools/libs"
-	"github.com/ardanlabs/kronk/sdk/tools/models"
+	"github.com/kawai-network/veridium/sdk/kronk"
+	"github.com/kawai-network/veridium/sdk/kronk/model"
+	"github.com/kawai-network/veridium/sdk/tools/defaults"
+	"github.com/kawai-network/veridium/sdk/tools/libs"
+	"github.com/kawai-network/veridium/sdk/tools/models"
 )
 
 const modelURL = "Qwen/Qwen3-8B-GGUF/Qwen3-8B-Q8_0.gguf"
@@ -199,12 +199,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/ardanlabs/kronk/sdk/kronk"
-	"github.com/ardanlabs/kronk/sdk/kronk/model"
-	"github.com/ardanlabs/kronk/sdk/tools/defaults"
-	"github.com/ardanlabs/kronk/sdk/tools/libs"
-	"github.com/ardanlabs/kronk/sdk/tools/models"
-	"github.com/ardanlabs/kronk/sdk/tools/templates"
+	"github.com/kawai-network/veridium/sdk/kronk"
+	"github.com/kawai-network/veridium/sdk/kronk/model"
+	"github.com/kawai-network/veridium/sdk/tools/defaults"
+	"github.com/kawai-network/veridium/sdk/tools/libs"
+	"github.com/kawai-network/veridium/sdk/tools/models"
+	"github.com/kawai-network/veridium/sdk/tools/templates"
 )
 
 // const modelURL = "unsloth/gpt-oss-120b-GGUF/gpt-oss-120b-F16.gguf"
@@ -553,12 +553,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/ardanlabs/kronk/sdk/kronk"
-	"github.com/ardanlabs/kronk/sdk/kronk/model"
-	"github.com/ardanlabs/kronk/sdk/tools/defaults"
-	"github.com/ardanlabs/kronk/sdk/tools/libs"
-	"github.com/ardanlabs/kronk/sdk/tools/models"
-	"github.com/ardanlabs/kronk/sdk/tools/templates"
+	"github.com/kawai-network/veridium/sdk/kronk"
+	"github.com/kawai-network/veridium/sdk/kronk/model"
+	"github.com/kawai-network/veridium/sdk/tools/defaults"
+	"github.com/kawai-network/veridium/sdk/tools/libs"
+	"github.com/kawai-network/veridium/sdk/tools/models"
+	"github.com/kawai-network/veridium/sdk/tools/templates"
 )
 
 const modelURL = "Qwen/Qwen3-8B-GGUF/Qwen3-8B-Q8_0.gguf"
@@ -872,12 +872,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/ardanlabs/kronk/sdk/kronk"
-	"github.com/ardanlabs/kronk/sdk/kronk/model"
-	"github.com/ardanlabs/kronk/sdk/tools/defaults"
-	"github.com/ardanlabs/kronk/sdk/tools/libs"
-	"github.com/ardanlabs/kronk/sdk/tools/models"
-	"github.com/ardanlabs/kronk/sdk/tools/templates"
+	"github.com/kawai-network/veridium/sdk/kronk"
+	"github.com/kawai-network/veridium/sdk/kronk/model"
+	"github.com/kawai-network/veridium/sdk/tools/defaults"
+	"github.com/kawai-network/veridium/sdk/tools/libs"
+	"github.com/kawai-network/veridium/sdk/tools/models"
+	"github.com/kawai-network/veridium/sdk/tools/templates"
 )
 
 const modelURL = "ggml-org/embeddinggemma-300m-qat-q8_0-GGUF/embeddinggemma-300m-qat-Q8_0.gguf"
@@ -1038,12 +1038,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/ardanlabs/kronk/sdk/kronk"
-	"github.com/ardanlabs/kronk/sdk/kronk/model"
-	"github.com/ardanlabs/kronk/sdk/tools/defaults"
-	"github.com/ardanlabs/kronk/sdk/tools/libs"
-	"github.com/ardanlabs/kronk/sdk/tools/models"
-	"github.com/ardanlabs/kronk/sdk/tools/templates"
+	"github.com/kawai-network/veridium/sdk/kronk"
+	"github.com/kawai-network/veridium/sdk/kronk/model"
+	"github.com/kawai-network/veridium/sdk/tools/defaults"
+	"github.com/kawai-network/veridium/sdk/tools/libs"
+	"github.com/kawai-network/veridium/sdk/tools/models"
+	"github.com/kawai-network/veridium/sdk/tools/templates"
 )
 
 const modelURL = "gpustack/bge-reranker-v2-m3-GGUF/bge-reranker-v2-m3-Q8_0.gguf"
@@ -1214,12 +1214,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/ardanlabs/kronk/sdk/kronk"
-	"github.com/ardanlabs/kronk/sdk/kronk/model"
-	"github.com/ardanlabs/kronk/sdk/tools/defaults"
-	"github.com/ardanlabs/kronk/sdk/tools/libs"
-	"github.com/ardanlabs/kronk/sdk/tools/models"
-	"github.com/ardanlabs/kronk/sdk/tools/templates"
+	"github.com/kawai-network/veridium/sdk/kronk"
+	"github.com/kawai-network/veridium/sdk/kronk/model"
+	"github.com/kawai-network/veridium/sdk/tools/defaults"
+	"github.com/kawai-network/veridium/sdk/tools/libs"
+	"github.com/kawai-network/veridium/sdk/tools/models"
+	"github.com/kawai-network/veridium/sdk/tools/templates"
 )
 
 const (
@@ -1459,12 +1459,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/ardanlabs/kronk/sdk/kronk"
-	"github.com/ardanlabs/kronk/sdk/kronk/model"
-	"github.com/ardanlabs/kronk/sdk/tools/defaults"
-	"github.com/ardanlabs/kronk/sdk/tools/libs"
-	"github.com/ardanlabs/kronk/sdk/tools/models"
-	"github.com/ardanlabs/kronk/sdk/tools/templates"
+	"github.com/kawai-network/veridium/sdk/kronk"
+	"github.com/kawai-network/veridium/sdk/kronk/model"
+	"github.com/kawai-network/veridium/sdk/tools/defaults"
+	"github.com/kawai-network/veridium/sdk/tools/libs"
+	"github.com/kawai-network/veridium/sdk/tools/models"
+	"github.com/kawai-network/veridium/sdk/tools/templates"
 )
 
 const (

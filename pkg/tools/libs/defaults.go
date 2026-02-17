@@ -6,9 +6,10 @@ import (
 	"github.com/kawai-network/veridium/pkg/tools/defaults"
 )
 
-// Path returns the location for the libraries folder. It will check the
-// KRONK_LIB_PATH env var first and then default to the home directory if
-// one can be identified. Last resort it will choose the current directory.
+// Path returns the location for the libraries folder.
+// If override is provided, it uses that path directly.
+// Otherwise, it delegates to defaults.BaseDir to determine the base directory
+// (which checks VERIDIUM_BASE_DIR env var, then home directory, then current directory).
 func Path(override string) string {
 	if override != "" {
 		return override

@@ -55,8 +55,8 @@ func Run() error {
 	flag.Parse()
 
 	packages := make(map[string]string)
-	packages["kronk"] = "github.com/kawai-network/veridium/pkg/kronk"
-	packages["model"] = "github.com/kawai-network/veridium/pkg/kronk/model"
+	packages["kronk"] = "github.com/kawai-network/veridium/sdk/kronk"
+	packages["model"] = "github.com/kawai-network/veridium/sdk/kronk/model"
 
 	outputDir := "cmd/server/api/frontends/bui/src/components"
 

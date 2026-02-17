@@ -38,7 +38,7 @@ export default function Settings() {
                 id="apiToken"
                 value={inputToken}
                 onChange={(e) => setInputToken(e.target.value)}
-                placeholder="Enter your KRONK_TOKEN"
+                placeholder="Enter your API_KEY"
                 style={{ flex: 1 }}
               />
               <button

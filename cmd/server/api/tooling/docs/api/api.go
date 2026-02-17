@@ -71,6 +71,7 @@ func Run() error {
 		embeddingsDoc(),
 		rerankDoc(),
 		toolsDoc(),
+		speechDoc(),
 	}
 
 	for _, doc := range docs {
@@ -104,11 +105,11 @@ func generateAPITSX(doc apiDoc) string {
 
 	b.WriteString("          <div className=\"card\" id=\"overview\">\n")
 	b.WriteString("            <h3>Overview</h3>\n")
-	b.WriteString("            <p>All endpoints are prefixed with <code>/v1</code>. Base URL: <code>http://localhost:8080</code></p>\n")
+	b.WriteString("            <p>All endpoints are prefixed with <code>/v1</code>. Base URL: <code>https://api.getkawai.com</code></p>\n")
 	b.WriteString("            <h4>Authentication</h4>\n")
 	b.WriteString("            <p>When authentication is enabled, include the token in the Authorization header:</p>\n")
 	b.WriteString("            <pre className=\"code-block\">\n")
-	b.WriteString("              <code>Authorization: Bearer YOUR_TOKEN</code>\n")
+	b.WriteString("              <code>Authorization: Bearer API_KEY</code>\n")
 	b.WriteString("            </pre>\n")
 	b.WriteString("          </div>\n")
 
@@ -309,8 +310,8 @@ func chatCompletionExamples() []example {
 	return []example{
 		{
 			Description: "Simple text message:",
-			Code: `curl -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/chat/completions \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "stream": true,
@@ -329,8 +330,8 @@ func chatCompletionExamples() []example {
 		},
 		{
 			Description: "Multi-turn conversation:",
-			Code: `curl -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/chat/completions \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "stream": true,
@@ -344,8 +345,8 @@ func chatCompletionExamples() []example {
 		},
 		{
 			Description: "Vision - image from URL (requires vision model):",
-			Code: `curl -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/chat/completions \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "stream": true,
@@ -363,8 +364,8 @@ func chatCompletionExamples() []example {
 		},
 		{
 			Description: "Vision - base64 encoded image (requires vision model):",
-			Code: `curl -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/chat/completions \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "stream": true,
@@ -382,8 +383,8 @@ func chatCompletionExamples() []example {
 		},
 		{
 			Description: "Audio - base64 encoded audio (requires audio model):",
-			Code: `curl -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/chat/completions \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "stream": true,
@@ -401,8 +402,8 @@ func chatCompletionExamples() []example {
 		},
 		{
 			Description: "Tool/Function calling - define tools and let the model call them:",
-			Code: `curl -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/chat/completions \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "stream": true,
@@ -552,8 +553,8 @@ func messagesExamples() []example {
 	return []example{
 		{
 			Description: "Basic message:",
-			Code: `curl -X POST http://localhost:8080/v1/messages \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/messages \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3-8b-q8_0",
@@ -565,8 +566,8 @@ func messagesExamples() []example {
 		},
 		{
 			Description: "With system prompt:",
-			Code: `curl -X POST http://localhost:8080/v1/messages \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/messages \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3-8b-q8_0",
@@ -579,8 +580,8 @@ func messagesExamples() []example {
 		},
 		{
 			Description: "Streaming response:",
-			Code: `curl -X POST http://localhost:8080/v1/messages \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/messages \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3-8b-q8_0",
@@ -593,8 +594,8 @@ func messagesExamples() []example {
 		},
 		{
 			Description: "Multi-turn conversation:",
-			Code: `curl -X POST http://localhost:8080/v1/messages \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/messages \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3-8b-q8_0",
@@ -608,8 +609,8 @@ func messagesExamples() []example {
 		},
 		{
 			Description: "Vision with image URL (requires vision model):",
-			Code: `curl -X POST http://localhost:8080/v1/messages \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/messages \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen2.5-vl-3b-instruct-q8_0",
@@ -627,8 +628,8 @@ func messagesExamples() []example {
 		},
 		{
 			Description: "Vision with base64 image (requires vision model):",
-			Code: `curl -X POST http://localhost:8080/v1/messages \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/messages \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen2.5-vl-3b-instruct-q8_0",
@@ -653,8 +654,8 @@ func messagesExamples() []example {
 		},
 		{
 			Description: "Tool calling:",
-			Code: `curl -X POST http://localhost:8080/v1/messages \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/messages \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3-8b-q8_0",
@@ -682,8 +683,8 @@ func messagesExamples() []example {
 		},
 		{
 			Description: "Tool result (continue conversation after tool call):",
-			Code: `curl -X POST http://localhost:8080/v1/messages \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/messages \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3-8b-q8_0",
@@ -950,8 +951,8 @@ func responsesExamples() []example {
 	return []example{
 		{
 			Description: "Basic response:",
-			Code: `curl -X POST http://localhost:8080/v1/responses \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/responses \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3-8b-q8_0",
@@ -962,8 +963,8 @@ func responsesExamples() []example {
 		},
 		{
 			Description: "Streaming response:",
-			Code: `curl -X POST http://localhost:8080/v1/responses \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/responses \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3-8b-q8_0",
@@ -975,8 +976,8 @@ func responsesExamples() []example {
 		},
 		{
 			Description: "With tools:",
-			Code: `curl -X POST http://localhost:8080/v1/responses \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+			Code: `curl -X POST https://api.getkawai.com/v1/responses \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3-8b-q8_0",
@@ -1293,8 +1294,8 @@ func embeddingsDoc() apiDoc {
 						Examples: []example{
 							{
 								Description: "Generate embeddings for text:",
-								Code: `curl -X POST http://localhost:8080/v1/embeddings \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+								Code: `curl -X POST https://api.getkawai.com/v1/embeddings \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "embeddinggemma-300m-qat-Q8_0",
@@ -1346,8 +1347,8 @@ func rerankDoc() apiDoc {
 						Examples: []example{
 							{
 								Description: "Rerank documents for a query:",
-								Code: `curl -X POST http://localhost:8080/v1/rerank \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
+								Code: `curl -X POST https://api.getkawai.com/v1/rerank \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "bge-reranker-v2-m3-Q8_0",
@@ -1402,7 +1403,7 @@ func libsEndpoints() endpointGroup {
 				Examples: []example{
 					{
 						Description: "Get library information:",
-						Code:        `curl -X GET http://localhost:8080/v1/libs`,
+						Code:        `curl -X GET https://api.getkawai.com/v1/libs`,
 					},
 				},
 			},
@@ -1421,7 +1422,7 @@ func libsEndpoints() endpointGroup {
 				Examples: []example{
 					{
 						Description: "Pull latest libraries:",
-						Code:        `curl -X POST http://localhost:8080/v1/libs/pull`,
+						Code:        `curl -X POST https://api.getkawai.com/v1/libs/pull`,
 					},
 				},
 			},
@@ -1449,7 +1450,7 @@ func modelsEndpoints() endpointGroup {
 				Examples: []example{
 					{
 						Description: "List all models:",
-						Code:        `curl -X GET http://localhost:8080/v1/models`,
+						Code:        `curl -X GET https://api.getkawai.com/v1/models`,
 					},
 				},
 			},
@@ -1468,7 +1469,7 @@ func modelsEndpoints() endpointGroup {
 				Examples: []example{
 					{
 						Description: "Show model details:",
-						Code:        `curl -X GET http://localhost:8080/v1/models/qwen3-8b-q8_0`,
+						Code:        `curl -X GET https://api.getkawai.com/v1/models/qwen3-8b-q8_0`,
 					},
 				},
 			},
@@ -1487,7 +1488,7 @@ func modelsEndpoints() endpointGroup {
 				Examples: []example{
 					{
 						Description: "List running models:",
-						Code:        `curl -X GET http://localhost:8080/v1/models/ps`,
+						Code:        `curl -X GET https://api.getkawai.com/v1/models/ps`,
 					},
 				},
 			},
@@ -1506,7 +1507,7 @@ func modelsEndpoints() endpointGroup {
 				Examples: []example{
 					{
 						Description: "Rebuild model index:",
-						Code:        `curl -X POST http://localhost:8080/v1/models/index`,
+						Code:        `curl -X POST https://api.getkawai.com/v1/models/index`,
 					},
 				},
 			},
@@ -1533,7 +1534,7 @@ func modelsEndpoints() endpointGroup {
 				Examples: []example{
 					{
 						Description: "Pull a model from HuggingFace:",
-						Code: `curl -X POST http://localhost:8080/v1/models/pull \
+						Code: `curl -X POST https://api.getkawai.com/v1/models/pull \
   -H "Content-Type: application/json" \
   -d '{
     "model_url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q8_0.gguf"
@@ -1556,7 +1557,7 @@ func modelsEndpoints() endpointGroup {
 				Examples: []example{
 					{
 						Description: "Remove a model:",
-						Code:        `curl -X DELETE http://localhost:8080/v1/models/qwen3-8b-q8_0`,
+						Code:        `curl -X DELETE https://api.getkawai.com/v1/models/qwen3-8b-q8_0`,
 					},
 				},
 			},
@@ -1584,7 +1585,7 @@ func catalogEndpoints() endpointGroup {
 				Examples: []example{
 					{
 						Description: "List catalog models:",
-						Code:        `curl -X GET http://localhost:8080/v1/catalog`,
+						Code:        `curl -X GET https://api.getkawai.com/v1/catalog`,
 					},
 				},
 			},
@@ -1603,7 +1604,7 @@ func catalogEndpoints() endpointGroup {
 				Examples: []example{
 					{
 						Description: "Filter catalog by category:",
-						Code:        `curl -X GET http://localhost:8080/v1/catalog/filter/embedding`,
+						Code:        `curl -X GET https://api.getkawai.com/v1/catalog/filter/embedding`,
 					},
 				},
 			},
@@ -1622,7 +1623,7 @@ func catalogEndpoints() endpointGroup {
 				Examples: []example{
 					{
 						Description: "Show catalog model details:",
-						Code:        `curl -X GET http://localhost:8080/v1/catalog/qwen3-8b-q8_0`,
+						Code:        `curl -X GET https://api.getkawai.com/v1/catalog/qwen3-8b-q8_0`,
 					},
 				},
 			},
@@ -1641,7 +1642,116 @@ func catalogEndpoints() endpointGroup {
 				Examples: []example{
 					{
 						Description: "Pull a catalog model:",
-						Code:        `curl -X POST http://localhost:8080/v1/catalog/pull/qwen3-8b-q8_0`,
+						Code:        `curl -X POST https://api.getkawai.com/v1/catalog/pull/qwen3-8b-q8_0`,
+					},
+				},
+			},
+		},
+	}
+}
+
+func speechDoc() apiDoc {
+	return apiDoc{
+		Name:        "Text-to-Speech API",
+		Description: "Generate speech from text using TTS models. Compatible with the OpenAI Speech API.",
+		Filename:    "DocsAPISpeech.tsx",
+		Component:   "DocsAPISpeech",
+		Groups: []endpointGroup{
+			{
+				Name:        "Text-to-Speech",
+				Description: "Generate audio from text using text-to-speech models.",
+				Endpoints: []endpoint{
+					{
+						Method:      "POST",
+						Path:        "/audio/speech",
+						Description: "Generates audio from the input text using a specified voice. Supports multiple output formats.",
+						Auth:        "Required when auth is enabled. Token must have 'audio-speech' endpoint access.",
+						Headers: []header{
+							{Name: "Authorization", Description: "Bearer token for authentication", Required: true},
+							{Name: "Content-Type", Description: "Must be application/json", Required: true},
+						},
+						RequestBody: &requestBody{
+							ContentType: "application/json",
+							Fields: []field{
+								{Name: "model", Type: "string", Required: true, Description: "TTS model ID (e.g., 'kokoro')"},
+								{Name: "input", Type: "string", Required: true, Description: "The text to generate audio for"},
+								{Name: "voice", Type: "string", Required: false, Description: "The voice to use (default: 'af_sarah' for Kokoro)"},
+								{Name: "response_format", Type: "string", Required: false, Description: "Audio format: mp3, opus, aac, flac, wav, pcm (default: mp3)"},
+								{Name: "speed", Type: "number", Required: false, Description: "Speech speed multiplier 0.25-4.0 (default: 1.0)"},
+							},
+						},
+						Response: &response{
+							ContentType: "audio/*",
+							Description: "Returns binary audio data in the requested format.",
+						},
+						Examples: []example{
+							{
+								Description: "Generate speech with default voice:",
+								Code: `curl -X POST https://api.getkawai.com/v1/audio/speech \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "kokoro",
+    "input": "Hello, this is a test of text to speech.",
+    "voice": "af_sarah"
+  }' \
+  --output speech.mp3`,
+							},
+							{
+								Description: "Generate speech with specific voice and format:",
+								Code: `curl -X POST https://api.getkawai.com/v1/audio/speech \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "kokoro",
+    "input": "Welcome to Kawai DeAI Network!",
+    "voice": "af_sarah",
+    "response_format": "wav"
+  }' \
+  --output speech.wav`,
+							},
+							{
+								Description: "Generate speech with slower speed:",
+								Code: `curl -X POST https://api.getkawai.com/v1/audio/speech \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "kokoro",
+    "input": "Please listen carefully to these instructions.",
+    "voice": "af_sarah",
+    "speed": 0.8
+  }' \
+  --output speech.mp3`,
+							},
+						},
+					},
+				},
+			},
+			{
+				Name:        "Supported Models",
+				Description: "Available TTS models and voices for speech generation.",
+				Endpoints: []endpoint{
+					{
+						Method:      "",
+						Path:        "Kokoro TTS",
+						Description: "Kokoro is an open-source TTS model optimized for high-quality English speech synthesis. It supports multiple voices.",
+						Examples: []example{
+							{
+								Description: "Available voices for Kokoro:",
+								Code: `// American English voices
+af_sarah    - Sarah (Female)
+af_nicole   - Nicole (Female)
+am_adam     - Adam (Male)
+
+// British English voices
+bf_emma     - Emma (Female)
+bm_george   - George (Male)
+
+// Other English voices
+af_bella    - Bella (Female)
+af_heart    - Heart (Female)`,
+							},
+						},
 					},
 				},
 			},

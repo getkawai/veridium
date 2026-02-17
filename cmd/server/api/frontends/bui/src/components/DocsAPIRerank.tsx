@@ -10,11 +10,11 @@ export default function DocsAPIRerank() {
         <div className="doc-content">
           <div className="card" id="overview">
             <h3>Overview</h3>
-            <p>All endpoints are prefixed with <code>/v1</code>. Base URL: <code>http://localhost:8080</code></p>
+            <p>All endpoints are prefixed with <code>/v1</code>. Base URL: <code>https://api.getkawai.com</code></p>
             <h4>Authentication</h4>
             <p>When authentication is enabled, include the token in the Authorization header:</p>
             <pre className="code-block">
-              <code>Authorization: Bearer YOUR_TOKEN</code>
+              <code>Authorization: Bearer API_KEY</code>
             </pre>
           </div>
 
@@ -97,8 +97,8 @@ export default function DocsAPIRerank() {
               <h5>Example</h5>
               <p className="example-label"><strong>Rerank documents for a query:</strong></p>
               <pre className="code-block">
-                <code>{`curl -X POST http://localhost:8080/v1/rerank \\
-  -H "Authorization: Bearer $KRONK_TOKEN" \\
+                <code>{`curl -X POST https://api.getkawai.com/v1/rerank \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "bge-reranker-v2-m3-Q8_0",

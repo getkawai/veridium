@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultGithubPath = "https://api.github.com/repos/ardanlabs/kronk_catalogs/contents/catalogs"
+	defaultGithubPath = "https://api.github.com/repos/kawai-network/veridium_catalogs/contents/catalogs"
 	localFolder       = "catalogs"
 	indexFile         = ".index.yaml"
 )

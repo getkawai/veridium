@@ -109,7 +109,7 @@ function HomePage() {
     <div className="home-page">
       <div className="hero-section">
         <img
-          src="https://raw.githubusercontent.com/ardanlabs/kronk/refs/heads/main/images/project/kronk_banner.jpg"
+          src="https://raw.githubusercontent.com/kawai-network/veridium/refs/heads/main/images/project/kronk_banner.jpg"
           alt="Kronk Banner"
           className="hero-banner"
         />

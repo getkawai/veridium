@@ -3,6 +3,7 @@ package kronk
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kawai-network/veridium/cmd/server/app/domain/ttsapp"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/whisperapp"
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/services"
@@ -24,6 +26,38 @@ import (
 	"github.com/kawai-network/veridium/pkg/tools/defaults"
 	"github.com/kawai-network/veridium/pkg/tools/libs"
 	"github.com/kawai-network/veridium/pkg/tools/models"
+)
+
+// Constants for configuration
+const (
+	// MinRequiredMemoryGB is the minimum required RAM/VRAM in GB for hardware check
+	MinRequiredMemoryGB = 24
+
+	// MinPasswordLength is the minimum password length
+	MinPasswordLength = 8
+
+	// MaxPasswordLength is the maximum password length
+	MaxPasswordLength = 128
+
+	// PrivateKeyLength is the expected length of a hex private key
+	PrivateKeyLength = 64
+
+	// LibraryDownloadTimeout is the timeout for library downloads
+	LibraryDownloadTimeout = 10 * time.Minute
+
+	// ModelDownloadTimeout is the timeout for model downloads
+	ModelDownloadTimeout = 30 * time.Minute
+
+	// LLMDownloadTimeout is the timeout for LLM downloads
+	LLMDownloadTimeout = 2 * time.Hour
+)
+
+// Model configuration (could be moved to config file)
+const (
+	DefaultLLMOrg       = "unsloth"
+	DefaultLLMRepo      = "Nemotron-3-Nano-30B-A3B-GGUF"
+	DefaultLLMFile      = "Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
+	DefaultWhisperModel = "base"
 )
 
 // Styles for the TUI
@@ -124,7 +158,6 @@ type setupTUIModel struct {
 	privateKeyInput     textinput.Model
 	generatedMnemonic   string
 	walletAddress       string
-	keystorePassword    string // Separate password for keystore import
 	mnemonicCopied      bool
 	copyError           string
 
@@ -141,6 +174,7 @@ type setupTUIModel struct {
 	libraryProgress float64
 	whisperProgress float64
 	sdProgress      float64
+	ttsProgress     float64
 	llmProgress     float64
 
 	// Results
@@ -221,8 +255,10 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.step == stepLibraryDownload {
 			m.libraryProgress = float64(msg)
 		} else if m.step == stepModelDownload {
-			// Basic heuristic: update whatever progress is active (whisper or SD)
-			if m.result.WhisperReady {
+			// Basic heuristic: update whatever progress is active (whisper, SD, or TTS)
+			if m.result.WhisperReady && m.result.StableDiffReady {
+				m.ttsProgress = float64(msg)
+			} else if m.result.WhisperReady {
 				m.sdProgress = float64(msg)
 			} else {
 				m.whisperProgress = float64(msg)
@@ -289,6 +325,7 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.step = stepError
 		} else if msg.done {
 			m.result.LibraryReady = true
+			m.result.TTSReady = true
 			m.step = stepModelDownload
 			return m, m.downloadModelsCmd()
 		} else {
@@ -309,6 +346,14 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.downloadSDCmd()
 			case "sd":
 				m.result.StableDiffReady = true
+				return m, m.downloadTTSCmd()
+			case "tts":
+				if msg.err != nil {
+					m.errors = append(m.errors, fmt.Errorf("tts model download failed (optional): %w", msg.err))
+					m.result.TTSReady = false
+				} else {
+					m.result.TTSReady = true
+				}
 				m.step = stepLLMDownload
 				return m, m.downloadLLMCmd()
 			case "llm":
@@ -544,23 +589,29 @@ func validateKeystoreJSON(jsonStr string) (bool, string) {
 		return false, "Keystore JSON cannot be empty"
 	}
 
-	// Check if it's valid JSON format
-	if !strings.HasPrefix(strings.TrimSpace(jsonStr), "{") ||
-		!strings.HasSuffix(strings.TrimSpace(jsonStr), "}") {
-		return false, "Invalid JSON format (must start with { and end with })"
+	// Parse JSON properly
+	var ks struct {
+		Address string `json:"address"`
+		Crypto  struct {
+			Kdf        string `json:"kdf"`
+			Ciphertext string `json:"ciphertext"`
+		} `json:"crypto"`
+		Version int `json:"version"`
 	}
 
-	// Check for required keystore fields
-	requiredFields := []string{"address", "crypto", "version"}
-	for _, field := range requiredFields {
-		if !strings.Contains(jsonStr, `"`+field+`"`) {
-			return false, fmt.Sprintf("Missing required field: %s", field)
-		}
+	if err := json.Unmarshal([]byte(jsonStr), &ks); err != nil {
+		return false, fmt.Sprintf("Invalid JSON format: %v", err)
 	}
 
-	// Check for crypto.kdf or crypto.ciphertext (at least one should exist)
-	if !strings.Contains(jsonStr, `"kdf"`) && !strings.Contains(jsonStr, `"ciphertext"`) {
-		return false, "Invalid keystore: missing crypto information"
+	// Validate required fields
+	if ks.Address == "" {
+		return false, "Missing required field: address"
+	}
+	if ks.Version == 0 {
+		return false, "Missing or invalid required field: version"
+	}
+	if ks.Crypto.Kdf == "" && ks.Crypto.Ciphertext == "" {
+		return false, "Invalid keystore: missing crypto information (kdf or ciphertext)"
 	}
 
 	return true, ""
@@ -854,7 +905,7 @@ func (m setupTUIModel) libraryDownloadView() string {
 	return fmt.Sprintf(
 		"%s\n\n%s\n\n%s %.1f%%\n\n%s",
 		m.styles.Title.Render("📦 Downloading Libraries"),
-		"Downloading llama.cpp, whisper.cpp, and Stable Diffusion libraries...",
+		"Downloading llama.cpp, whisper.cpp, Stable Diffusion, and TTS libraries...",
 		m.progressBar.ViewAs(m.libraryProgress),
 		m.libraryProgress*100,
 		m.spinner.View()+" Please wait...",
@@ -874,7 +925,11 @@ func (m setupTUIModel) modelDownloadView() string {
 	b.WriteString(m.progressBar.ViewAs(m.sdProgress))
 	b.WriteString(fmt.Sprintf(" %.1f%%\n\n", m.sdProgress*100))
 
-	if m.whisperProgress < 1.0 || m.sdProgress < 1.0 {
+	b.WriteString("TTS (Text-to-Speech):\n")
+	b.WriteString(m.progressBar.ViewAs(m.ttsProgress))
+	b.WriteString(fmt.Sprintf(" %.1f%%\n\n", m.ttsProgress*100))
+
+	if m.whisperProgress < 1.0 || m.sdProgress < 1.0 || m.ttsProgress < 1.0 {
 		b.WriteString(m.spinner.View() + " Downloading...")
 	}
 
@@ -923,6 +978,13 @@ func (m setupTUIModel) summaryView() string {
 		b.WriteString(m.styles.Success.Render("✓ Stable Diffusion ready"))
 	} else {
 		b.WriteString(m.styles.Error.Render("✗ Stable Diffusion failed"))
+	}
+	b.WriteString("\n")
+
+	if m.result.TTSReady {
+		b.WriteString(m.styles.Success.Render("✓ TTS ready"))
+	} else {
+		b.WriteString(m.styles.Error.Render("✗ TTS failed"))
 	}
 	b.WriteString("\n")
 
@@ -1284,7 +1346,7 @@ func (m setupTUIModel) downloadLibrariesCmd() tea.Cmd {
 			return libraryDownloadMsg{progress: 0, done: false, err: fmt.Errorf("failed to detect processor: %w", err)}
 		}
 
-		libraries := []libs.LibraryType{libs.LibraryLlama, libs.LibraryWhisper, libs.LibraryStableDiffusion}
+		libraries := []libs.LibraryType{libs.LibraryLlama, libs.LibraryWhisper, libs.LibraryStableDiffusion, libs.LibraryTTS}
 		totalLibs := float64(len(libraries))
 
 		for i, libType := range libraries {
@@ -1339,14 +1401,24 @@ func (m setupTUIModel) downloadLibrariesCmd() tea.Cmd {
 func (m setupTUIModel) downloadModelsCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
-		downloadCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+		downloadCtx, cancel := context.WithTimeout(ctx, ModelDownloadTimeout)
 		defer cancel()
 
 		// Setup Whisper model
 		existingModels, _ := whisperapp.ListDownloadedModels()
 		if len(existingModels) == 0 {
-			// Download whisper base model
-			if err := whisperapp.DownloadModelWithProgress(downloadCtx, "base", nil); err != nil {
+			// Download whisper base model with progress reporting
+			progressCallback := func(currentBytes, totalBytes int64) {
+				if totalBytes > 0 {
+					percent := float64(currentBytes) / float64(totalBytes)
+					select {
+					case m.progressChan <- percent:
+					default:
+					}
+				}
+			}
+
+			if err := whisperapp.DownloadModelWithProgress(downloadCtx, "base", progressCallback); err != nil {
 				// Log error but return success so setup continues
 				fmt.Printf("Warning: failed to download whisper model: %v\n", err)
 				return modelDownloadMsg{modelType: "whisper", progress: 1.0, done: true, err: err}
@@ -1360,7 +1432,7 @@ func (m setupTUIModel) downloadModelsCmd() tea.Cmd {
 func (m setupTUIModel) downloadSDCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
-		downloadCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+		downloadCtx, cancel := context.WithTimeout(ctx, ModelDownloadTimeout)
 		defer cancel()
 
 		// Setup Stable Diffusion model
@@ -1373,8 +1445,18 @@ func (m setupTUIModel) downloadSDCmd() tea.Cmd {
 		}
 
 		if modelFile == "" {
-			// Download default SD model
-			modelFile, err = downloader.DownloadModelSimple(downloadCtx, modeldownloader.DefaultModelURL)
+			// Download default SD model with progress reporting
+			progressCallback := func(bytesComplete, totalBytes int64, mbps float64, done bool) {
+				if totalBytes > 0 {
+					percent := float64(bytesComplete) / float64(totalBytes)
+					select {
+					case m.progressChan <- percent:
+					default:
+					}
+				}
+			}
+
+			modelFile, err = downloader.DownloadModel(downloadCtx, modeldownloader.DefaultModelURL, progressCallback)
 			if err != nil {
 				return modelDownloadMsg{modelType: "sd", progress: 0, done: false, err: fmt.Errorf("failed to download SD model: %w", err)}
 			}
@@ -1384,14 +1466,53 @@ func (m setupTUIModel) downloadSDCmd() tea.Cmd {
 	}
 }
 
+func (m setupTUIModel) downloadTTSCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		downloadCtx, cancel := context.WithTimeout(ctx, ModelDownloadTimeout)
+		defer cancel()
+
+		// Setup TTS model
+		modelsPath := paths.Models()
+		ttsModelsPath := filepath.Join(modelsPath, "tts")
+		downloader := ttsapp.NewModelDownloader(ttsModelsPath)
+
+		modelFile, err := downloader.DiscoverModel()
+		if err != nil {
+			return modelDownloadMsg{modelType: "tts", progress: 0, done: false, err: fmt.Errorf("error discovering TTS models: %w", err)}
+		}
+
+		if modelFile == "" {
+			// Download default TTS model with progress reporting
+			progressCallback := func(bytesComplete, totalBytes int64, mbps float64, done bool) {
+				if totalBytes > 0 {
+					percent := float64(bytesComplete) / float64(totalBytes)
+					select {
+					case m.progressChan <- percent:
+					default:
+					}
+				}
+			}
+
+			modelFile, err = downloader.DownloadModel(downloadCtx, ttsapp.DefaultTTSModelURL, progressCallback)
+			if err != nil {
+				// TTS is optional, don't fail setup if download fails
+				return modelDownloadMsg{modelType: "tts", progress: 1.0, done: true, err: fmt.Errorf("failed to download TTS model: %w", err)}
+			}
+		}
+
+		return modelDownloadMsg{modelType: "tts", progress: 1.0, done: true}
+	}
+}
+
 func (m setupTUIModel) downloadLLMCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
 
 		// Nemotron 3 Nano model info
-		modelOrg := "unsloth"
-		modelRepo := "Nemotron-3-Nano-30B-A3B-GGUF"
-		modelFile := "Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
+		modelOrg := DefaultLLMOrg
+		modelRepo := DefaultLLMRepo
+		modelFile := DefaultLLMFile
 		modelsPath := paths.Models()
 		modelPath := filepath.Join(modelsPath, modelOrg, modelRepo, modelFile)
 
@@ -1408,11 +1529,31 @@ func (m setupTUIModel) downloadLLMCmd() tea.Cmd {
 			return modelDownloadMsg{modelType: "llm", progress: 0, done: false, err: fmt.Errorf("failed to create models manager: %w", err)}
 		}
 
-		downloadCtx, cancel := context.WithTimeout(ctx, 2*time.Hour)
+		downloadCtx, cancel := context.WithTimeout(ctx, LLMDownloadTimeout)
 		defer cancel()
 
+		// Create a logger callback that parses progress from log messages
+		// The models.Download logs progress in format: "Downloading... X MiB of Y MiB"
 		_, err = modelsManager.Download(downloadCtx, func(ctx context.Context, msg string, args ...any) {
-			// Progress callback
+			// Parse progress from log messages
+			// Format: "download-model: Downloading <url>... <current> MiB of <total> MiB (<speed> MiB/s)"
+			if len(args) >= 4 {
+				// args format: currentSize/(1024*1024), totalSize/(1024*1024), mibPerSec
+				// The log message uses: currentSize/(1024*1024), totalSize/(1024*1024), mibPerSec
+				// We need to extract current and total from the formatted message
+				msgStr := fmt.Sprintf(msg, args...)
+				// Try to parse progress from the message
+				// Look for pattern: "X MiB of Y MiB"
+				var currentMiB, totalMiB int64
+				n, _ := fmt.Sscanf(msgStr, "download-model: Downloading %s... %d MiB of %d MiB", new(string), &currentMiB, &totalMiB)
+				if n == 3 && totalMiB > 0 {
+					percent := float64(currentMiB) / float64(totalMiB)
+					select {
+					case m.progressChan <- percent:
+					default:
+					}
+				}
+			}
 		}, modelURL, "")
 		if err != nil {
 			return modelDownloadMsg{modelType: "llm", progress: 0, done: false, err: fmt.Errorf("failed to download LLM model: %w", err)}

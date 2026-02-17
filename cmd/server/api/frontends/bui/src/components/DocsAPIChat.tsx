@@ -10,11 +10,11 @@ export default function DocsAPIChat() {
         <div className="doc-content">
           <div className="card" id="overview">
             <h3>Overview</h3>
-            <p>All endpoints are prefixed with <code>/v1</code>. Base URL: <code>http://localhost:8080</code></p>
+            <p>All endpoints are prefixed with <code>/v1</code>. Base URL: <code>https://api.getkawai.com</code></p>
             <h4>Authentication</h4>
             <p>When authentication is enabled, include the token in the Authorization header:</p>
             <pre className="code-block">
-              <code>Authorization: Bearer YOUR_TOKEN</code>
+              <code>Authorization: Bearer API_KEY</code>
             </pre>
           </div>
 
@@ -88,127 +88,127 @@ export default function DocsAPIChat() {
                     <td><code>temperature</code></td>
                     <td><code>float32</code></td>
                     <td>No</td>
-                    <td>Controls randomness of output by rescaling probability distribution</td>
+                    <td>Controls randomness of output (default: 0.8)</td>
                   </tr>
                   <tr>
                     <td><code>top_k</code></td>
                     <td><code>int32</code></td>
                     <td>No</td>
-                    <td>Limits token pool to K most probable tokens</td>
+                    <td>Limits token pool to K most probable tokens (default: 40)</td>
                   </tr>
                   <tr>
                     <td><code>top_p</code></td>
                     <td><code>float32</code></td>
                     <td>No</td>
-                    <td>Nucleus sampling - selects tokens whose cumulative probability exceeds threshold</td>
+                    <td>Nucleus sampling threshold (default: 0.9)</td>
                   </tr>
                   <tr>
                     <td><code>min_p</code></td>
                     <td><code>float32</code></td>
                     <td>No</td>
-                    <td>Dynamic sampling threshold balancing coherence and diversity</td>
+                    <td>Dynamic sampling threshold (default: 0.0)</td>
                   </tr>
                   <tr>
                     <td><code>max_tokens</code></td>
                     <td><code>int</code></td>
                     <td>No</td>
-                    <td>Maximum output tokens to generate</td>
+                    <td>Maximum output tokens (default: context window)</td>
                   </tr>
                   <tr>
                     <td><code>repeat_penalty</code></td>
                     <td><code>float32</code></td>
                     <td>No</td>
-                    <td>Penalty for repeated tokens to reduce repetitive text</td>
+                    <td>Penalty for repeated tokens (default: 1.1)</td>
                   </tr>
                   <tr>
                     <td><code>repeat_last_n</code></td>
                     <td><code>int32</code></td>
                     <td>No</td>
-                    <td>Number of recent tokens to consider for repetition penalty</td>
+                    <td>Recent tokens to consider for repetition penalty (default: 64)</td>
                   </tr>
                   <tr>
                     <td><code>dry_multiplier</code></td>
                     <td><code>float32</code></td>
                     <td>No</td>
-                    <td>DRY sampler multiplier for n-gram repetition penalty (0 = disabled)</td>
+                    <td>DRY sampler multiplier for n-gram repetition penalty (default: 0.0, disabled)</td>
                   </tr>
                   <tr>
                     <td><code>dry_base</code></td>
                     <td><code>float32</code></td>
                     <td>No</td>
-                    <td>Base for exponential penalty growth in DRY</td>
+                    <td>Base for exponential penalty growth in DRY (default: 1.75)</td>
                   </tr>
                   <tr>
                     <td><code>dry_allowed_length</code></td>
                     <td><code>int32</code></td>
                     <td>No</td>
-                    <td>Minimum n-gram length before DRY applies</td>
+                    <td>Minimum n-gram length before DRY applies (default: 2)</td>
                   </tr>
                   <tr>
                     <td><code>dry_penalty_last_n</code></td>
                     <td><code>int32</code></td>
                     <td>No</td>
-                    <td>Number of recent tokens DRY considers (0 = full context)</td>
+                    <td>Recent tokens DRY considers, 0 = full context (default: 0)</td>
                   </tr>
                   <tr>
                     <td><code>xtc_probability</code></td>
                     <td><code>float32</code></td>
                     <td>No</td>
-                    <td>XTC probability for extreme token culling (0 = disabled)</td>
+                    <td>XTC probability for extreme token culling (default: 0.0, disabled)</td>
                   </tr>
                   <tr>
                     <td><code>xtc_threshold</code></td>
                     <td><code>float32</code></td>
                     <td>No</td>
-                    <td>Probability threshold for XTC culling</td>
+                    <td>Probability threshold for XTC culling (default: 0.1)</td>
                   </tr>
                   <tr>
                     <td><code>xtc_min_keep</code></td>
                     <td><code>uint32</code></td>
                     <td>No</td>
-                    <td>Minimum tokens to keep after XTC culling</td>
+                    <td>Minimum tokens to keep after XTC culling (default: 1)</td>
                   </tr>
                   <tr>
                     <td><code>enable_thinking</code></td>
                     <td><code>string</code></td>
                     <td>No</td>
-                    <td>Enable model thinking/reasoning for non-GPT models</td>
+                    <td>Enable model thinking for non-GPT models (default: true)</td>
                   </tr>
                   <tr>
                     <td><code>reasoning_effort</code></td>
                     <td><code>string</code></td>
                     <td>No</td>
-                    <td>Reasoning level for GPT models: none, minimal, low, medium, high</td>
+                    <td>Reasoning level for GPT models: none, minimal, low, medium, high (default: medium)</td>
                   </tr>
                   <tr>
                     <td><code>return_prompt</code></td>
                     <td><code>bool</code></td>
                     <td>No</td>
-                    <td>Include the prompt in the final response</td>
+                    <td>Include prompt in response (default: false)</td>
                   </tr>
                   <tr>
                     <td><code>include_usage</code></td>
                     <td><code>bool</code></td>
                     <td>No</td>
-                    <td>Include token usage information in streaming responses</td>
+                    <td>Include token usage information in streaming responses (default: true)</td>
                   </tr>
                   <tr>
                     <td><code>logprobs</code></td>
                     <td><code>bool</code></td>
                     <td>No</td>
-                    <td>Return log probabilities of output tokens</td>
+                    <td>Return log probabilities of output tokens (default: false)</td>
                   </tr>
                   <tr>
                     <td><code>top_logprobs</code></td>
                     <td><code>int</code></td>
                     <td>No</td>
-                    <td>Number of most likely tokens to return at each position (0-5)</td>
+                    <td>Number of most likely tokens to return at each position, 0-5 (default: 0)</td>
                   </tr>
                   <tr>
                     <td><code>stream</code></td>
                     <td><code>bool</code></td>
                     <td>No</td>
-                    <td>Stream response as server-sent events (SSE)</td>
+                    <td>Stream response as server-sent events (default: false)</td>
                   </tr>
                 </tbody>
               </table>
@@ -217,8 +217,8 @@ export default function DocsAPIChat() {
               <h5>Example</h5>
               <p className="example-label"><strong>Simple text message:</strong></p>
               <pre className="code-block">
-                <code>{`curl -X POST http://localhost:8080/v1/chat/completions \\
-  -H "Authorization: Bearer $KRONK_TOKEN" \\
+                <code>{`curl -X POST https://api.getkawai.com/v1/chat/completions \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "stream": true,
@@ -237,8 +237,8 @@ export default function DocsAPIChat() {
               </pre>
               <p className="example-label"><strong>Multi-turn conversation:</strong></p>
               <pre className="code-block">
-                <code>{`curl -X POST http://localhost:8080/v1/chat/completions \\
-  -H "Authorization: Bearer $KRONK_TOKEN" \\
+                <code>{`curl -X POST https://api.getkawai.com/v1/chat/completions \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "stream": true,
@@ -252,8 +252,8 @@ export default function DocsAPIChat() {
               </pre>
               <p className="example-label"><strong>Vision - image from URL (requires vision model):</strong></p>
               <pre className="code-block">
-                <code>{`curl -X POST http://localhost:8080/v1/chat/completions \\
-  -H "Authorization: Bearer $KRONK_TOKEN" \\
+                <code>{`curl -X POST https://api.getkawai.com/v1/chat/completions \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "stream": true,
@@ -271,8 +271,8 @@ export default function DocsAPIChat() {
               </pre>
               <p className="example-label"><strong>Vision - base64 encoded image (requires vision model):</strong></p>
               <pre className="code-block">
-                <code>{`curl -X POST http://localhost:8080/v1/chat/completions \\
-  -H "Authorization: Bearer $KRONK_TOKEN" \\
+                <code>{`curl -X POST https://api.getkawai.com/v1/chat/completions \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "stream": true,
@@ -290,8 +290,8 @@ export default function DocsAPIChat() {
               </pre>
               <p className="example-label"><strong>Audio - base64 encoded audio (requires audio model):</strong></p>
               <pre className="code-block">
-                <code>{`curl -X POST http://localhost:8080/v1/chat/completions \\
-  -H "Authorization: Bearer $KRONK_TOKEN" \\
+                <code>{`curl -X POST https://api.getkawai.com/v1/chat/completions \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "stream": true,
@@ -309,8 +309,8 @@ export default function DocsAPIChat() {
               </pre>
               <p className="example-label"><strong>Tool/Function calling - define tools and let the model call them:</strong></p>
               <pre className="code-block">
-                <code>{`curl -X POST http://localhost:8080/v1/chat/completions \\
-  -H "Authorization: Bearer $KRONK_TOKEN" \\
+                <code>{`curl -X POST https://api.getkawai.com/v1/chat/completions \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "stream": true,

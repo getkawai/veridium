@@ -10,6 +10,7 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/app/domain/rerankapp"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/respapp"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/toolapp"
+	"github.com/kawai-network/veridium/cmd/server/app/domain/ttsapp"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/whisperapp"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/mux"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
@@ -77,6 +78,10 @@ func (all) Add(app *web.App, cfg mux.Config) {
 	})
 
 	whisperapp.Routes(app, whisperapp.RouteConfig{
+		Log: cfg.Log,
+	})
+
+	ttsapp.Routes(app, ttsapp.RouteConfig{
 		Log: cfg.Log,
 	})
 }

@@ -53,7 +53,7 @@ export default function DocsCLILibs() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Authentication token for the kronk server (required when auth enabled)</td>
                   </tr>

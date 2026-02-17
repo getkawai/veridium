@@ -6,10 +6,11 @@ const (
 	LibraryLlama           LibraryType = "llama"
 	LibraryWhisper         LibraryType = "whisper"
 	LibraryStableDiffusion LibraryType = "stablediffusion"
+	LibraryTTS             LibraryType = "tts"
 )
 
 func AllLibraryTypes() []LibraryType {
-	return []LibraryType{LibraryLlama, LibraryWhisper, LibraryStableDiffusion}
+	return []LibraryType{LibraryLlama, LibraryWhisper, LibraryStableDiffusion, LibraryTTS}
 }
 
 func (lt LibraryType) String() string {
@@ -24,6 +25,8 @@ func ParseLibraryType(s string) LibraryType {
 		return LibraryWhisper
 	case "stablediffusion", "sd":
 		return LibraryStableDiffusion
+	case "tts":
+		return LibraryTTS
 	default:
 		return LibraryLlama
 	}
@@ -37,6 +40,8 @@ func (lt LibraryType) DisplayName() string {
 		return "whisper.cpp"
 	case LibraryStableDiffusion:
 		return "stable-diffusion.cpp"
+	case LibraryTTS:
+		return "tts.cpp"
 	default:
 		return string(lt)
 	}
@@ -50,6 +55,8 @@ func (lt LibraryType) DefaultVersion() string {
 		return "v1.8.3"
 	case LibraryStableDiffusion:
 		return "master-487-43e829f"
+	case LibraryTTS:
+		return ""
 	default:
 		return ""
 	}
@@ -63,6 +70,8 @@ func (lt LibraryType) Subfolder() string {
 		return "whisper"
 	case LibraryStableDiffusion:
 		return "stablediffusion"
+	case LibraryTTS:
+		return "tts"
 	default:
 		return string(lt)
 	}

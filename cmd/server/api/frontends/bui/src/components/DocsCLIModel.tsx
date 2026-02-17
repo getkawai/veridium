@@ -53,7 +53,7 @@ export default function DocsCLIModel() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Authentication token for the kronk server (required when auth enabled)</td>
                   </tr>
@@ -119,7 +119,7 @@ kronk model index --local`}</code>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Authentication token for the kronk server (required when auth enabled)</td>
                   </tr>
@@ -167,7 +167,7 @@ kronk model list --local`}</code>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Authentication token for the kronk server (required when auth enabled)</td>
                   </tr>
@@ -220,7 +220,7 @@ kronk model ps`}</code>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Authentication token for the kronk server (required when auth enabled)</td>
                   </tr>
@@ -289,7 +289,7 @@ kronk model pull <MODEL_URL> <MMPROJ_URL>`}</code>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Authentication token for the kronk server (required when auth enabled)</td>
                   </tr>
@@ -355,7 +355,7 @@ kronk model remove llama-3.2-1b-q4 --local`}</code>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><code>KRONK_TOKEN</code></td>
+                    <td><code>API_KEY</code></td>
                     <td></td>
                     <td>Authentication token for the kronk server (required when auth enabled)</td>
                   </tr>

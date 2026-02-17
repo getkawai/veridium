@@ -11,7 +11,7 @@ export default function DocsSDKKronk() {
           <div className="card">
             <h3>Import</h3>
             <pre className="code-block">
-              <code>import "github.com/ardanlabs/kronk/sdk/kronk"</code>
+              <code>import "github.com/kawai-network/veridium/sdk/kronk"</code>
             </pre>
           </div>
 
