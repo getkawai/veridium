@@ -137,6 +137,7 @@ const (
 	stepLLMDownload
 	stepSummary
 	stepError
+	stepHelp
 )
 
 // Model represents the TUI state
@@ -164,6 +165,10 @@ type setupTUIModel struct {
 	// Progress
 	spinner     spinner.Model
 	progressBar progress.Model
+	// Additional progress bars for multiple downloads
+	whisperProgressBar progress.Model
+	sdProgressBar      progress.Model
+	ttsProgressBar     progress.Model
 
 	// Hardware
 	hwSpecs           *hardware.HardwareSpecs
@@ -189,14 +194,156 @@ type setupTUIModel struct {
 
 	// Communication
 	progressChan chan float64
+	ctx          context.Context
+	cancel       context.CancelFunc
+
+	// Help screen
+	showHelp bool
 }
 
 type progressMsg float64
 
+// tickMsg is sent periodically to check progress
+
+type tickMsg time.Time
+
+// waitForProgress checks progress channel non-blocking
 func waitForProgress(c chan float64) tea.Cmd {
 	return func() tea.Msg {
-		return progressMsg(<-c)
+		select {
+		case p := <-c:
+			return progressMsg(p)
+		default:
+			// No progress available, schedule next check
+			return tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
+				return tickMsg(t)
+			})
+		}
 	}
+}
+
+// handleTick processes tick messages and continues polling if needed
+func (m setupTUIModel) handleTick() (tea.Model, tea.Cmd) {
+	// Check if we're in a download step and continue polling
+	if m.step == stepLibraryDownload || m.step == stepModelDownload || m.step == stepLLMDownload {
+		// Try to read progress
+		select {
+		case p := <-m.progressChan:
+			if p < 0 {
+				// Error signal - handle based on current step
+				if m.step == stepLibraryDownload {
+					m.step = stepError
+					m.addError(fmt.Errorf("library download failed"))
+					return m, nil
+				}
+				// For model downloads, mark as failed and continue to next
+				if m.step == stepModelDownload {
+					if !m.result.WhisperReady {
+						m.addError(fmt.Errorf("whisper model download failed (optional)"))
+						m.result.WhisperReady = false
+						// Start SD download
+						go m.downloadSDInternal()
+						return m, tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
+							return tickMsg(t)
+						})
+					} else if !m.result.StableDiffReady {
+						m.addError(fmt.Errorf("stable diffusion model download failed"))
+						m.result.StableDiffReady = false
+						// Start TTS download
+						go m.downloadTTSInternal()
+						return m, tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
+							return tickMsg(t)
+						})
+					} else if !m.result.TTSReady {
+						m.addError(fmt.Errorf("tts model download failed (optional)"))
+						m.result.TTSReady = false
+						// Move to LLM step and start download
+						m.step = stepLLMDownload
+						return m, tea.Batch(m.downloadLLMCmd(), tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
+							return tickMsg(t)
+						}))
+					}
+				}
+				if m.step == stepLLMDownload {
+					m.addError(fmt.Errorf("llm model download failed"))
+					m.result.LLMReady = false
+					m.step = stepSummary
+					return m, nil
+				}
+				return m, tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
+					return tickMsg(t)
+				})
+			}
+			if p >= 1.0 {
+				// Download complete - handle state transitions
+				switch m.step {
+				case stepLibraryDownload:
+					m.result.LibraryReady = true
+					// Note: TTSReady is set after TTS model download, not library download
+					m.step = stepModelDownload
+					return m, tea.Batch(m.downloadModelsCmd(), tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
+						return tickMsg(t)
+					}))
+				case stepModelDownload:
+					// Check which model just completed and start next one
+					if !m.result.WhisperReady {
+						m.result.WhisperReady = true
+						m.whisperProgress = 1.0
+						// Start SD download
+						go m.downloadSDInternal()
+						// Continue polling
+						return m, tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
+							return tickMsg(t)
+						})
+					} else if !m.result.StableDiffReady {
+						m.result.StableDiffReady = true
+						m.sdProgress = 1.0
+						// Start TTS download
+						go m.downloadTTSInternal()
+						// Continue polling
+						return m, tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
+							return tickMsg(t)
+						})
+					} else if !m.result.TTSReady {
+						m.result.TTSReady = true
+						m.ttsProgress = 1.0
+						// Move to LLM step and start download
+						m.step = stepLLMDownload
+						return m, tea.Batch(m.downloadLLMCmd(), tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
+							return tickMsg(t)
+						}))
+					}
+				case stepLLMDownload:
+					m.result.LLMReady = true
+					m.llmProgress = 1.0
+					m.step = stepSummary
+					return m, nil
+				}
+			} else {
+				// Update progress based on current step and what's downloading
+				switch m.step {
+				case stepLibraryDownload:
+					m.libraryProgress = p
+				case stepModelDownload:
+					// Determine which model is downloading based on completion status
+					if !m.result.WhisperReady {
+						m.whisperProgress = p
+					} else if !m.result.StableDiffReady {
+						m.sdProgress = p
+					} else if !m.result.TTSReady {
+						m.ttsProgress = p
+					}
+				case stepLLMDownload:
+					m.llmProgress = p
+				}
+			}
+		default:
+		}
+		return m, tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
+			return tickMsg(t)
+		})
+	}
+	return m, nil
 }
 
 // Messages
@@ -233,13 +380,29 @@ type (
 		content string
 		err     error
 	}
+	// Typed progress messages for better tracking
+	libraryProgressMsg float64
+	whisperProgressMsg float64
+	sdProgressMsg      float64
+	ttsProgressMsg     float64
+	llmProgressMsg     float64
+)
+
+// Constants for error handling
+const (
+	maxErrors  = 10
+	maxRetries = 3
+	retryDelay = 2 * time.Second
 )
 
 // Init initializes the TUI
 func (m setupTUIModel) Init() tea.Cmd {
 	return tea.Batch(
 		m.spinner.Tick,
-		waitForProgress(m.progressChan),
+		m.progressBar.Init(),
+		m.whisperProgressBar.Init(),
+		m.sdProgressBar.Init(),
+		m.ttsProgressBar.Init(),
 	)
 }
 
@@ -249,7 +412,45 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		// Update progress bar widths
+		progressWidth := msg.Width - 20
+		if progressWidth > 60 {
+			progressWidth = 60
+		}
+		if progressWidth < 20 {
+			progressWidth = 20
+		}
+		m.progressBar.Width = progressWidth
+		m.whisperProgressBar.Width = progressWidth
+		m.sdProgressBar.Width = progressWidth
+		m.ttsProgressBar.Width = progressWidth
 		return m, nil
+
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+
+	case progress.FrameMsg:
+		var cmds []tea.Cmd
+
+		progressModel, cmd := m.progressBar.Update(msg)
+		m.progressBar = progressModel.(progress.Model)
+		cmds = append(cmds, cmd)
+
+		whisperModel, cmd := m.whisperProgressBar.Update(msg)
+		m.whisperProgressBar = whisperModel.(progress.Model)
+		cmds = append(cmds, cmd)
+
+		sdModel, cmd := m.sdProgressBar.Update(msg)
+		m.sdProgressBar = sdModel.(progress.Model)
+		cmds = append(cmds, cmd)
+
+		ttsModel, cmd := m.ttsProgressBar.Update(msg)
+		m.ttsProgressBar = ttsModel.(progress.Model)
+		cmds = append(cmds, cmd)
+
+		return m, tea.Batch(cmds...)
 
 	case progressMsg:
 		if m.step == stepLibraryDownload {
@@ -268,7 +469,36 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, waitForProgress(m.progressChan)
 
+	case libraryProgressMsg:
+		m.libraryProgress = float64(msg)
+		return m, nil
+
+	case whisperProgressMsg:
+		m.whisperProgress = float64(msg)
+		return m, nil
+
+	case sdProgressMsg:
+		m.sdProgress = float64(msg)
+		return m, nil
+
+	case ttsProgressMsg:
+		m.ttsProgress = float64(msg)
+		return m, nil
+
+	case llmProgressMsg:
+		m.llmProgress = float64(msg)
+		return m, nil
+
+	case tickMsg:
+		return m.handleTick()
+
 	case tea.KeyMsg:
+		// F1 for help
+		if msg.String() == "f1" {
+			m.showHelp = !m.showHelp
+			return m, nil
+		}
+
 		if m.step == stepWalletMnemonic && msg.String() == "c" {
 			if m.generatedMnemonic != "" {
 				if err := clipboard.WriteAll(m.generatedMnemonic); err != nil {
@@ -284,6 +514,9 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.Type {
 		case tea.KeyCtrlC:
+			if m.cancel != nil {
+				m.cancel()
+			}
 			return m, tea.Quit
 		case tea.KeyEnter:
 			return m.handleEnter()
@@ -311,7 +544,7 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case hardwareCheckMsg:
 		if msg.err != nil {
-			m.errors = append(m.errors, msg.err)
+			m.addError(msg.err)
 			m.hardwarePassed = false
 		} else {
 			m.hwSpecs = msg.specs
@@ -321,11 +554,16 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case libraryDownloadMsg:
 		if msg.err != nil {
-			m.errors = append(m.errors, fmt.Errorf("library download failed: %w", msg.err))
+			// Check for timeout
+			if m.ctx.Err() == context.DeadlineExceeded {
+				m.addError(fmt.Errorf("library download timeout: %w", msg.err))
+			} else {
+				m.addError(fmt.Errorf("library download failed: %w", msg.err))
+			}
 			m.step = stepError
 		} else if msg.done {
 			m.result.LibraryReady = true
-			m.result.TTSReady = true
+			// Note: TTSReady is set after TTS model download, not library download
 			m.step = stepModelDownload
 			return m, m.downloadModelsCmd()
 		} else {
@@ -338,18 +576,35 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.modelType {
 			case "whisper":
 				if msg.err != nil {
-					m.errors = append(m.errors, fmt.Errorf("whisper model download failed (optional): %w", msg.err))
+					if m.ctx.Err() == context.DeadlineExceeded {
+						m.addError(fmt.Errorf("whisper model download timeout (optional): %w", msg.err))
+					} else {
+						m.addError(fmt.Errorf("whisper model download failed (optional): %w", msg.err))
+					}
 					m.result.WhisperReady = false
 				} else {
 					m.result.WhisperReady = true
 				}
 				return m, m.downloadSDCmd()
 			case "sd":
-				m.result.StableDiffReady = true
+				if msg.err != nil {
+					if m.ctx.Err() == context.DeadlineExceeded {
+						m.addError(fmt.Errorf("stable diffusion model download timeout: %w", msg.err))
+					} else {
+						m.addError(fmt.Errorf("stable diffusion model download failed: %w", msg.err))
+					}
+					m.result.StableDiffReady = false
+				} else {
+					m.result.StableDiffReady = true
+				}
 				return m, m.downloadTTSCmd()
 			case "tts":
 				if msg.err != nil {
-					m.errors = append(m.errors, fmt.Errorf("tts model download failed (optional): %w", msg.err))
+					if m.ctx.Err() == context.DeadlineExceeded {
+						m.addError(fmt.Errorf("tts model download timeout (optional): %w", msg.err))
+					} else {
+						m.addError(fmt.Errorf("tts model download failed (optional): %w", msg.err))
+					}
 					m.result.TTSReady = false
 				} else {
 					m.result.TTSReady = true
@@ -357,7 +612,16 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.step = stepLLMDownload
 				return m, m.downloadLLMCmd()
 			case "llm":
-				m.result.LLMReady = true
+				if msg.err != nil {
+					if m.ctx.Err() == context.DeadlineExceeded {
+						m.addError(fmt.Errorf("llm model download timeout: %w", msg.err))
+					} else {
+						m.addError(fmt.Errorf("llm model download failed: %w", msg.err))
+					}
+					m.result.LLMReady = false
+				} else {
+					m.result.LLMReady = true
+				}
 				m.step = stepSummary
 			}
 		} else {
@@ -366,6 +630,8 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.whisperProgress = msg.progress
 			case "sd":
 				m.sdProgress = msg.progress
+			case "tts":
+				m.ttsProgress = msg.progress
 			case "llm":
 				m.llmProgress = msg.progress
 			}
@@ -374,7 +640,7 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case walletCreatedMsg:
 		if msg.err != nil {
-			m.errors = append(m.errors, msg.err)
+			m.addError(msg.err)
 		} else {
 			m.walletAddress = msg.address
 			m.result.WalletCreated = true
@@ -386,7 +652,7 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case walletUnlockedMsg:
 		if msg.err != nil {
-			m.errors = append(m.errors, msg.err)
+			m.addError(msg.err)
 		} else {
 			m.walletAddress = msg.address
 			m.result.WalletAddress = msg.address
@@ -397,7 +663,7 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case mnemonicGeneratedMsg:
 		if msg.err != nil {
-			m.errors = append(m.errors, fmt.Errorf("failed to generate mnemonic: %w", msg.err))
+			m.addError(fmt.Errorf("failed to generate mnemonic: %w", msg.err))
 			m.step = stepError
 		} else {
 			m.generatedMnemonic = msg.mnemonic
@@ -406,7 +672,7 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case keystoreReadMsg:
 		if msg.err != nil {
-			m.errors = append(m.errors, msg.err)
+			m.addError(msg.err)
 			m.step = stepError
 		} else {
 			m.keystoreInput.SetValue(msg.content)
@@ -414,45 +680,46 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Update sub-components
+	// Update sub-components - only update active input
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
-	m.spinner, cmd = m.spinner.Update(msg)
-	cmds = append(cmds, cmd)
-
-	progModel, progCmd := m.progressBar.Update(msg)
-	if p, ok := progModel.(progress.Model); ok {
-		m.progressBar = p
+	// Only update the active input
+	switch m.step {
+	case stepWalletPassword:
+		m.passwordInput, cmd = m.passwordInput.Update(msg)
+		cmds = append(cmds, cmd)
+	case stepWalletConfirmPassword:
+		m.confirmInput, cmd = m.confirmInput.Update(msg)
+		cmds = append(cmds, cmd)
+	case stepWalletName:
+		m.nameInput, cmd = m.nameInput.Update(msg)
+		cmds = append(cmds, cmd)
+	case stepWalletMnemonic:
+		if m.walletChoice == 1 { // Import mnemonic
+			m.mnemonicInput, cmd = m.mnemonicInput.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+	case stepImportKeystoreJSON:
+		m.keystoreInput, cmd = m.keystoreInput.Update(msg)
+		cmds = append(cmds, cmd)
+	case stepImportKeystorePath:
+		m.keystorePathInput, cmd = m.keystorePathInput.Update(msg)
+		cmds = append(cmds, cmd)
+	case stepImportPrivateKey:
+		m.privateKeyInput, cmd = m.privateKeyInput.Update(msg)
+		cmds = append(cmds, cmd)
 	}
-	cmds = append(cmds, progCmd)
-
-	m.passwordInput, cmd = m.passwordInput.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.confirmInput, cmd = m.confirmInput.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.nameInput, cmd = m.nameInput.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.mnemonicInput, cmd = m.mnemonicInput.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.keystoreInput, cmd = m.keystoreInput.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.keystorePathInput, cmd = m.keystorePathInput.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.privateKeyInput, cmd = m.privateKeyInput.Update(msg)
-	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
 }
 
 // View renders the UI
 func (m setupTUIModel) View() string {
+	if m.showHelp {
+		return m.helpView()
+	}
+
 	var content string
 
 	switch m.step {
@@ -880,7 +1147,7 @@ func (m setupTUIModel) hardwareCheckView() string {
 	b.WriteString("\n\n")
 
 	totalMemory := m.hwSpecs.AvailableRAM + m.hwSpecs.GPUMemory
-	b.WriteString(fmt.Sprintf("Detected Hardware:\n"))
+	b.WriteString("Detected Hardware:\n")
 	b.WriteString(fmt.Sprintf("  CPU: %s (%d cores)\n", m.hwSpecs.CPU, m.hwSpecs.CPUCores))
 	b.WriteString(fmt.Sprintf("  RAM: %dGB\n", m.hwSpecs.TotalRAM))
 	if m.hwSpecs.GPUMemory > 0 {
@@ -902,12 +1169,13 @@ func (m setupTUIModel) hardwareCheckView() string {
 }
 
 func (m setupTUIModel) libraryDownloadView() string {
+	libPct := m.libraryProgress * 100
 	return fmt.Sprintf(
-		"%s\n\n%s\n\n%s %.1f%%\n\n%s",
+		"%s\n\n%s\n\n%.1f%%\n%s\n\n%s",
 		m.styles.Title.Render("📦 Downloading Libraries"),
 		"Downloading llama.cpp, whisper.cpp, Stable Diffusion, and TTS libraries...",
+		libPct,
 		m.progressBar.ViewAs(m.libraryProgress),
-		m.libraryProgress*100,
 		m.spinner.View()+" Please wait...",
 	)
 }
@@ -917,17 +1185,20 @@ func (m setupTUIModel) modelDownloadView() string {
 	b.WriteString(m.styles.Title.Render("🤖 Downloading Models"))
 	b.WriteString("\n\n")
 
-	b.WriteString("Whisper (Speech-to-Text):\n")
-	b.WriteString(m.progressBar.ViewAs(m.whisperProgress))
-	b.WriteString(fmt.Sprintf(" %.1f%%\n\n", m.whisperProgress*100))
+	whisperPct := m.whisperProgress * 100
+	b.WriteString(fmt.Sprintf("Whisper (Speech-to-Text): %.1f%%\n", whisperPct))
+	b.WriteString(m.whisperProgressBar.ViewAs(m.whisperProgress))
+	b.WriteString("\n\n")
 
-	b.WriteString("Stable Diffusion (Image Generation):\n")
-	b.WriteString(m.progressBar.ViewAs(m.sdProgress))
-	b.WriteString(fmt.Sprintf(" %.1f%%\n\n", m.sdProgress*100))
+	sdPct := m.sdProgress * 100
+	b.WriteString(fmt.Sprintf("Stable Diffusion (Image Generation): %.1f%%\n", sdPct))
+	b.WriteString(m.sdProgressBar.ViewAs(m.sdProgress))
+	b.WriteString("\n\n")
 
-	b.WriteString("TTS (Text-to-Speech):\n")
-	b.WriteString(m.progressBar.ViewAs(m.ttsProgress))
-	b.WriteString(fmt.Sprintf(" %.1f%%\n\n", m.ttsProgress*100))
+	ttsPct := m.ttsProgress * 100
+	b.WriteString(fmt.Sprintf("TTS (Text-to-Speech): %.1f%%\n", ttsPct))
+	b.WriteString(m.ttsProgressBar.ViewAs(m.ttsProgress))
+	b.WriteString("\n\n")
 
 	if m.whisperProgress < 1.0 || m.sdProgress < 1.0 || m.ttsProgress < 1.0 {
 		b.WriteString(m.spinner.View() + " Downloading...")
@@ -937,13 +1208,14 @@ func (m setupTUIModel) modelDownloadView() string {
 }
 
 func (m setupTUIModel) llmDownloadView() string {
+	llmPct := m.llmProgress * 100
 	return fmt.Sprintf(
-		"%s\n\n%s\n\n%s\n\n%s %.1f%%\n\n%s",
+		"%s\n\n%s\n\n%s\n\n%.1f%%\n%s\n\n%s",
 		m.styles.Title.Render("🧠 Downloading LLM"),
 		"Downloading Nemotron 3 Nano (~18GB)",
 		"This may take 10-60 minutes depending on your connection...",
+		llmPct,
 		m.progressBar.ViewAs(m.llmProgress),
-		m.llmProgress*100,
 		m.spinner.View()+" Downloading...",
 	)
 }
@@ -1012,6 +1284,45 @@ func (m setupTUIModel) summaryView() string {
 	return b.String()
 }
 
+func (m setupTUIModel) helpView() string {
+	var b strings.Builder
+	b.WriteString(m.styles.Title.Render("📖 Help"))
+	b.WriteString("\n\n")
+
+	b.WriteString(m.styles.Info.Render("Keyboard Shortcuts:"))
+	b.WriteString("\n\n")
+	b.WriteString("  F1         - Toggle this help screen\n")
+	b.WriteString("  Enter      - Confirm / Next step\n")
+	b.WriteString("  ESC        - Go back / Cancel\n")
+	b.WriteString("  Ctrl+C     - Exit setup\n")
+	b.WriteString("  ↑/↓        - Navigate menu options\n")
+	b.WriteString("  c          - Copy mnemonic (on mnemonic screen)\n")
+	b.WriteString("\n")
+
+	b.WriteString(m.styles.Info.Render("Setup Steps:"))
+	b.WriteString("\n\n")
+	b.WriteString("  1. Wallet Configuration\n")
+	b.WriteString("     - Generate new or import existing wallet\n")
+	b.WriteString("     - Set secure password (min 8 characters)\n")
+	b.WriteString("\n")
+	b.WriteString("  2. Hardware Check\n")
+	b.WriteString("     - Verify system meets requirements (24GB RAM/VRAM)\n")
+	b.WriteString("\n")
+	b.WriteString("  3. Library Downloads\n")
+	b.WriteString("     - llama.cpp, whisper.cpp, Stable Diffusion, TTS\n")
+	b.WriteString("\n")
+	b.WriteString("  4. Model Downloads\n")
+	b.WriteString("     - Whisper (Speech-to-Text)\n")
+	b.WriteString("     - Stable Diffusion (Image Generation)\n")
+	b.WriteString("     - TTS (Text-to-Speech)\n")
+	b.WriteString("     - LLM (Nemotron 3 Nano ~18GB)\n")
+	b.WriteString("\n\n")
+
+	b.WriteString(m.styles.Help.Render("Press F1 to close help"))
+
+	return b.String()
+}
+
 func (m setupTUIModel) errorView() string {
 	var b strings.Builder
 	b.WriteString(m.styles.Title.Render("❌ Setup Failed"))
@@ -1055,19 +1366,28 @@ func (m setupTUIModel) handleEnter() (tea.Model, tea.Cmd) {
 	case stepWalletChoice:
 		// All choices proceed to password setup first
 		m.step = stepWalletPassword
+		m.blurAllInputs()
 		m.passwordInput.Focus()
 		return m, nil
 
 	case stepWalletPassword:
-		if len(m.passwordInput.Value()) >= 8 {
-			m.step = stepWalletConfirmPassword
-			m.passwordInput.Blur()
-			m.confirmInput.Focus()
+		password := m.passwordInput.Value()
+		if len(password) < MinPasswordLength {
+			// Don't proceed if password too short
+			return m, nil
 		}
+		score, _, _ := calculatePasswordStrength(password)
+		if score < 40 {
+			// Weak password, but allow (user's choice)
+		}
+		m.step = stepWalletConfirmPassword
+		m.blurAllInputs()
+		m.confirmInput.Focus()
 		return m, nil
 
 	case stepWalletConfirmPassword:
 		if m.passwordInput.Value() == m.confirmInput.Value() {
+			m.blurAllInputs()
 			switch m.walletChoice {
 			case 0: // Generate mnemonic
 				m.step = stepWalletMnemonic
@@ -1088,10 +1408,12 @@ func (m setupTUIModel) handleEnter() (tea.Model, tea.Cmd) {
 
 	case stepWalletMnemonic:
 		m.step = stepWalletName
+		m.blurAllInputs()
 		m.nameInput.Focus()
 		return m, nil
 
 	case stepImportKeystoreChoice:
+		m.blurAllInputs()
 		if m.keystoreChoice == 0 {
 			m.step = stepImportKeystoreJSON
 			m.keystoreInput.Focus()
@@ -1115,11 +1437,13 @@ func (m setupTUIModel) handleEnter() (tea.Model, tea.Cmd) {
 		}
 		// Valid JSON, proceed to wallet name
 		m.step = stepWalletName
+		m.blurAllInputs()
 		m.nameInput.Focus()
 		return m, nil
 
 	case stepImportKeystorePath:
 		m.step = stepWalletName
+		m.blurAllInputs()
 		m.nameInput.Focus()
 		return m, m.readKeystoreFileCmd()
 
@@ -1130,6 +1454,7 @@ func (m setupTUIModel) handleEnter() (tea.Model, tea.Cmd) {
 		if len(cleanKey) == 64 {
 			if _, err := hex.DecodeString(cleanKey); err == nil {
 				m.step = stepWalletName
+				m.blurAllInputs()
 				m.nameInput.Focus()
 				return m, nil
 			}
@@ -1142,6 +1467,8 @@ func (m setupTUIModel) handleEnter() (tea.Model, tea.Cmd) {
 	case stepHardwareCheck:
 		if m.hardwarePassed {
 			m.step = stepLibraryDownload
+			// downloadLibrariesCmd already returns tickMsg to start tick-based polling
+			// Do not add waitForProgress to avoid race condition with dual readers on progressChan
 			return m, m.downloadLibrariesCmd()
 		}
 		return m, tea.Quit
@@ -1188,7 +1515,7 @@ func (m setupTUIModel) handleBack() (tea.Model, tea.Cmd) {
 
 	case stepWalletConfirmPassword:
 		m.confirmInput.SetValue("")
-		m.confirmInput.Blur()
+		m.blurAllInputs()
 		m.step = stepWalletPassword
 		m.passwordInput.Focus()
 		return m, nil
@@ -1196,7 +1523,7 @@ func (m setupTUIModel) handleBack() (tea.Model, tea.Cmd) {
 	case stepWalletMnemonic:
 		// Going back from mnemonic depends on wallet choice
 		m.mnemonicInput.SetValue("")
-		m.mnemonicInput.Blur()
+		m.blurAllInputs()
 		if m.walletChoice == 0 {
 			// Generated mnemonic - go back to confirm password
 			m.step = stepWalletConfirmPassword
@@ -1209,32 +1536,33 @@ func (m setupTUIModel) handleBack() (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case stepImportKeystoreChoice:
+		m.blurAllInputs()
 		m.step = stepWalletConfirmPassword
 		m.confirmInput.Focus()
 		return m, nil
 
 	case stepImportKeystoreJSON:
 		m.keystoreInput.SetValue("")
-		m.keystoreInput.Blur()
+		m.blurAllInputs()
 		m.step = stepImportKeystoreChoice
 		return m, nil
 
 	case stepImportKeystorePath:
 		m.keystorePathInput.SetValue("")
-		m.keystorePathInput.Blur()
+		m.blurAllInputs()
 		m.step = stepImportKeystoreChoice
 		return m, nil
 
 	case stepImportPrivateKey:
 		m.privateKeyInput.SetValue("")
-		m.privateKeyInput.Blur()
+		m.blurAllInputs()
 		m.step = stepWalletConfirmPassword
 		m.confirmInput.Focus()
 		return m, nil
 
 	case stepWalletName:
 		m.nameInput.SetValue("")
-		m.nameInput.Blur()
+		m.blurAllInputs()
 		// Go back based on wallet choice
 		switch m.walletChoice {
 		case 0, 1:
@@ -1256,6 +1584,24 @@ func (m setupTUIModel) handleBack() (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+// Helper methods
+func (m *setupTUIModel) blurAllInputs() {
+	m.passwordInput.Blur()
+	m.confirmInput.Blur()
+	m.nameInput.Blur()
+	m.mnemonicInput.Blur()
+	m.keystoreInput.Blur()
+	m.keystorePathInput.Blur()
+	m.privateKeyInput.Blur()
+}
+
+func (m *setupTUIModel) addError(err error) {
+	m.errors = append(m.errors, err)
+	if len(m.errors) > maxErrors {
+		m.errors = m.errors[len(m.errors)-maxErrors:]
+	}
 }
 
 func (m setupTUIModel) createWalletCmd() tea.Cmd {
@@ -1327,29 +1673,37 @@ func (m setupTUIModel) generateMnemonicCmd() tea.Cmd {
 }
 
 func (m setupTUIModel) downloadLibrariesCmd() tea.Cmd {
-	return func() tea.Msg {
-		ctx := context.Background()
-
+	// Start download in goroutine and return immediately to not block UI
+	go func() {
 		// Auto-detect platform
 		arch, err := defaults.Arch("")
 		if err != nil {
-			return libraryDownloadMsg{progress: 0, done: false, err: fmt.Errorf("failed to detect arch: %w", err)}
+			m.progressChan <- -1 // Signal error
+			return
 		}
 
 		opSys, err := defaults.OS("")
 		if err != nil {
-			return libraryDownloadMsg{progress: 0, done: false, err: fmt.Errorf("failed to detect OS: %w", err)}
+			m.progressChan <- -1
+			return
 		}
 
 		processor, err := defaults.Processor("")
 		if err != nil {
-			return libraryDownloadMsg{progress: 0, done: false, err: fmt.Errorf("failed to detect processor: %w", err)}
+			m.progressChan <- -1
+			return
 		}
 
 		libraries := []libs.LibraryType{libs.LibraryLlama, libs.LibraryWhisper, libs.LibraryStableDiffusion, libs.LibraryTTS}
 		totalLibs := float64(len(libraries))
 
 		for i, libType := range libraries {
+			// Check context cancellation
+			if m.ctx.Err() != nil {
+				m.progressChan <- -1
+				return
+			}
+
 			// Create libs manager for each library type
 			libMgr, err := libs.New(
 				libs.WithBasePath(paths.Base()),
@@ -1360,10 +1714,11 @@ func (m setupTUIModel) downloadLibrariesCmd() tea.Cmd {
 				libs.WithLibraryType(libType),
 			)
 			if err != nil {
-				return libraryDownloadMsg{progress: 0, done: false, err: fmt.Errorf("failed to create libs manager for %s: %w", libType.DisplayName(), err)}
+				m.progressChan <- -1
+				return
 			}
 
-			downloadCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+			downloadCtx, cancel := context.WithTimeout(m.ctx, LibraryDownloadTimeout)
 
 			baseProgress := float64(i) / totalLibs
 			libWeight := 1.0 / totalLibs
@@ -1383,7 +1738,8 @@ func (m setupTUIModel) downloadLibrariesCmd() tea.Cmd {
 			cancel()
 
 			if err != nil {
-				return libraryDownloadMsg{progress: 0, done: false, err: fmt.Errorf("failed to download %s: %w", libType.DisplayName(), err)}
+				m.progressChan <- -1
+				return
 			}
 
 			// Update progress when library download completes
@@ -1394,14 +1750,26 @@ func (m setupTUIModel) downloadLibrariesCmd() tea.Cmd {
 			}
 		}
 
-		return libraryDownloadMsg{progress: 1.0, done: true}
+		// Signal completion
+		m.progressChan <- 1.0
+	}()
+
+	// Return tick to start progress polling
+	return func() tea.Msg {
+		return tickMsg(time.Now())
 	}
 }
 
 func (m setupTUIModel) downloadModelsCmd() tea.Cmd {
-	return func() tea.Msg {
-		ctx := context.Background()
-		downloadCtx, cancel := context.WithTimeout(ctx, ModelDownloadTimeout)
+	// Start whisper download in goroutine
+	go func() {
+		// Check context cancellation
+		if m.ctx.Err() != nil {
+			m.progressChan <- -1
+			return
+		}
+
+		downloadCtx, cancel := context.WithTimeout(m.ctx, ModelDownloadTimeout)
 		defer cancel()
 
 		// Setup Whisper model
@@ -1419,20 +1787,28 @@ func (m setupTUIModel) downloadModelsCmd() tea.Cmd {
 			}
 
 			if err := whisperapp.DownloadModelWithProgress(downloadCtx, "base", progressCallback); err != nil {
-				// Log error but return success so setup continues
+				// Log error but continue
 				fmt.Printf("Warning: failed to download whisper model: %v\n", err)
-				return modelDownloadMsg{modelType: "whisper", progress: 1.0, done: true, err: err}
 			}
 		}
 
-		return modelDownloadMsg{modelType: "whisper", progress: 1.0, done: true}
+		// Signal whisper complete
+		m.progressChan <- 1.0
+	}()
+
+	return func() tea.Msg {
+		return tickMsg(time.Now())
 	}
 }
 
 func (m setupTUIModel) downloadSDCmd() tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
-		downloadCtx, cancel := context.WithTimeout(ctx, ModelDownloadTimeout)
+		// Check context cancellation
+		if m.ctx.Err() != nil {
+			return modelDownloadMsg{modelType: "sd", progress: 0, done: false, err: m.ctx.Err()}
+		}
+
+		downloadCtx, cancel := context.WithTimeout(m.ctx, ModelDownloadTimeout)
 		defer cancel()
 
 		// Setup Stable Diffusion model
@@ -1468,14 +1844,16 @@ func (m setupTUIModel) downloadSDCmd() tea.Cmd {
 
 func (m setupTUIModel) downloadTTSCmd() tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
-		downloadCtx, cancel := context.WithTimeout(ctx, ModelDownloadTimeout)
+		// Check context cancellation
+		if m.ctx.Err() != nil {
+			return modelDownloadMsg{modelType: "tts", progress: 0, done: false, err: m.ctx.Err()}
+		}
+
+		downloadCtx, cancel := context.WithTimeout(m.ctx, ModelDownloadTimeout)
 		defer cancel()
 
-		// Setup TTS model
-		modelsPath := paths.Models()
-		ttsModelsPath := filepath.Join(modelsPath, "tts")
-		downloader := ttsapp.NewModelDownloader(ttsModelsPath)
+		// Setup TTS model - uses standard path structure: models/{org}/{repo}/{filename}
+		downloader := ttsapp.NewModelDownloader("")
 
 		modelFile, err := downloader.DiscoverModel()
 		if err != nil {
@@ -1506,8 +1884,13 @@ func (m setupTUIModel) downloadTTSCmd() tea.Cmd {
 }
 
 func (m setupTUIModel) downloadLLMCmd() tea.Cmd {
-	return func() tea.Msg {
-		ctx := context.Background()
+	// Start LLM download in goroutine
+	go func() {
+		// Check context cancellation
+		if m.ctx.Err() != nil {
+			m.progressChan <- -1
+			return
+		}
 
 		// Nemotron 3 Nano model info
 		modelOrg := DefaultLLMOrg
@@ -1518,7 +1901,8 @@ func (m setupTUIModel) downloadLLMCmd() tea.Cmd {
 
 		// Check if model already exists
 		if _, err := os.Stat(modelPath); err == nil {
-			return modelDownloadMsg{modelType: "llm", progress: 1.0, done: true}
+			m.progressChan <- 1.0
+			return
 		}
 
 		// Download LLM model
@@ -1526,24 +1910,18 @@ func (m setupTUIModel) downloadLLMCmd() tea.Cmd {
 
 		modelsManager, err := models.NewWithPaths(paths.Base())
 		if err != nil {
-			return modelDownloadMsg{modelType: "llm", progress: 0, done: false, err: fmt.Errorf("failed to create models manager: %w", err)}
+			m.progressChan <- -1
+			return
 		}
 
-		downloadCtx, cancel := context.WithTimeout(ctx, LLMDownloadTimeout)
+		downloadCtx, cancel := context.WithTimeout(m.ctx, LLMDownloadTimeout)
 		defer cancel()
 
 		// Create a logger callback that parses progress from log messages
-		// The models.Download logs progress in format: "Downloading... X MiB of Y MiB"
 		_, err = modelsManager.Download(downloadCtx, func(ctx context.Context, msg string, args ...any) {
 			// Parse progress from log messages
-			// Format: "download-model: Downloading <url>... <current> MiB of <total> MiB (<speed> MiB/s)"
 			if len(args) >= 4 {
-				// args format: currentSize/(1024*1024), totalSize/(1024*1024), mibPerSec
-				// The log message uses: currentSize/(1024*1024), totalSize/(1024*1024), mibPerSec
-				// We need to extract current and total from the formatted message
 				msgStr := fmt.Sprintf(msg, args...)
-				// Try to parse progress from the message
-				// Look for pattern: "X MiB of Y MiB"
 				var currentMiB, totalMiB int64
 				n, _ := fmt.Sscanf(msgStr, "download-model: Downloading %s... %d MiB of %d MiB", new(string), &currentMiB, &totalMiB)
 				if n == 3 && totalMiB > 0 {
@@ -1556,11 +1934,104 @@ func (m setupTUIModel) downloadLLMCmd() tea.Cmd {
 			}
 		}, modelURL, "")
 		if err != nil {
-			return modelDownloadMsg{modelType: "llm", progress: 0, done: false, err: fmt.Errorf("failed to download LLM model: %w", err)}
+			m.progressChan <- -1
+			return
 		}
 
-		return modelDownloadMsg{modelType: "llm", progress: 1.0, done: true}
+		m.progressChan <- 1.0
+	}()
+
+	return func() tea.Msg {
+		return tickMsg(time.Now())
 	}
+}
+
+// downloadSDInternal downloads Stable Diffusion model in goroutine
+func (m setupTUIModel) downloadSDInternal() {
+	// Check context cancellation
+	if m.ctx.Err() != nil {
+		m.progressChan <- -1
+		return
+	}
+
+	downloadCtx, cancel := context.WithTimeout(m.ctx, ModelDownloadTimeout)
+	defer cancel()
+
+	// Setup Stable Diffusion model
+	modelsPath := paths.Models()
+	downloader := modeldownloader.New(modelsPath)
+
+	modelFile, err := downloader.DiscoverModel()
+	if err != nil {
+		m.progressChan <- -1
+		return
+	}
+
+	if modelFile == "" {
+		// Download default SD model with progress reporting
+		progressCallback := func(bytesComplete, totalBytes int64, mbps float64, done bool) {
+			if totalBytes > 0 {
+				percent := float64(bytesComplete) / float64(totalBytes)
+				select {
+				case m.progressChan <- percent:
+				default:
+				}
+			}
+		}
+
+		modelFile, err = downloader.DownloadModel(downloadCtx, modeldownloader.DefaultModelURL, progressCallback)
+		if err != nil {
+			m.progressChan <- -1
+			return
+		}
+	}
+
+	// Signal completion
+	m.progressChan <- 1.0
+}
+
+// downloadTTSInternal downloads TTS model in goroutine
+func (m setupTUIModel) downloadTTSInternal() {
+	// Check context cancellation
+	if m.ctx.Err() != nil {
+		m.progressChan <- -1
+		return
+	}
+
+	downloadCtx, cancel := context.WithTimeout(m.ctx, ModelDownloadTimeout)
+	defer cancel()
+
+	// Setup TTS model - uses standard path structure: models/{org}/{repo}/{filename}
+	downloader := ttsapp.NewModelDownloader("")
+
+	modelFile, err := downloader.DiscoverModel()
+	if err != nil {
+		m.progressChan <- -1
+		return
+	}
+
+	if modelFile == "" {
+		// Download default TTS model with progress reporting
+		progressCallback := func(bytesComplete, totalBytes int64, mbps float64, done bool) {
+			if totalBytes > 0 {
+				percent := float64(bytesComplete) / float64(totalBytes)
+				select {
+				case m.progressChan <- percent:
+				default:
+				}
+			}
+		}
+
+		modelFile, err = downloader.DownloadModel(downloadCtx, ttsapp.DefaultTTSModelURL, progressCallback)
+		if err != nil {
+			// TTS is optional, signal completion anyway
+			m.progressChan <- 1.0
+			return
+		}
+	}
+
+	// Signal completion
+	m.progressChan <- 1.0
 }
 
 // NewSetupTUI creates a new TUI setup program
@@ -1604,31 +2075,39 @@ func NewSetupTUI(skipHardwareCheck bool) (*SetupResult, error) {
 	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF6B9D"))
 
 	prog := progress.New(progress.WithDefaultGradient())
+	whisperProg := progress.New(progress.WithDefaultGradient())
+	sdProg := progress.New(progress.WithDefaultGradient())
+	ttsProg := progress.New(progress.WithDefaultGradient())
 
 	// Check if wallet already exists
 	walletExists := walletService.HasWallet()
 
+	// Create context with cancel for cleanup
+	ctx, cancel := context.WithCancel(context.Background())
+
 	progressChan := make(chan float64, 100)
-	// Note: Channel is not closed here to avoid panics from download goroutines
-	// The channel will be garbage collected when the program exits
-	// Non-blocking sends with select/default are safe even if channel is unclosed
 
 	model := setupTUIModel{
-		styles:            s,
-		step:              stepWelcome,
-		walletService:     walletService,
-		walletExists:      walletExists,
-		passwordInput:     passwordInput,
-		confirmInput:      confirmInput,
-		nameInput:         nameInput,
-		mnemonicInput:     mnemonicInput,
-		keystoreInput:     keystoreInput,
-		keystorePathInput: keystorePathInput,
-		privateKeyInput:   privateKeyInput,
-		spinner:           sp,
-		progressBar:       prog,
-		skipHardwareCheck: skipHardwareCheck,
-		progressChan:      progressChan,
+		styles:             s,
+		step:               stepWelcome,
+		walletService:      walletService,
+		walletExists:       walletExists,
+		passwordInput:      passwordInput,
+		confirmInput:       confirmInput,
+		nameInput:          nameInput,
+		mnemonicInput:      mnemonicInput,
+		keystoreInput:      keystoreInput,
+		keystorePathInput:  keystorePathInput,
+		privateKeyInput:    privateKeyInput,
+		spinner:            sp,
+		progressBar:        prog,
+		whisperProgressBar: whisperProg,
+		sdProgressBar:      sdProg,
+		ttsProgressBar:     ttsProg,
+		skipHardwareCheck:  skipHardwareCheck,
+		progressChan:       progressChan,
+		ctx:                ctx,
+		cancel:             cancel,
 		result: &SetupResult{
 			Errors: make([]error, 0),
 		},
@@ -1636,6 +2115,11 @@ func NewSetupTUI(skipHardwareCheck bool) (*SetupResult, error) {
 
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	finalModel, err := p.Run()
+
+	// Cleanup
+	cancel()
+	close(progressChan)
+
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kawai-network/x/constant"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -50,7 +51,7 @@ func AllTokenAddresses() map[string]string {
 	for addr, desc := range TOKENS {
 		result[strings.ToLower(addr)] = desc
 	}
-	for addr, desc := range PROJECT_TOKENS {
+	for addr, desc := range constant.PROJECT_TOKENS {
 		result[strings.ToLower(addr)] = desc
 	}
 	return result

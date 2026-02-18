@@ -13,6 +13,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/jarvis/txanalyzer"
 	"github.com/kawai-network/veridium/pkg/jarvis/util"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
+	"github.com/kawai-network/x/constant"
 )
 
 // NetworkInfo represents a blockchain network for the frontend
@@ -608,8 +609,8 @@ type ProjectToken struct {
 
 // GetProjectTokens returns all project-specific tokens (deployed contracts)
 func (s *JarvisService) GetProjectTokens() []ProjectToken {
-	tokens := make([]ProjectToken, 0, len(db.PROJECT_TOKENS))
-	for addr, name := range db.PROJECT_TOKENS {
+	tokens := make([]ProjectToken, 0, len(constant.PROJECT_TOKENS))
+	for addr, name := range constant.PROJECT_TOKENS {
 		// Only include actual tokens (not contracts like Escrow, PaymentVault, Distributors)
 		if name == "Stablecoin" || name == "KawaiToken" {
 			tokens = append(tokens, ProjectToken{

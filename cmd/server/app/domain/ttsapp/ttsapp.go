@@ -16,9 +16,6 @@ import (
 	"github.com/kawai-network/veridium/internal/paths"
 )
 
-// DefaultTTSModelName is the default TTS model filename
-const DefaultTTSModelName = "kokoro-v1.0-82M-Q4_K_M.gguf"
-
 // app represents the TTS application
 type app struct {
 	log *logger.Logger

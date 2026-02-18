@@ -3,15 +3,27 @@ package ttsapp
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/tools/downloader"
 )
 
 // DefaultTTSModelURL is the default TTS model (Kokoro) from HuggingFace
-const DefaultTTSModelURL = "https://huggingface.co/mmwillet2/Kokoro_GGUF/resolve/main/kokoro-v1.0-82M-Q4_K_M.gguf"
+const DefaultTTSModelURL = "https://huggingface.co/mmwillet2/Kokoro_GGUF/resolve/main/Kokoro_no_espeak_Q4.gguf"
+
+// DefaultTTSModelName is the default filename for the TTS model
+const DefaultTTSModelName = "Kokoro_no_espeak_Q4.gguf"
+
+// DefaultTTSModelOrg is the default organization for TTS model
+const DefaultTTSModelOrg = "mmwillet2"
+
+// DefaultTTSModelRepo is the default repository for TTS model
+const DefaultTTSModelRepo = "Kokoro_GGUF"
 
 // ModelDownloader handles TTS model downloads
 type ModelDownloader struct {
@@ -25,10 +37,49 @@ func NewModelDownloader(modelsPath string) *ModelDownloader {
 	}
 }
 
+// modelFilePathAndName extracts the standard model path and filename from a HuggingFace URL
+// Following the standard: models/{org}/{repo}/{filename}
+func modelFilePathAndName(modelFileURL string) (string, string, error) {
+	mURL, err := url.Parse(modelFileURL)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to parse fileURL: %w", err)
+	}
+
+	parts := strings.Split(mURL.Path, "/")
+	if len(parts) < 3 {
+		return "", "", fmt.Errorf("invalid huggingface url: %q", mURL.Path)
+	}
+
+	fileName, err := extractFileName(modelFileURL)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to extract file name: %w", err)
+	}
+
+	// Standard path: models/{org}/{repo}/{filename}
+	// parts: ["", "mmwillet2", "Kokoro_GGUF", "resolve", "main", "Kokoro_no_espeak_Q4.gguf"]
+	modelFilePath := filepath.Join(paths.Models(), parts[1], parts[2])
+	modelFileName := filepath.Join(modelFilePath, fileName)
+
+	return modelFilePath, modelFileName, nil
+}
+
+// extractFileName extracts the filename from a URL
+func extractFileName(modelFileURL string) (string, error) {
+	u, err := url.Parse(modelFileURL)
+	if err != nil {
+		return "", fmt.Errorf("parse error: %w", err)
+	}
+
+	name := path.Base(u.Path)
+	return name, nil
+}
+
 // DiscoverModel checks if a TTS model already exists
+// Uses the standard path structure: models/{org}/{repo}/{filename}
 func (d *ModelDownloader) DiscoverModel() (string, error) {
-	// Check for any .gguf files in the models directory
-	entries, err := os.ReadDir(d.modelsPath)
+	// Check standard path: models/{org}/{repo}/
+	standardPath := filepath.Join(paths.Models(), DefaultTTSModelOrg, DefaultTTSModelRepo)
+	entries, err := os.ReadDir(standardPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
@@ -38,7 +89,7 @@ func (d *ModelDownloader) DiscoverModel() (string, error) {
 
 	for _, entry := range entries {
 		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".gguf" {
-			return filepath.Join(d.modelsPath, entry.Name()), nil
+			return filepath.Join(standardPath, entry.Name()), nil
 		}
 	}
 
@@ -46,27 +97,26 @@ func (d *ModelDownloader) DiscoverModel() (string, error) {
 }
 
 // DownloadModel downloads a TTS model from the given URL
-func (d *ModelDownloader) DownloadModel(ctx context.Context, url string, progressCb func(bytesComplete, totalBytes int64, mbps float64, done bool)) (string, error) {
-	if url == "" {
-		url = DefaultTTSModelURL
+// Uses the standard path structure: models/{org}/{repo}/{filename}
+func (d *ModelDownloader) DownloadModel(ctx context.Context, modelURL string, progressCb func(bytesComplete, totalBytes int64, mbps float64, done bool)) (string, error) {
+	if modelURL == "" {
+		modelURL = DefaultTTSModelURL
 	}
 
-	// Extract filename from URL
-	filename := filepath.Base(url)
-	if filename == "" || filename == "." {
-		filename = DefaultTTSModelName
+	// Extract standard path from URL
+	modelFilePath, modelFileName, err := modelFilePathAndName(modelURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to extract model path: %w", err)
 	}
 
 	// Create models directory if it doesn't exist
-	if err := os.MkdirAll(d.modelsPath, 0755); err != nil {
+	if err := os.MkdirAll(modelFilePath, 0755); err != nil {
 		return "", fmt.Errorf("failed to create models directory: %w", err)
 	}
 
-	modelPath := filepath.Join(d.modelsPath, filename)
-
 	// Check if model already exists
-	if _, err := os.Stat(modelPath); err == nil {
-		return modelPath, nil
+	if _, err := os.Stat(modelFileName); err == nil {
+		return modelFileName, nil
 	}
 
 	// Download the model
@@ -76,25 +126,26 @@ func (d *ModelDownloader) DownloadModel(ctx context.Context, url string, progres
 		}
 	}
 
-	_, err := downloader.Download(ctx, url, modelPath, progressFunc, downloader.SizeIntervalMIB)
+	// Pass the full file path (modelFileName) to downloader.Download
+	_, err = downloader.Download(ctx, modelURL, modelFileName, progressFunc, downloader.SizeIntervalMIB)
 	if err != nil {
 		return "", fmt.Errorf("failed to download TTS model: %w", err)
 	}
 
-	return modelPath, nil
+	return modelFileName, nil
 }
 
 // GetDefaultModelPath returns the path to the default TTS model
+// Uses the standard path structure: models/{org}/{repo}/{filename}
 func (d *ModelDownloader) GetDefaultModelPath() string {
-	return filepath.Join(d.modelsPath, DefaultTTSModelName)
+	return filepath.Join(paths.Models(), DefaultTTSModelOrg, DefaultTTSModelRepo, DefaultTTSModelName)
 }
 
 // ListDownloadedModels returns a list of downloaded TTS models
+// Uses the standard path structure: models/{org}/{repo}/
 func ListDownloadedModels() ([]string, error) {
-	modelsPath := paths.Models()
-	ttsModelsPath := filepath.Join(modelsPath, "tts")
-
-	entries, err := os.ReadDir(ttsModelsPath)
+	standardPath := filepath.Join(paths.Models(), DefaultTTSModelOrg, DefaultTTSModelRepo)
+	entries, err := os.ReadDir(standardPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []string{}, nil
@@ -114,10 +165,7 @@ func ListDownloadedModels() ([]string, error) {
 
 // DownloadModelWithProgress downloads a TTS model with progress callback
 func DownloadModelWithProgress(ctx context.Context, modelURL string, progressCb func(currentBytes, totalBytes int64)) error {
-	modelsPath := paths.Models()
-	ttsModelsPath := filepath.Join(modelsPath, "tts")
-
-	downloader := NewModelDownloader(ttsModelsPath)
+	downloader := NewModelDownloader("")
 
 	progressWrapper := func(currentBytes, totalBytes int64, mbps float64, done bool) {
 		if progressCb != nil {
