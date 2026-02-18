@@ -124,7 +124,7 @@ func (a *app) generations(ctx context.Context, r *http.Request) web.Encoder {
 func (a *app) generate(ctx context.Context, modelPath, text, voice string) ([]byte, error) {
 	// Create library config
 	libConfig := tts.LibraryConfig{
-		LibraryPath:  "", // Will auto-download if needed
+		LibraryPath:  paths.TTSLib(), // Will auto-download if needed
 		AutoDownload: true,
 		Version:      "v0.1.1",
 	}

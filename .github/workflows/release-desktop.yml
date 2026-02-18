@@ -1,9 +1,9 @@
 name: Release
 
 on:
-  # push:
-  #   branches:
-  #     - '**'
+  push:
+    branches:
+      - '**'
   workflow_dispatch:
     inputs:
       version:
@@ -41,7 +41,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           else
-            echo "version=0.1.9" >> $GITHUB_OUTPUT
+            echo "version=0.2.0" >> $GITHUB_OUTPUT
           fi
 
       - name: Create Release

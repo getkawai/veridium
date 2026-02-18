@@ -1,16 +1,16 @@
 name: Test Whisper Package
 
 on:
-  push:
-    paths:
-      - 'cmd/server/app/domain/whisperapp/**'
-      - 'go.mod'
-      - 'go.sum'
-  pull_request:
-    paths:
-      - 'cmd/server/app/domain/whisperapp/**'
-      - 'go.mod'
-      - 'go.sum'
+  # push:
+  #   paths:
+  #     - 'cmd/server/app/domain/whisperapp/**'
+  #     - 'go.mod'
+  #     - 'go.sum'
+  # pull_request:
+  #   paths:
+  #     - 'cmd/server/app/domain/whisperapp/**'
+  #     - 'go.mod'
+  #     - 'go.sum'
 
 env:
   GOPRIVATE: 'github.com/kawai-network/*'

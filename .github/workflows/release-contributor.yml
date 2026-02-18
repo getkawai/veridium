@@ -1,9 +1,9 @@
 name: Release Contributor (cmd/server)
 
 on:
-  # push:
-  #   branches:
-  #     - '**'
+  push:
+    branches:
+      - '**'
   workflow_dispatch:
     inputs:
       version:
@@ -37,7 +37,7 @@ jobs:
         id: get_version
         run: |
           # Hardcoded version for testing
-          echo "version=0.1.9" >> $GITHUB_OUTPUT
+          echo "version=0.2.0" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create_release

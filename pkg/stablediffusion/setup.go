@@ -10,12 +10,6 @@ import (
 	"github.com/kawai-network/veridium/pkg/stablediffusion/download"
 )
 
-// GetLibDir returns the directory where stable-diffusion library should be stored.
-// Uses paths.Libraries() to ensure consistent location for both development and packaged apps.
-func GetLibDir() string {
-	return paths.Libraries()
-}
-
 // EnsureLibrary checks if the stable-diffusion library exists, and downloads it if not.
 // This should be called once during application startup.
 func EnsureLibrary() error {
@@ -24,7 +18,7 @@ func EnsureLibrary() error {
 
 // EnsureLibraryWithProgress checks if the stable-diffusion library exists with custom progress callback.
 func EnsureLibraryWithProgress(progress download.ProgressCallback) error {
-	libPath := GetLibDir()
+	libPath := paths.StableDiffusionLib()
 	libName := download.LibraryName()
 	libFile := filepath.Join(libPath, libName)
 
@@ -48,7 +42,7 @@ func EnsureLibraryWithProgress(progress download.ProgressCallback) error {
 
 // IsLibraryInstalled checks if the stable-diffusion library is installed.
 func IsLibraryInstalled() bool {
-	libPath := GetLibDir()
+	libPath := paths.StableDiffusionLib()
 	libName := download.LibraryName()
 	libFile := filepath.Join(libPath, libName)
 
@@ -58,7 +52,7 @@ func IsLibraryInstalled() bool {
 
 // GetLibraryPath returns the path to the stable-diffusion library.
 func GetLibraryPath() string {
-	libPath := GetLibDir()
+	libPath := paths.StableDiffusionLib()
 	libName := download.LibraryName()
 	return filepath.Join(libPath, libName)
 }

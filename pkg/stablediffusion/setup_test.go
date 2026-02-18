@@ -6,13 +6,14 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/stablediffusion/download"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGetLibDir(t *testing.T) {
-	libDir := GetLibDir()
+	libDir := paths.StableDiffusionLib()
 	assert.NotEmpty(t, libDir, "library directory should not be empty")
 	assert.Contains(t, libDir, "lib", "library directory should contain 'lib'")
 }

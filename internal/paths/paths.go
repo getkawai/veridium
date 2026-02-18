@@ -273,6 +273,10 @@ func Templates() string { return filepath.Join(Base(), "templates") }
 // StableDiffusionOutputs returns path to SD generated images output directory
 func StableDiffusionOutputs() string { return filepath.Join(Base(), "outputs", "stable-diffusion") }
 
+// StableDiffusionLib returns path to SD library directory
+// Used by github.com/kawai-network/stablediffusion for library storage
+func StableDiffusionLib() string { return filepath.Join(Libraries(), "stablediffusion") }
+
 // StableDiffusionBin returns path to SD binary directory
 func StableDiffusionBin() string { return filepath.Join(Libraries(), "stable-diffusion", "bin") }
 
@@ -297,6 +301,14 @@ func WhisperModels() string { return filepath.Join(Models(), "whisper") }
 // WhisperLib returns path to Whisper library directory
 // Used by github.com/kawai-network/whisper for gowhisper library storage
 func WhisperLib() string { return filepath.Join(Libraries(), "whisper") }
+
+// =============================================================================
+// TTS specific paths
+// =============================================================================
+
+// TTSLib returns path to TTS library directory
+// Used by github.com/kawai-network/TTS.cpp for library storage
+func TTSLib() string { return filepath.Join(Libraries(), "tts") }
 
 // =============================================================================
 // Deprecated: Legacy node-specific paths (for backward compatibility)
