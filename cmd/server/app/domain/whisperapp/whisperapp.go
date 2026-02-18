@@ -55,7 +55,7 @@ func (r TranscriptionResponse) Encode() ([]byte, string, error) {
 // transcriptions handles POST /v1/audio/transcriptions
 func (a *app) transcriptions(ctx context.Context, r *http.Request) web.Encoder {
 	// Parse multipart form (for file upload)
-	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB max
+	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
 		return errs.New(errs.InvalidArgument, fmt.Errorf("failed to parse form: %w", err))
 	}
 
@@ -152,7 +152,7 @@ func (a *app) transcribe(ctx context.Context, modelPath string, file io.Reader, 
 	// Prepare transcription options
 	// Note: github.com/kawai-network/whisper uses a different options structure
 	opts := whisper.TranscriptionOptions{
-		Threads:   4, // Default to 4 threads
+		Threads:   defaultThreads,
 		Language:  language,
 		Translate: false,
 		Diarize:   false,
@@ -186,3 +186,11 @@ type TextResponse struct {
 func (r TextResponse) Encode() ([]byte, string, error) {
 	return []byte(r.Text), "text/plain", nil
 }
+
+// Constants for transcription request limits
+const (
+	// maxUploadSize is the maximum allowed upload file size (32MB)
+	maxUploadSize = 32 << 20 // 32 MB
+	// defaultThreads is the default number of CPU threads for transcription
+	defaultThreads = 4
+)

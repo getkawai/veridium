@@ -3,12 +3,10 @@ package download
 import (
 	"archive/zip"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -24,16 +22,8 @@ var (
 	ErrInvalidVersion = errors.New("invalid version")
 )
 
-var (
-	// DefaultVersion is the default stable-diffusion.cpp version to use
-	DefaultVersion = "master-487-43e829f"
-	// RetryCount is how many times the package will retry to obtain the latest stable-diffusion.cpp version.
-	RetryCount = 3
-	// RetryDelay is the delay between retries when obtaining the latest stable-diffusion.cpp version.
-	RetryDelay = 3 * time.Second
-	// apiURL is the GitHub API URL for fetching the latest stable-diffusion.cpp version.
-	apiURL = "https://api.github.com/repos/leejet/stable-diffusion.cpp/releases/latest"
-)
+// DefaultVersion is the default stable-diffusion.cpp version to use
+var DefaultVersion = "master-487-43e829f"
 
 // Arch represents the CPU architecture
 type Arch int
@@ -98,60 +88,6 @@ var ProgressTracker ProgressCallback = func(url string, bytesComplete, totalByte
 	fmt.Printf("\r⬇️  Downloading: %.1f%% (%.2f MB/s)", percent, mbps)
 }
 
-// SDLatestVersion fetches the latest release tag of stable-diffusion.cpp from the GitHub API.
-func SDLatestVersion() (string, error) {
-	var version string
-	var err error
-	for range RetryCount {
-		version, err = getLatestVersion()
-		if err == nil {
-			return version, nil
-		}
-		time.Sleep(RetryDelay)
-	}
-
-	return "", errors.New("unable to fetch latest version")
-}
-
-func getLatestVersion() (string, error) {
-	req, err := http.NewRequest("GET", apiURL, nil)
-	if err != nil {
-		return "", err
-	}
-
-	// Set required headers for GitHub API
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("failed to close response body: %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("received status code %d from GitHub API: %s", resp.StatusCode, string(body))
-	}
-
-	var result struct {
-		TagName string `json:"tag_name"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-
-	return result.TagName, nil
-}
-
 // getDownloadLocationAndFilename returns the download location and filename for the given parameters.
 func getDownloadLocationAndFilename(arch Arch, os OS, version string) (location, filename string, err error) {
 	location = fmt.Sprintf("https://github.com/leejet/stable-diffusion.cpp/releases/download/%s", version)
@@ -192,8 +128,7 @@ func getDownloadLocationAndFilename(arch Arch, os OS, version string) (location,
 
 // Get downloads the stable-diffusion.cpp precompiled binaries for the current system.
 // version should be the desired version tag (e.g., "master-487-43e829f").
-// If version is empty, it will use DefaultVersion (master-487-43e829f).
-// You can use [SDLatestVersion] to obtain the latest release.
+// If version is empty, it will use DefaultVersion.
 // If dest is empty, it will use the default lib directory.
 func Get(version string) error {
 	if version == "" {

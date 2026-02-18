@@ -126,7 +126,7 @@ func (a *app) generate(ctx context.Context, modelPath, text, voice string) ([]by
 	libConfig := tts.LibraryConfig{
 		LibraryPath:  paths.TTSLib(), // Will auto-download if needed
 		AutoDownload: true,
-		Version:      "v0.1.1",
+		Version:      "v0.1.4",
 	}
 
 	// Create TTS config

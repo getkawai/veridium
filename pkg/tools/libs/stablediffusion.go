@@ -15,7 +15,8 @@ func init() {
 type sdDownloader struct{}
 
 func (d *sdDownloader) LatestVersion() (string, error) {
-	return sddownload.SDLatestVersion()
+	// Return the default tested version
+	return sddownload.DefaultVersion, nil
 }
 
 func (d *sdDownloader) Download(ctx context.Context, arch, os, processor, version, dest string, progress download.ProgressCallback) error {
