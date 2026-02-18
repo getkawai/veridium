@@ -29,7 +29,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/jupiterrider/ffi v0.5.1
 	github.com/kaptinlin/jsonschema v0.6.2
-	github.com/kawai-network/TTS.cpp/bindings/go v0.1.2
+	github.com/kawai-network/TTS.cpp/bindings/go v0.1.4
 	github.com/kawai-network/grab v0.1.0
 	github.com/kawai-network/stablediffusion v0.1.1
 	github.com/kawai-network/whisper v0.4.0
@@ -56,7 +56,7 @@ require (
 	golang.org/x/crypto v0.47.0
 	golang.org/x/net v0.49.0
 	golang.org/x/sync v0.19.0
-	golang.org/x/sys v0.40.0
+	golang.org/x/sys v0.41.0
 	golang.org/x/term v0.39.0
 	golang.org/x/text v0.33.0
 	golang.org/x/time v0.14.0
