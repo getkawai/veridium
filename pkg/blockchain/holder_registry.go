@@ -59,7 +59,6 @@ func (hr *HolderRegistry) RegisterHolder(ctx context.Context, address common.Add
 		return fmt.Errorf("failed to register holder: %w", err)
 	}
 
-	log.Printf("✅ [HOLDER REGISTRY] Registered new holder: %s (source: %s)", addressHex, source)
 	return nil
 }
 
