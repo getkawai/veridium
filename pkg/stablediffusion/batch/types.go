@@ -3,6 +3,8 @@ package batch
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -371,16 +373,45 @@ func (g *Generator) mergeParams(base *stablediffusion.ImgGenParams, variation *V
 }
 
 // generateOutputPath generates an output path based on pattern
+// Supports placeholders: %d/%03d for index, {seed} for seed value
 func (g *Generator) generateOutputPath(pattern string, index int, seed int64) string {
 	if pattern == "" {
 		pattern = "batch_%03d.png"
 	}
 
-	// Replace %d or %03d with the index
-	path := fmt.Sprintf(pattern, index)
+	// Replace {seed} placeholder first (before index formatting)
+	path := strings.ReplaceAll(pattern, "{seed}", fmt.Sprintf("%d", seed))
 
-	// Replace {seed} with the seed value
-	path = fmt.Sprintf(path, seed)
+	// Check if pattern contains a format specifier for index
+	if strings.Contains(path, "%d") || strings.Contains(path, "%0") {
+		// Replace %d or %03d with the index
+		path = fmt.Sprintf(path, index)
+	} else {
+		// No format specifier, append index before extension
+		// Only treat as extension if dot is after the last path separator
+		ext := ""
+		baseName := path
+		
+		// Find the last path separator
+		lastSep := strings.LastIndex(path, string(os.PathSeparator))
+		
+		// Look for extension only in the filename part (after last separator)
+		filenameStart := 0
+		if lastSep != -1 {
+			filenameStart = lastSep + 1
+		}
+		
+		// Find dot in filename part only
+		dotIndex := strings.LastIndex(path[filenameStart:], ".")
+		if dotIndex != -1 {
+			// Adjust dotIndex to be relative to full path
+			dotIndex += filenameStart
+			ext = path[dotIndex:]
+			baseName = path[:dotIndex]
+		}
+		
+		path = fmt.Sprintf("%s_%d%s", baseName, index, ext)
+	}
 
 	return path
 }

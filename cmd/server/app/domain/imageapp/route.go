@@ -25,7 +25,10 @@ func Routes(app *web.App, cfg Config) {
 	// Use wallet-based authentication
 	walletAuth := mid.WalletAuthenticate()
 
+	// OpenAI-compatible image generation endpoints
 	app.HandlerFunc(http.MethodPost, version, "/images/generations", api.generations, walletAuth)
+	app.HandlerFunc(http.MethodPost, version, "/images/edits", api.edits, walletAuth)
+	app.HandlerFunc(http.MethodPost, version, "/images/variations", api.variations, walletAuth)
 
 	// Add file server route for generated images
 	AddFileServerRoute(app, cfg)

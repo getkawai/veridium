@@ -5,20 +5,128 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"unsafe"
 
 	sd "github.com/kawai-network/stablediffusion"
 )
 
 // internalSD is the internal StableDiffusion instance
+// Protected by internalSDMu mutex for thread-safe access
 var internalSD *sd.StableDiffusion
 
-// InitLibrary initializes the stable diffusion library
+// internalSDMu protects access to internalSD
+var internalSDMu sync.RWMutex
+
+// InitLibrary initializes the stable diffusion library.
+// This function is thread-safe and should be called once at application startup.
+// Subsequent calls will reinitialize the library (not recommended).
 func InitLibrary(libPath string) error {
 	var err error
+	
+	internalSDMu.Lock()
+	defer internalSDMu.Unlock()
+	
 	internalSD, err = sd.New(sd.LibraryConfig{LibPath: libPath})
 	return err
 }
+
+// getInternalSD returns the internal SD instance with proper synchronization
+// Returns nil if the library has not been initialized
+func getInternalSD() *sd.StableDiffusion {
+	internalSDMu.RLock()
+	defer internalSDMu.RUnlock()
+	return internalSD
+}
+
+// ============================================================================
+// Default Generation Parameters
+// ============================================================================
+// These constants define sensible defaults for image and video generation.
+// Values are chosen based on community best practices and model recommendations.
+// ============================================================================
+
+// Image Generation Defaults
+const (
+	// DefaultCfgScale is the default Classifier-Free Guidance scale.
+	// Higher values (7-10) follow prompts more strictly but may reduce quality.
+	// Lower values (3-5) allow more creative freedom. 5.0 is a balanced default.
+	DefaultCfgScale = 5.0
+
+	// DefaultImageCfgScale is the default image guidance scale for inpaint/instruct-pix2pix.
+	// 1.0 means no additional image guidance beyond the base CfgScale.
+	DefaultImageCfgScale = 1.0
+
+	// DefaultDistilledGuidance is the default distilled guidance scale for models with guidance input.
+	// 3.5 is recommended for distilled models like SDXL Turbo.
+	DefaultDistilledGuidance = 3.5
+
+	// DefaultSampleSteps is the default number of denoising steps.
+	// 20 steps provides good quality for most samplers. Fewer steps (10-15) for faster generation,
+	// more steps (30-50) for higher quality.
+	DefaultSampleSteps = 20
+
+	// DefaultStrength is the default noise strength for img2img.
+	// 0.75 provides a good balance between following the prompt and preserving the original image.
+	// Range: 0.0 (preserve original) to 1.0 (complete noise).
+	DefaultStrength = 0.75
+
+	// DefaultSeed is the default random seed.
+	// 42 is a conventional choice (reference to "Hitchhiker's Guide to the Galaxy").
+	// Use negative values or 0 with random seed generation for variation.
+	DefaultSeed = 42
+
+	// DefaultBatchCount is the default number of images to generate in one batch.
+	DefaultBatchCount = 1
+
+	// DefaultClipSkip specifies how many CLIP layers to skip.
+	// -1 means no skip (use all layers). Some models benefit from skipping 1-2 layers.
+	DefaultClipSkip = -1
+
+	// DefaultEta is the default eta parameter for DDIM/TCD samplers.
+	// 1.0 is the standard value for ancestral samplers.
+	DefaultEta = 1.0
+
+	// DefaultSkipLayerStart is when Skip Layer Guidance (SLG) starts (as fraction of total steps).
+	DefaultSkipLayerStart = 0.01
+
+	// DefaultSkipLayerEnd is when Skip Layer Guidance (SLG) ends (as fraction of total steps).
+	DefaultSkipLayerEnd = 0.2
+
+	// DefaultControlStrength is the default strength for ControlNet guidance.
+	// 0.9 provides strong control while allowing some creative freedom.
+	DefaultControlStrength = 0.9
+)
+
+// Video Generation Defaults
+const (
+	// DefaultVideoFrames is the default number of frames to generate.
+	// 33 frames at 30fps = ~1.1 seconds of video.
+	DefaultVideoFrames = 33
+
+	// DefaultMOEBoundary is the timestep boundary for Wan2.2 MoE models.
+	// 0.875 is the recommended value for MoE models.
+	DefaultMOEBoundary = 0.875
+
+	// DefaultVaceStrength is the default strength for Wan VACE (Video Attention Control Enhancement).
+	DefaultVaceStrength = 1.0
+
+	// DefaultHighNoiseCfgScale is the cfg scale for high noise diffusion models.
+	DefaultHighNoiseCfgScale = 6.0
+
+	// DefaultHighNoiseSampleSteps is the sample steps for high noise diffusion models.
+	// -1 indicates auto-calculation based on main sample steps.
+	DefaultHighNoiseSampleSteps = -1
+)
+
+// Image Dimension Defaults
+const (
+	// DefaultWidth is the default image width in pixels.
+	DefaultWidth = 512
+
+	// DefaultHeight is the default image height in pixels.
+	DefaultHeight = 512
+)
 
 // Embedding embedding structure for defining model embeddings
 type Embedding struct {
@@ -288,12 +396,47 @@ type VidGenParams struct {
 	CacheParams  sd.SDCacheParams // Cache parameters for DiT models
 }
 
-// StableDiffusion Stable Diffusion structure containing context pointer
+// StableDiffusion is the main structure for interacting with the Stable Diffusion library.
+// It wraps a SDContext pointer and provides methods for image and video generation.
+//
+// # Lifecycle Management
+//
+// The StableDiffusion instance must be explicitly freed when no longer needed by calling Free().
+// Generation methods (GenerateImage, GenerateVideo) do NOT automatically free the context,
+// allowing you to reuse the same instance for multiple generations.
+//
+// # Usage Pattern
+//
+//	sd, err := NewStableDiffusion(params)
+//	if err != nil {
+//	    // handle error
+//	}
+//	defer sd.Free() // Ensure cleanup when done
+//
+//	// Generate multiple images with the same instance
+//	err = sd.GenerateImage(params1, "output1.png")
+//	err = sd.GenerateImage(params2, "output2.png")
+//
+// # Thread Safety
+//
+// StableDiffusion instances are NOT thread-safe. Do not call generation methods
+// from multiple goroutines simultaneously on the same instance.
 type StableDiffusion struct {
 	ctx *sd.SDContext // SD context pointer
 }
 
-// Free frees the stable diffusion context
+// Free releases all resources held by the StableDiffusion context.
+// After calling Free(), the instance cannot be used for further generations.
+// It is safe to call Free() multiple times - subsequent calls are no-ops.
+//
+// IMPORTANT: Always call Free() when done with the instance to prevent memory leaks.
+// The recommended pattern is to use defer:
+//
+//	sd, err := NewStableDiffusion(params)
+//	if err != nil {
+//	    return err
+//	}
+//	defer sd.Free()
 func (sDiffusion *StableDiffusion) Free() {
 	if sDiffusion.ctx != nil {
 		sDiffusion.ctx.Free()
@@ -304,13 +447,14 @@ func (sDiffusion *StableDiffusion) Free() {
 // NewStableDiffusion creates a stable diffusion instance
 func NewStableDiffusion(ctxParams *ContextParams) (*StableDiffusion, error) {
 	// Check if library is initialized
-	if internalSD == nil {
+	lib := getInternalSD()
+	if lib == nil {
 		return nil, errors.New("library not initialized, call InitLibrary first")
 	}
 
 	// 1. Initialize context parameters
 	var sdCtxParams sd.SDContextParams
-	internalSD.ContextParamsInit(&sdCtxParams)
+	lib.ContextParamsInit(&sdCtxParams)
 
 	if ctxParams.ModelPath != "" {
 		sdCtxParams.ModelPath = sd.CString(ctxParams.ModelPath)
@@ -452,7 +596,7 @@ func NewStableDiffusion(ctxParams *ContextParams) (*StableDiffusion, error) {
 	}
 
 	// 2. Create new context
-	ctx, err := internalSD.NewContext(&sdCtxParams)
+	ctx, err := lib.NewContext(&sdCtxParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create context: %w", err)
 	}
@@ -465,7 +609,44 @@ func NewStableDiffusion(ctxParams *ContextParams) (*StableDiffusion, error) {
 	}, nil
 }
 
-// GenerateImage generates image from text or image
+// GenerateImage generates an image from a text prompt or existing image (img2img).
+//
+// Parameters:
+//   - imgGenParams: Image generation parameters including prompt, dimensions, steps, etc.
+//   - newImagePath: Output path for the generated image (PNG format). Directories are created automatically.
+//
+// Returns:
+//   - error: nil on success, or an error describing what went wrong.
+//
+// # Resource Management
+//
+// This method does NOT free the StableDiffusion context. You can call GenerateImage
+// multiple times on the same instance to generate multiple images efficiently.
+// Always call Free() when you're completely done with the instance.
+//
+// # Examples
+//
+//	// Text-to-image
+//	err := sd.GenerateImage(&ImgGenParams{
+//	    Prompt: "a beautiful landscape",
+//	    Width: 512,
+//	    Height: 512,
+//	}, "output.png")
+//
+//	// Image-to-image
+//	err := sd.GenerateImage(&ImgGenParams{
+//	    Prompt:        "make it look like a painting",
+//	    InitImagePath: "input.png",
+//	    Strength:      0.75,
+//	}, "output.png")
+//
+//	// Multiple generations with same instance
+//	for i, prompt := range prompts {
+//	    err := sd.GenerateImage(&ImgGenParams{Prompt: prompt}, fmt.Sprintf("img_%d.png", i))
+//	    if err != nil {
+//	        log.Printf("Failed to generate image %d: %v", i, err)
+//	    }
+//	}
 func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, newImagePath string) error {
 	// Extract the directory part of newImagePath and create it if it doesn't exist
 	dir := filepath.Dir(newImagePath)
@@ -478,7 +659,11 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 
 	// Initialize image generation parameters
 	var sdImgGenParams sd.SDImgGenParams
-	internalSD.ImgGenParamsInit(&sdImgGenParams)
+	lib := getInternalSD()
+	if lib == nil {
+		return errors.New("library not initialized")
+	}
+	lib.ImgGenParamsInit(&sdImgGenParams)
 
 	// Set generation parameters
 	sdImgGenParams.Prompt = sd.CString(imgGenParams.Prompt)
@@ -505,12 +690,20 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 	sdImgGenParams.LoraCount = imgGenParams.LoraCount
 
 	if imgGenParams.ClipSkip == 0 {
-		imgGenParams.ClipSkip = -1
+		imgGenParams.ClipSkip = DefaultClipSkip
 	}
 	sdImgGenParams.ClipSkip = imgGenParams.ClipSkip
 
 	sdImgGenParams.InitImage = generateImageFromPath(imgGenParams.InitImagePath)
-	sdImgGenParams.RefImages = generateImagesFromPaths(imgGenParams.RefImagesPath)
+	
+	// Process reference images - keep slice alive during C library call
+	refImagesSlice := generateImagesFromPaths(imgGenParams.RefImagesPath)
+	if len(refImagesSlice) > 0 {
+		sdImgGenParams.RefImages = &refImagesSlice[0]
+	} else {
+		sdImgGenParams.RefImages = nil
+	}
+	
 	// Set reference images count, use actual loaded count if user didn't provide
 	sdImgGenParams.RefImagesCount = int32(len(imgGenParams.RefImagesPath))
 	if imgGenParams.RefImagesCount > 0 {
@@ -529,24 +722,24 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 	} else {
 		// Otherwise use default dimensions
 		if imgGenParams.Width == 0 {
-			imgGenParams.Width = 512
+			imgGenParams.Width = DefaultWidth
 		}
 		if imgGenParams.Height == 0 {
-			imgGenParams.Height = 512
+			imgGenParams.Height = DefaultHeight
 		}
 		sdImgGenParams.Width = imgGenParams.Width
 		sdImgGenParams.Height = imgGenParams.Height
 	}
 
 	if imgGenParams.CfgScale == 0 {
-		imgGenParams.CfgScale = 5.0
+		imgGenParams.CfgScale = DefaultCfgScale
 	}
 	if imgGenParams.ImageCfgScale == 0 {
-		imgGenParams.ImageCfgScale = 1.0
+		imgGenParams.ImageCfgScale = DefaultImageCfgScale
 	}
 
 	if imgGenParams.DistilledGuidance == 0 {
-		imgGenParams.DistilledGuidance = 3.5
+		imgGenParams.DistilledGuidance = DefaultDistilledGuidance
 	}
 
 	var skipLayersPtr *int32
@@ -557,15 +750,15 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 	}
 
 	if imgGenParams.SkipLayerStart == 0 {
-		imgGenParams.SkipLayerStart = 0.01
+		imgGenParams.SkipLayerStart = DefaultSkipLayerStart
 	}
 	if imgGenParams.SkipLayerEnd == 0 {
-		imgGenParams.SkipLayerEnd = 0.2
+		imgGenParams.SkipLayerEnd = DefaultSkipLayerEnd
 	}
 
 	var defaultSampleMethod sd.SampleMethod
 	if imgGenParams.SampleMethod == "" || imgGenParams.SampleMethod == "default" {
-		defaultSampleMethod = internalSD.GetDefaultSampleMethod(sDiffusion.ctx)
+		defaultSampleMethod = lib.GetDefaultSampleMethod(sDiffusion.ctx)
 	} else {
 		if sampleMethod, ok := SampleMethodMap[imgGenParams.SampleMethod]; ok {
 			defaultSampleMethod = sampleMethod
@@ -576,7 +769,7 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 
 	var defaultScheduler sd.Scheduler
 	if imgGenParams.Scheduler == "" || imgGenParams.Scheduler == "default" {
-		defaultScheduler = internalSD.GetDefaultScheduler(sDiffusion.ctx, defaultSampleMethod)
+		defaultScheduler = lib.GetDefaultScheduler(sDiffusion.ctx, defaultSampleMethod)
 	} else {
 		if scheduler, ok := SchedulerMap[imgGenParams.Scheduler]; ok {
 			defaultScheduler = scheduler
@@ -586,11 +779,11 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 	}
 
 	if imgGenParams.SampleSteps == 0 {
-		imgGenParams.SampleSteps = 20
+		imgGenParams.SampleSteps = DefaultSampleSteps
 	}
 
 	if imgGenParams.Eta == 0 {
-		imgGenParams.Eta = 1.0
+		imgGenParams.Eta = DefaultEta
 	}
 
 	var customSigmasPtr *float32
@@ -623,24 +816,24 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 	}
 
 	if imgGenParams.Strength == 0 {
-		imgGenParams.Strength = 0.75
+		imgGenParams.Strength = DefaultStrength
 	}
 	sdImgGenParams.Strength = imgGenParams.Strength
 
 	if imgGenParams.Seed == 0 {
-		imgGenParams.Seed = 42
+		imgGenParams.Seed = DefaultSeed
 	}
 	sdImgGenParams.Seed = imgGenParams.Seed
 
 	if imgGenParams.BatchCount == 0 {
-		imgGenParams.BatchCount = 1
+		imgGenParams.BatchCount = DefaultBatchCount
 	}
 	sdImgGenParams.BatchCount = imgGenParams.BatchCount
 
 	sdImgGenParams.ControlImage = generateImageFromPath(imgGenParams.ControlImagePath)
 
 	if imgGenParams.ControlStrength == 0 {
-		imgGenParams.ControlStrength = 0.9
+		imgGenParams.ControlStrength = DefaultControlStrength
 	}
 	sdImgGenParams.ControlStrength = imgGenParams.ControlStrength
 
@@ -668,7 +861,7 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 
 	// Initialize cache parameters
 	var cacheParams sd.SDCacheParams
-	internalSD.CacheParamsInit(&cacheParams)
+	lib.CacheParamsInit(&cacheParams)
 
 	// If user provided cache parameters, use them
 	if imgGenParams.CacheParams != (sd.SDCacheParams{}) {
@@ -686,8 +879,7 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 	// Generate image
 	img := sDiffusion.ctx.GenerateImage(&sdImgGenParams)
 	if img == nil {
-		sDiffusion.ctx.Free()
-		return errors.New("failed to generate image")
+		return errors.New("failed to generate image: context returned nil image")
 	}
 
 	fmt.Println("\nImage generated successfully!")
@@ -696,20 +888,48 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 	fmt.Printf("Data pointer: %p\n", unsafe.Pointer(img.Data))
 
 	// Save image
-	err := sd.SaveImage(img, newImagePath)
-	if err != nil {
-		sDiffusion.ctx.Free()
-		return errors.New("failed to save image")
+	if err := sd.SaveImage(img, newImagePath); err != nil {
+		return fmt.Errorf("failed to save image: %w", err)
 	}
 
-	// Free resources after all operations are completed
-	sDiffusion.ctx.Free()
-
 	return nil
-
 }
 
-// GenerateVideo generates video
+// GenerateVideo generates a video from a text prompt or existing images.
+//
+// Parameters:
+//   - vidGenParams: Video generation parameters including prompt, dimensions, frames, etc.
+//   - newVideoPath: Output path for the generated video (MP4 format). Requires FFmpeg.
+//
+// Returns:
+//   - error: nil on success, or an error describing what went wrong.
+//
+// # Resource Management
+//
+// This method does NOT free the StableDiffusion context. You can call GenerateVideo
+// multiple times on the same instance to generate multiple videos efficiently.
+// Always call Free() when you're completely done with the instance.
+//
+// # Requirements
+//
+// FFmpeg must be installed and available in PATH for video encoding.
+//
+// # Examples
+//
+//	// Text-to-video
+//	err := sd.GenerateVideo(&VidGenParams{
+//	    Prompt: "a beautiful sunset over mountains",
+//	    Width: 512,
+//	    Height: 512,
+//	    VideoFrames: 33,
+//	}, "output.mp4")
+//
+//	// Image-to-video
+//	err := sd.GenerateVideo(&VidGenParams{
+//	    Prompt: "animate this scene",
+//	    InitImagePath: "start.png",
+//	    VideoFrames: 33,
+//	}, "output.mp4")
 func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, newVideoPath string) error {
 	// Extract the directory part of newVideoPath and create it if it doesn't exist
 	dir := filepath.Dir(newVideoPath)
@@ -723,7 +943,11 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 
 	// Initialize video generation parameters
 	var sdVidGenParams sd.SDVidGenParams
-	internalSD.VidGenParamsInit(&sdVidGenParams)
+	lib := getInternalSD()
+	if lib == nil {
+		return errors.New("library not initialized")
+	}
+	lib.VidGenParamsInit(&sdVidGenParams)
 
 	// Set generation parameters
 	sdVidGenParams.Prompt = sd.CString(vidGenParams.Prompt)
@@ -746,7 +970,7 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 	sdVidGenParams.LoraCount = vidGenParams.LoraCount
 
 	if vidGenParams.ClipSkip == 0 {
-		vidGenParams.ClipSkip = -1
+		vidGenParams.ClipSkip = DefaultClipSkip
 	}
 	sdVidGenParams.ClipSkip = vidGenParams.ClipSkip
 
@@ -767,23 +991,23 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 	}
 
 	if vidGenParams.Width == 0 {
-		vidGenParams.Width = 512
+		vidGenParams.Width = DefaultWidth
 	}
 	if vidGenParams.Height == 0 {
-		vidGenParams.Height = 512
+		vidGenParams.Height = DefaultHeight
 	}
 	sdVidGenParams.Width = vidGenParams.Width
 	sdVidGenParams.Height = vidGenParams.Height
 
 	if vidGenParams.CfgScale == 0 {
-		vidGenParams.CfgScale = 6.0
+		vidGenParams.CfgScale = DefaultCfgScale
 	}
 	if vidGenParams.ImageCfgScale == 0 {
-		vidGenParams.ImageCfgScale = 1.0
+		vidGenParams.ImageCfgScale = DefaultImageCfgScale
 	}
 
 	if vidGenParams.DistilledGuidance == 0 {
-		vidGenParams.DistilledGuidance = 3.5
+		vidGenParams.DistilledGuidance = DefaultDistilledGuidance
 	}
 
 	var skipLayersPtr *int32
@@ -794,15 +1018,15 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 	}
 
 	if vidGenParams.SkipLayerStart == 0 {
-		vidGenParams.SkipLayerStart = 0.01
+		vidGenParams.SkipLayerStart = DefaultSkipLayerStart
 	}
 	if vidGenParams.SkipLayerEnd == 0 {
-		vidGenParams.SkipLayerEnd = 0.2
+		vidGenParams.SkipLayerEnd = DefaultSkipLayerEnd
 	}
 
 	var defaultSampleMethod sd.SampleMethod
 	if vidGenParams.SampleMethod == "" || vidGenParams.SampleMethod == "default" {
-		defaultSampleMethod = internalSD.GetDefaultSampleMethod(sDiffusion.ctx)
+		defaultSampleMethod = lib.GetDefaultSampleMethod(sDiffusion.ctx)
 	} else {
 		if sampleMethod, ok := SampleMethodMap[vidGenParams.SampleMethod]; ok {
 			defaultSampleMethod = sampleMethod
@@ -813,7 +1037,7 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 
 	var defaultScheduler sd.Scheduler
 	if vidGenParams.Scheduler == "" || vidGenParams.Scheduler == "default" {
-		defaultScheduler = internalSD.GetDefaultScheduler(sDiffusion.ctx, defaultSampleMethod)
+		defaultScheduler = lib.GetDefaultScheduler(sDiffusion.ctx, defaultSampleMethod)
 	} else {
 		if scheduler, ok := SchedulerMap[vidGenParams.Scheduler]; ok {
 			defaultScheduler = scheduler
@@ -823,11 +1047,11 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 	}
 
 	if vidGenParams.SampleSteps == 0 {
-		vidGenParams.SampleSteps = 20
+		vidGenParams.SampleSteps = DefaultSampleSteps
 	}
 
 	if vidGenParams.Eta == 0 {
-		vidGenParams.Eta = 1.0
+		vidGenParams.Eta = DefaultEta
 	}
 
 	var customSigmasPtr *float32
@@ -860,14 +1084,14 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 	}
 
 	if vidGenParams.HighNoiseCfgScale == 0 {
-		vidGenParams.HighNoiseCfgScale = 6.0
+		vidGenParams.HighNoiseCfgScale = DefaultHighNoiseCfgScale
 	}
 	if vidGenParams.HighNoiseImageCfgScale == 0 {
-		vidGenParams.HighNoiseImageCfgScale = 1.0
+		vidGenParams.HighNoiseImageCfgScale = DefaultImageCfgScale
 	}
 
 	if vidGenParams.HighNoiseDistilledGuidance == 0 {
-		vidGenParams.HighNoiseDistilledGuidance = 3.5
+		vidGenParams.HighNoiseDistilledGuidance = DefaultDistilledGuidance
 	}
 
 	var highNoiseSkipLayersPtr *int32
@@ -878,15 +1102,15 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 	}
 
 	if vidGenParams.HighNoiseSkipLayerStart == 0 {
-		vidGenParams.HighNoiseSkipLayerStart = 0.01
+		vidGenParams.HighNoiseSkipLayerStart = DefaultSkipLayerStart
 	}
 	if vidGenParams.HighNoiseSkipLayerEnd == 0 {
-		vidGenParams.HighNoiseSkipLayerEnd = 0.2
+		vidGenParams.HighNoiseSkipLayerEnd = DefaultSkipLayerEnd
 	}
 
 	var defaultHighNoiseSampleMethod sd.SampleMethod
 	if vidGenParams.HighNoiseSampleMethod == "" || vidGenParams.HighNoiseSampleMethod == "default" {
-		defaultHighNoiseSampleMethod = internalSD.GetDefaultSampleMethod(sDiffusion.ctx)
+		defaultHighNoiseSampleMethod = lib.GetDefaultSampleMethod(sDiffusion.ctx)
 	} else {
 		if sampleMethod, ok := SampleMethodMap[vidGenParams.HighNoiseSampleMethod]; ok {
 			defaultHighNoiseSampleMethod = sampleMethod
@@ -897,7 +1121,7 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 
 	var defaultHighNoiseScheduler sd.Scheduler
 	if vidGenParams.HighNoiseScheduler == "" || vidGenParams.HighNoiseScheduler == "default" {
-		defaultHighNoiseScheduler = internalSD.GetDefaultScheduler(sDiffusion.ctx, defaultHighNoiseSampleMethod)
+		defaultHighNoiseScheduler = lib.GetDefaultScheduler(sDiffusion.ctx, defaultHighNoiseSampleMethod)
 	} else {
 		if scheduler, ok := SchedulerMap[vidGenParams.Scheduler]; ok {
 			defaultHighNoiseScheduler = scheduler
@@ -907,11 +1131,11 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 	}
 
 	if vidGenParams.HighNoiseSampleSteps == 0 {
-		vidGenParams.HighNoiseSampleSteps = -1
+		vidGenParams.HighNoiseSampleSteps = DefaultHighNoiseSampleSteps
 	}
 
 	if vidGenParams.HighNoiseEta == 0 {
-		vidGenParams.HighNoiseEta = 1.0
+		vidGenParams.HighNoiseEta = DefaultEta
 	}
 
 	var highNoiseCustomSigmasPtr *float32
@@ -944,33 +1168,33 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 	}
 
 	if vidGenParams.MOEBoundary == 0 {
-		vidGenParams.MOEBoundary = 0.875
+		vidGenParams.MOEBoundary = DefaultMOEBoundary
 	}
 	sdVidGenParams.MOEBoundary = vidGenParams.MOEBoundary
 
 	if vidGenParams.Strength == 0 {
-		vidGenParams.Strength = 0.75
+		vidGenParams.Strength = DefaultStrength
 	}
 	sdVidGenParams.Strength = vidGenParams.Strength
 
 	if vidGenParams.Seed == 0 {
-		vidGenParams.Seed = 42
+		vidGenParams.Seed = DefaultSeed
 	}
 	sdVidGenParams.Seed = vidGenParams.Seed
 
 	if vidGenParams.VideoFrames == 0 {
-		vidGenParams.VideoFrames = 1
+		vidGenParams.VideoFrames = DefaultVideoFrames
 	}
 	sdVidGenParams.VideoFrames = vidGenParams.VideoFrames
 
 	if vidGenParams.VaceStrength == 0 {
-		vidGenParams.VaceStrength = 1
+		vidGenParams.VaceStrength = DefaultVaceStrength
 	}
 	sdVidGenParams.VaceStrength = vidGenParams.VaceStrength
 
 	// Initialize cache parameters
 	var cacheParams sd.SDCacheParams
-	internalSD.CacheParamsInit(&cacheParams)
+	lib.CacheParamsInit(&cacheParams)
 
 	// If user provided cache parameters, use them
 	if vidGenParams.CacheParams != (sd.SDCacheParams{}) {
@@ -988,25 +1212,21 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 	// Generate video
 	frames, numFrames := sDiffusion.ctx.GenerateVideo(&sdVidGenParams)
 	if frames == nil || numFrames == 0 {
-		return errors.New("failed to generate video")
+		return errors.New("failed to generate video: context returned no frames")
 	}
-	defer func() {
-		sDiffusion.ctx.Free()
-	}()
 
 	// Save video frames
 	if err := sd.SaveFrames(frames, tmpDir); err != nil {
-		return errors.New("failed to save video")
+		return fmt.Errorf("failed to save video frames: %w", err)
 	}
 	if err := sd.EncodeVideo(tmpDir, newVideoPath, 30); err != nil {
-		return errors.New("failed to encode video")
+		return fmt.Errorf("failed to encode video: %w", err)
 	}
 	if err := os.RemoveAll(tmpDir); err != nil {
-		return errors.New("failed to cleanup temp directory")
+		return fmt.Errorf("failed to cleanup temp directory: %w", err)
 	}
 
 	return nil
-
 }
 
 type UpscalerParams struct {
@@ -1031,7 +1251,12 @@ func NewUpscaler(params *UpscalerParams) (*Upscaler, error) {
 		params.TileSize = 128
 	}
 
-	ctx, err := internalSD.NewUpscalerContext(
+	lib := getInternalSD()
+	if lib == nil {
+		return nil, errors.New("library not initialized")
+	}
+
+	ctx, err := lib.NewUpscalerContext(
 		params.EsrganPath,
 		params.OffloadParamsToCPU,
 		params.Direct,
@@ -1111,10 +1336,11 @@ var EncodeVideo = sd.EncodeVideo
 
 // PreprocessCanny preprocesses image with Canny edge detection
 func PreprocessCanny(image sd.SDImage, highThreshold, lowThreshold, weak, strong float32, inverse bool) bool {
-	if internalSD == nil {
+	lib := getInternalSD()
+	if lib == nil {
 		return false
 	}
-	return internalSD.PreprocessCanny(image, highThreshold, lowThreshold, weak, strong, inverse)
+	return lib.PreprocessCanny(image, highThreshold, lowThreshold, weak, strong, inverse)
 }
 
 // generateImageFromPath generates SDImage from path (internal helper)
@@ -1132,7 +1358,8 @@ func generateImageFromPath(imagePath string) sd.SDImage {
 }
 
 // generateImagesFromPaths generates multiple SDImages from paths (internal helper)
-func generateImagesFromPaths(paths []string) *sd.SDImage {
+// Returns the slice of images to ensure the underlying array stays alive during C library calls
+func generateImagesFromPaths(paths []string) []sd.SDImage {
 	if len(paths) == 0 {
 		return nil
 	}
@@ -1157,14 +1384,15 @@ func generateImagesFromPaths(paths []string) *sd.SDImage {
 		return nil
 	}
 
-	// Return pointer to first element, so all elements can be accessed via pointer offset
-	return &images[0]
+	// Return the slice - caller must keep it alive during C library calls
+	return images
 }
 
 // SetProgressCallback sets the progress callback for the internal SD instance
 func SetProgressCallback(cb func(step int, steps int, time float32, data interface{}), data interface{}) {
-	if internalSD != nil {
-		internalSD.SetProgressCallback(cb, data)
+	lib := getInternalSD()
+	if lib != nil {
+		lib.SetProgressCallback(cb, data)
 	}
 }
 

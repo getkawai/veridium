@@ -24,6 +24,8 @@ func RunMarkdown() error {
 		rerankDoc(),
 		toolsDoc(),
 		speechDoc(),
+		transcriptionsDoc(),
+		imageDoc(),
 	}
 
 	outputDir := getMarkdownOutputDir()
@@ -102,7 +104,10 @@ func generateOverviewMarkdown(docs []apiDoc) string {
 	b.WriteString("| `/embeddings` | POST | Text embeddings |\n")
 	b.WriteString("| `/rerank` | POST | Document reranking |\n")
 	b.WriteString("| `/images/generations` | POST | Image generation |\n")
+	b.WriteString("| `/images/edits` | POST | Image editing |\n")
+	b.WriteString("| `/images/variations` | POST | Image variations |\n")
 	b.WriteString("| `/audio/transcriptions` | POST | Speech-to-text |\n")
+	b.WriteString("| `/audio/translations` | POST | Audio translation |\n")
 	b.WriteString("| `/audio/speech` | POST | Text-to-speech |\n")
 	b.WriteString("| `/models` | GET | List models |\n")
 	b.WriteString("| `/catalog` | GET | Browse model catalog |\n")

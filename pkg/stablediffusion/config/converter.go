@@ -12,7 +12,13 @@ import (
 )
 
 // ToContextParams converts Config to ContextParams
+// Returns an error if required fields are missing or invalid
 func (c *Config) ToContextParams() (*stablediffusion.ContextParams, error) {
+	// Validate config first to catch missing required fields
+	if err := c.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
+	}
+
 	params := &stablediffusion.ContextParams{}
 
 	// Model paths

@@ -16,7 +16,6 @@ require (
 	github.com/charmbracelet/x/exp/slice v0.0.0-20260122224438-b01af16209d9
 	github.com/charmbracelet/x/json v0.2.0
 	github.com/cloudflare/cloudflare-go/v6 v6.6.0
-	github.com/cloudflare/cloudflared v0.0.0-20251121053309-0d2a7a0385bb
 	github.com/dslipak/pdf v0.0.2
 	github.com/duckdb/duckdb-go/v2 v2.5.4
 	github.com/ebitengine/purego v0.9.1
@@ -33,13 +32,12 @@ require (
 	github.com/kawai-network/grab v0.1.0
 	github.com/kawai-network/stablediffusion v0.1.1
 	github.com/kawai-network/whisper v0.4.0
-	github.com/kawai-network/x v1.0.6
+	github.com/kawai-network/x v1.0.9
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/nikolalohinski/gonja/v2 v2.5.0
 	github.com/openai/openai-go/v2 v2.7.1
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.34.0
 	github.com/sahilm/fuzzy v0.1.1
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf
 	github.com/stretchr/testify v1.11.1
@@ -85,7 +83,7 @@ require (
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect
-	github.com/bytedance/sonic/loader v0.3.0 // indirect
+	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.1 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
@@ -96,6 +94,7 @@ require (
 	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.5.0 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
+	github.com/cloudflare/cloudflared v0.0.0-20251121053309-0d2a7a0385bb // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/consensys/gnark-crypto v0.18.0 // indirect
@@ -133,7 +132,7 @@ require (
 	github.com/ferranbt/fastssz v0.1.4 // indirect
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-audio/audio v1.0.0 // indirect
 	github.com/go-audio/riff v1.0.0 // indirect
@@ -229,6 +228,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rs/cors v1.11.1 // indirect
+	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/samber/lo v1.52.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect

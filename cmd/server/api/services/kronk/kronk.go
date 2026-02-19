@@ -37,8 +37,8 @@ import (
 	"github.com/kawai-network/veridium/pkg/tools/libs"
 	"github.com/kawai-network/veridium/pkg/tools/models"
 	"github.com/kawai-network/veridium/pkg/tools/templates"
-	"github.com/kawai-network/veridium/pkg/tunnelkit"
 	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/x/tunnelkit"
 )
 
 //go:embed static

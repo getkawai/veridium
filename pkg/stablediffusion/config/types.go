@@ -125,10 +125,11 @@ func (c *Config) Validate() error {
 }
 
 // Validate checks if model configuration is valid
+// At least one model path must be specified for the configuration to be usable
 func (m *ModelConfig) Validate() error {
 	// At least one diffusion model should be specified
 	if m.DiffusionModelPath == "" {
-		return fmt.Errorf("diffusion model path must be specified")
+		return fmt.Errorf("diffusion model path must be specified (models.diffusion_model in config)")
 	}
 	return nil
 }

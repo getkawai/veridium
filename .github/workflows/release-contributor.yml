@@ -1,9 +1,9 @@
 name: Release Contributor (cmd/server)
 
 on:
-  push:
-    branches:
-      - '**'
+  # push:
+  #   branches:
+  #     - '**'
   workflow_dispatch:
     inputs:
       version:

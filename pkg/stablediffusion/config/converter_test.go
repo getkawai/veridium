@@ -34,9 +34,10 @@ func TestToContextParams_EmptyConfig(t *testing.T) {
 	cfg := &Config{}
 
 	params, err := cfg.ToContextParams()
-	require.NoError(t, err)
-	assert.NotNil(t, params)
-	assert.Empty(t, params.DiffusionModelPath)
+	// Empty config should fail validation because diffusion model path is required
+	require.Error(t, err)
+	assert.Nil(t, params)
+	assert.Contains(t, err.Error(), "diffusion model path must be specified")
 }
 
 func TestToImgGenParams_BasicConversion(t *testing.T) {

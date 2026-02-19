@@ -27,4 +27,7 @@ func Routes(app *web.App, cfg RouteConfig) {
 
 	// OpenAI-compatible audio transcription endpoint
 	app.HandlerFunc(http.MethodPost, version, "/audio/transcriptions", api.transcriptions, walletAuth)
+
+	// OpenAI-compatible audio translation endpoint (translates to English)
+	app.HandlerFunc(http.MethodPost, version, "/audio/translations", api.translations, walletAuth)
 }

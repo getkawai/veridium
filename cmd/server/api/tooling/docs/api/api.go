@@ -72,6 +72,8 @@ func Run() error {
 		rerankDoc(),
 		toolsDoc(),
 		speechDoc(),
+		transcriptionsDoc(),
+		imageDoc(),
 	}
 
 	for _, doc := range docs {
