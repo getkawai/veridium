@@ -55,7 +55,7 @@ func promptChoice(prompt string, options []string) (int, error) {
 
 // printBanner prints welcome banner
 func printBanner() {
-	fmt.Println(`
+	fmt.Print(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
 ║   🌸 Kawai DeAI Network - Contributor Server 🌸          ║
@@ -63,6 +63,7 @@ func printBanner() {
 ║   Earn KAWAI tokens by providing AI compute power        ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
+
 `)
 }
 

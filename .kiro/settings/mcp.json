@@ -14,7 +14,8 @@
         "get_latest_pipeline_status",
         "get_build_failure_logs",
         "config_helper"
-      ]
+      ],
+      "enabled": false
     }
   }
 }
