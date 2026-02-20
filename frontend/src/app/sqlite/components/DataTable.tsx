@@ -21,6 +21,7 @@ import {
 
 const { Title, Text } = Typography;
 import { createStyles } from "antd-style";
+import { useTheme } from "antd-style";
 import { Flexbox } from "react-layout-kit";
 import { memo, useState, useEffect, useMemo } from "react";
 import {
@@ -71,6 +72,7 @@ interface DataTableProps {
 }
 
 const DataTable = memo<DataTableProps>(({ tableName }) => {
+  const theme = useTheme();
   const { styles } = useStyles();
 
   const [data, setData] = useState<TableDataResult | null>(null);
@@ -171,7 +173,7 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
                 style={{
                   fontSize: "12px",
                   fontWeight: "normal",
-                  color: token.colorTextSecondary,
+                  color: theme.colorTextSecondary,
                 }}
               >
                 <Tag color={columnInfo.isPrimaryKey ? "gold" : "blue"}>

@@ -1,6 +1,6 @@
 import { InputPassword, InputProps as Props } from '@lobehub/ui';
 import { InputRef } from 'antd/es/input/Input';
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 
 interface FormPasswordProps extends Omit<Props, 'onChange'> {
   onChange?: (value: string) => void;
@@ -11,10 +11,11 @@ const FormPassword = memo<FormPasswordProps>(({ onChange, value: defaultValue, .
   const isChineseInput = useRef(false);
 
   const [value, setValue] = useState(defaultValue as string);
-
-  useEffect(() => {
+  const prevDefaultValue = useRef(defaultValue);
+  if (prevDefaultValue.current !== defaultValue) {
+    prevDefaultValue.current = defaultValue;
     setValue(defaultValue as string);
-  }, [defaultValue]);
+  }
 
   return (
     <InputPassword

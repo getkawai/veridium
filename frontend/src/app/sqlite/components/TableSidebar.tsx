@@ -1,6 +1,6 @@
 "use client";
 
-import { SearchOutlined, TableOutlined, EyeOutlined } from "@ant-design/icons";
+import { SearchOutlined, TableOutlined } from "@ant-design/icons";
 import { Input, List, Typography, Badge, Spin, Alert, Button } from "antd";
 import { createStyles } from "antd-style";
 import { memo, useState, useEffect, useCallback } from "react";
@@ -53,9 +53,6 @@ export const useStyles = createStyles(({ css, token }) => ({
     display: flex;
     align-items: center;
     gap: 8px;
-  `,
-  tableIcon: css`
-    color: ${token.colorTextSecondary};
   `,
   tableName: css`
     font-weight: 500;
@@ -145,10 +142,6 @@ const TableSidebar = memo<TableSidebarProps>(
     const filteredTables = tables.filter((table) =>
       table.name.toLowerCase().includes(searchTerm.toLowerCase()),
     );
-
-    const getTableIcon = (type: string) => {
-      return type === "VIEW" ? <EyeOutlined /> : <TableOutlined />;
-    };
 
     const getTableTypeColor = (type: string) => {
       return type === "VIEW" ? "blue" : "green";
@@ -261,9 +254,6 @@ const TableSidebar = memo<TableSidebarProps>(
             >
               <div className={styles.tableItem}>
                 <div className={styles.tableInfo}>
-                  <span className={styles.tableIcon}>
-                    {getTableIcon(table.type)}
-                  </span>
                   <div>
                     <div className={styles.tableName}>{table.name}</div>
                     <div className={styles.tableType}>

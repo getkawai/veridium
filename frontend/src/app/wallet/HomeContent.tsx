@@ -499,7 +499,7 @@ const HomeContent = ({
     };
 
   return (
-    <Flexbox style={{ maxWidth: 900, width: "100%" }} gap={20}>
+    <Flexbox style={{ maxWidth: 1200, width: "100%" }} gap={20}>
       {/* Balance Card */}
       <Card className={styles.balanceCard}>
         <Tooltip title={balanceVisible ? "Hide balance" : "Show balance"}>
@@ -669,7 +669,7 @@ const HomeContent = ({
       </Card>
 
       {/* Quick Actions */}
-      <Flexbox horizontal gap={12} style={{ marginTop: 4 }}>
+      <Flexbox horizontal gap={12} style={{ marginTop: 4, justifyContent: "center" }}>
         {[
           {
             label: "Deposit",
@@ -775,7 +775,7 @@ const HomeContent = ({
                 e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
-              <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
+              <Flexbox horizontal align="center" gap={12}>
                 {currentNetwork && (
                   <NetworkIcon
                     name={currentNetwork.icon || "ethereum"}
@@ -795,10 +795,10 @@ const HomeContent = ({
                 </div>
               </Flexbox>
               <Flexbox horizontal align="center" gap={16}>
-                <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>
+                <span style={{ fontSize: 12, color: theme.colorTextSecondary, minWidth: 50, textAlign: "right" }}>
                   {nativePrice > 0 ? `$${nativePrice.toFixed(2)}` : "-"}
                 </span>
-                <div style={{ textAlign: "right", minWidth: 70 }}>
+                <div style={{ textAlign: "right", minWidth: 80 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: theme.colorText }}>
                     {balanceVisible ? nativeBalance : "••••"}
                   </div>
@@ -826,7 +826,7 @@ const HomeContent = ({
               e.currentTarget.style.backgroundColor = "transparent";
             }}
           >
-            <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
+            <Flexbox horizontal align="center" gap={12}>
               <StablecoinIcon currentNetwork={currentNetwork} size={36} />
               <div>
                 <div style={{ fontWeight: 600 }}>
@@ -838,15 +838,21 @@ const HomeContent = ({
               </div>
             </Flexbox>
             <Flexbox horizontal align="center" gap={16}>
-              <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>
+              <span style={{ fontSize: 12, color: theme.colorTextSecondary, minWidth: 40, textAlign: "right" }}>
                 $1.00
               </span>
-              <div style={{ textAlign: "right", minWidth: 70 }}>
+              <div style={{ textAlign: "right", minWidth: 80 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: theme.colorText }}>
-                  {balanceVisible ? balance : "••••"}
+                  {balanceVisible
+                    ? typeof onChainBalance === "number"
+                      ? onChainBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      : onChainBalance
+                    : "••••"}
                 </div>
                 <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>
-                  ${balanceVisible ? balance : "••••"}
+                  {balanceVisible && usdtValue > 0
+                    ? `$${usdtValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : "••••"}
                 </div>
               </div>
             </Flexbox>
@@ -866,7 +872,7 @@ const HomeContent = ({
               e.currentTarget.style.backgroundColor = "transparent";
             }}
           >
-            <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
+            <Flexbox horizontal align="center" gap={12}>
               <div
                 style={{
                   width: 36,
@@ -894,10 +900,10 @@ const HomeContent = ({
               </div>
             </Flexbox>
             <Flexbox horizontal align="center" gap={16}>
-              <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>
+              <span style={{ fontSize: 12, color: theme.colorTextSecondary, minWidth: 50, textAlign: "right" }}>
                 {kawaiPrice > 0 ? `$${kawaiPrice.toFixed(4)}` : "-"}
               </span>
-              <div style={{ textAlign: "right", minWidth: 70 }}>
+              <div style={{ textAlign: "right", minWidth: 80 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: theme.colorText }}>
                   {balanceVisible ? kawaiBalance : "••••"}
                 </div>

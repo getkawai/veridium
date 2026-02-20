@@ -1,7 +1,6 @@
 import { Button, Tooltip } from '@lobehub/ui';
 import { Checkbox, Image } from 'antd';
 import { createStyles } from 'antd-style';
-import { isNull } from 'lodash-es';
 import { FileBoxIcon } from 'lucide-react';
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -411,7 +410,7 @@ const MasonryFileItem = memo<MasonryFileItemProps>(
                 </div>
               </div>
               {/* Floating chunk badge or action button */}
-              {!isNull(chunkingStatus) && chunkingStatus ? (
+              {!chunkingStatus === null && chunkingStatus ? (
                 <div
                   className={cx('floatingChunkBadge', styles.floatingChunkBadge)}
                   onClick={(e) => e.stopPropagation()}
@@ -469,7 +468,7 @@ const MasonryFileItem = memo<MasonryFileItemProps>(
                 </div>
               </div>
               {/* Floating chunk badge or action button */}
-              {!isNull(chunkingStatus) && chunkingStatus ? (
+              {!chunkingStatus === null && chunkingStatus ? (
                 <div
                   className={cx('floatingChunkBadge', styles.floatingChunkBadge)}
                   onClick={(e) => e.stopPropagation()}
@@ -533,7 +532,7 @@ const MasonryFileItem = memo<MasonryFileItemProps>(
                 </div>
               </Flexbox>
               {/* Floating chunk badge or action button */}
-              {!isNull(chunkingStatus) && chunkingStatus ? (
+              {!chunkingStatus === null && chunkingStatus ? (
                 <div
                   className={cx('floatingChunkBadge', styles.floatingChunkBadge)}
                   onClick={(e) => e.stopPropagation()}

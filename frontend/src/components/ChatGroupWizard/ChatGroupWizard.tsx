@@ -3,7 +3,7 @@
 import { Avatar, Collapse, GroupAvatar, List, Modal, SearchBar, Text, Tooltip } from '@lobehub/ui';
 import { Button, Checkbox, Empty, Switch } from 'antd';
 import { createStyles, useTheme } from 'antd-style';
-import { omit } from 'lodash-es';
+import omit from 'lodash-es/omit';
 import { Users } from 'lucide-react';
 import { ChangeEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';

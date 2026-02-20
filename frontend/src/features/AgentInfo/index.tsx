@@ -2,7 +2,7 @@ import { Avatar, Markdown, Tag } from '@lobehub/ui';
 import { Browser } from '@wailsio/runtime';
 import { Divider } from 'antd';
 import { createStyles } from 'antd-style';
-import { startCase } from 'lodash-es';
+import startCase from 'lodash-es/startCase';
 import { CSSProperties, memo, useMemo } from 'react';
 import { Center } from 'react-layout-kit';
 

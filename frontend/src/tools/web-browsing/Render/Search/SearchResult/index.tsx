@@ -1,7 +1,7 @@
 import { SearchQuery, UniformSearchResponse } from '@/types';
 import { Icon, Text } from '@lobehub/ui';
 import { Button, Skeleton } from 'antd';
-import { uniq } from 'lodash-es';
+import uniq from 'lodash-es/uniq';
 import { Edit2Icon } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';

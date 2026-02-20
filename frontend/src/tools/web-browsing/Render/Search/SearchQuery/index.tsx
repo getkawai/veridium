@@ -1,6 +1,6 @@
 import { SearchQuery, UniformSearchResponse } from '@/types';
 import { ActionIcon } from '@lobehub/ui';
-import { uniq } from 'lodash-es';
+import uniq from 'lodash-es/uniq';
 import { XIcon } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';

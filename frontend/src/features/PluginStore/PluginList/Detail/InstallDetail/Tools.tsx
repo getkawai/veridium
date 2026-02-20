@@ -1,6 +1,5 @@
 import { Block, Collapse, Highlighter, Markdown, Tag } from '@lobehub/ui';
 import { Empty } from 'antd';
-import { isString } from 'lodash-es';
 import { markdownToTxt } from 'markdown-to-txt';
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +24,7 @@ const Tools = memo<ToolProps>(({ mode }) => {
   const plugin = useToolStore(pluginSelectors.getInstalledPluginById(identifier));
   const { manifest } = plugin || {};
 
-  if (!manifest || isString(manifest))
+  if (!manifest || typeof manifest === 'string')
     return (
       <Block variant={'outlined'}>
         <Empty

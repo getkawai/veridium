@@ -1,7 +1,6 @@
 'use client';
 
 import { ActionIcon, type ActionIconProps } from '@lobehub/ui';
-import { isUndefined } from 'lodash-es';
 import { memo } from 'react';
 import useMergeState from 'use-merge-value';
 
@@ -49,7 +48,7 @@ const Action = memo<ActionProps>(
           setShow(true);
         }}
         title={
-          isUndefined(showTooltip) ? (mobile ? undefined : title) : showTooltip ? title : undefined
+          showTooltip === undefined ? (mobile ? undefined : title) : showTooltip ? title : undefined
         }
         tooltipProps={{
           placement: 'bottom',

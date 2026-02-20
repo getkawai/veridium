@@ -3,7 +3,6 @@ import { Checkbox } from 'antd';
 import { createStyles } from 'antd-style';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { isNull } from 'lodash-es';
 import { FileBoxIcon } from 'lucide-react';
 import { rgba } from 'polished';
 import { memo } from 'react';
@@ -161,7 +160,7 @@ const FileRenderItem = memo<FileRenderItemProps>(
               e.stopPropagation();
             }}
           >
-            {isCreatingFileParseTask || isNull(chunkingStatus) || !chunkingStatus ? (
+            {isCreatingFileParseTask || chunkingStatus === null || !chunkingStatus ? (
               <div className={isCreatingFileParseTask ? undefined : styles.hover}>
                 <Tooltip
                   styles={{

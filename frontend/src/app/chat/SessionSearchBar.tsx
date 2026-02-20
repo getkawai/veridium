@@ -1,7 +1,7 @@
 'use client';
 
 import { SearchBar } from '@lobehub/ui';
-import { type ChangeEvent, memo, useCallback, useEffect, useState } from 'react';
+import { type ChangeEvent, memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useUserStore } from '@/store/user';
@@ -25,10 +25,11 @@ const SessionSearchBar = memo<{ mobile?: boolean }>(({ mobile }) => {
 
   const [value, setValue] = useState(sessionSearchKeywords || '');
   const debouncedValue = useDebounce(value, 500);
-
-  useEffect(() => {
+  const prevKeywords = useRef(sessionSearchKeywords);
+  if (prevKeywords.current !== sessionSearchKeywords) {
+    prevKeywords.current = sessionSearchKeywords;
     setValue(sessionSearchKeywords || '');
-  }, [sessionSearchKeywords]);
+  }
 
   useEffect(() => {
     if (debouncedValue !== sessionSearchKeywords) {

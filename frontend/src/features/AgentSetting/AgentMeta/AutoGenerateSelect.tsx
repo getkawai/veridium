@@ -1,5 +1,4 @@
 import { ActionIcon, Select, type SelectProps } from '@lobehub/ui';
-import { isString } from 'lodash-es';
 import { Wand2 } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +17,7 @@ const AutoGenerateSelect = memo<AutoGenerateInputProps>(
       <Select
         mode="tags"
         onChange={(v) => {
-          onChange?.(isString(v) ? v.split(',') : v);
+          onChange?.(typeof v === 'string' ? v.split(',') : v);
         }}
         open={false}
         style={{ width: '100%' }}
@@ -38,7 +37,7 @@ const AutoGenerateSelect = memo<AutoGenerateInputProps>(
           )
         }
         tokenSeparators={[',', '，', ' ']}
-        value={isString(value) ? value.split(',') : value}
+        value={typeof value === 'string' ? value.split(',') : value}
         {...props}
       />
     );

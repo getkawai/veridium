@@ -97,11 +97,15 @@ const Thinking = memo<ThinkingProps>((props) => {
   const { t } = useTranslation(['components', 'common']);
   const { styles, cx, theme } = useStyles();
 
-  const [showDetail, setShowDetail] = useState(false);
+  const [showDetail, setShowDetail] = useState(!!thinking);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const prevThinking = useRef(thinking);
 
   useEffect(() => {
-    setShowDetail(!!thinking);
+    if (prevThinking.current !== thinking) {
+      prevThinking.current = thinking;
+      setShowDetail(!!thinking);
+    }
   }, [thinking]);
 
   // Custom components untuk desktop app link handling

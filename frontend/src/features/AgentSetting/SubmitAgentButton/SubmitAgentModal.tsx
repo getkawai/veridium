@@ -4,7 +4,7 @@ import { Alert, Button, Input, Modal, type ModalProps } from '@lobehub/ui';
 import { Divider } from 'antd';
 import { useTheme } from 'antd-style';
 import isEqual from 'fast-deep-equal';
-import { kebabCase } from 'lodash-es';
+import kebabCase from 'lodash-es/kebabCase';
 import qs from 'query-string';
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';

@@ -2,7 +2,7 @@
 
 import { ActionIcon, SortableList } from '@lobehub/ui';
 import { Settings, UserMinus } from 'lucide-react';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
@@ -93,6 +93,14 @@ const GroupMember = memo<GroupMemberProps>(
     // @ts-ignore
     const initialMembers = useMemo(() => currentSession?.members ?? [], [currentSession?.members]);
     const [members, setMembers] = useState<any[]>(initialMembers);
+    const prevInitialMembers = useRef(initialMembers);
+
+    useEffect(() => {
+      if (prevInitialMembers.current !== initialMembers) {
+        prevInitialMembers.current = initialMembers;
+        setMembers(initialMembers);
+      }
+    }, [initialMembers]);
 
     const [removingMemberIds, setRemovingMemberIds] = useState<string[]>([]);
 
@@ -104,10 +112,6 @@ const GroupMember = memo<GroupMemberProps>(
         setRemovingMemberIds((prev) => prev.filter((memberId) => memberId !== id));
       }
     };
-
-    useEffect(() => {
-      setMembers(initialMembers);
-    }, [initialMembers]);
 
     const handleRemoveMember = async (memberId: string) => {
       if (!sessionId) return;

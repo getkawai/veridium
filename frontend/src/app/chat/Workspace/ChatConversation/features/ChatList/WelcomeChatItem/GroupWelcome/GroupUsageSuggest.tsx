@@ -2,7 +2,7 @@
 
 import { ActionIcon, Block, Grid, Text } from '@lobehub/ui';
 import { createStyles } from 'antd-style';
-import { shuffle } from 'lodash-es';
+import shuffle from 'lodash-es/shuffle';
 import { RefreshCw } from 'lucide-react';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';

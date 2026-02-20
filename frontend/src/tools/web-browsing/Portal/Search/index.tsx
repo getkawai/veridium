@@ -1,6 +1,6 @@
 import { SearchQuery, UniformSearchResponse } from '@/types';
 import { Skeleton } from 'antd';
-import { uniq } from 'lodash-es';
+import uniq from 'lodash-es/uniq';
 import { memo } from 'react';
 import { Flexbox } from 'react-layout-kit';
 

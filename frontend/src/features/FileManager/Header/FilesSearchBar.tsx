@@ -1,7 +1,7 @@
 'use client';
 
 import { SearchBar } from '@lobehub/ui';
-import { memo, useEffect, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { fileManagerSelectors, useFileStore } from '@/store/file';
@@ -18,11 +18,11 @@ const FilesSearchBar = memo<{ mobile?: boolean }>(({ mobile }) => {
     s.setSearchKeywords,
   ]);
   const [keywords, setKeywords] = useState<string>(query);
-
-  // Sync local state with store state
-  useEffect(() => {
+  const prevQuery = useRef(query);
+  if (prevQuery.current !== query) {
+    prevQuery.current = query;
     setKeywords(query || '');
-  }, [query]);
+  }
 
   return (
     <SearchBar
