@@ -36,7 +36,6 @@ require (
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/sahilm/fuzzy v0.1.1
 	github.com/schollz/progressbar/v3 v3.19.0
-	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf
 	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/gjson v1.14.4
 	github.com/tidwall/sjson v1.2.5
