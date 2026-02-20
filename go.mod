@@ -254,7 +254,7 @@ require (
 	zombiezen.com/go/capnproto2 v2.18.0+incompatible // indirect
 )
 
-replace github.com/wailsapp/wails/v3 => github.com/yudaprama/wails/v3 v3.0.0-alpha.69
+replace github.com/wailsapp/wails/v3 => github.com/yudaprama/wails/v3 v3.0.0-alpha.72-yuda
 
 replace github.com/urfave/cli/v2 => github.com/ipostelnik/cli/v2 v2.3.1-0.20210324024421-b6ea8234fe3d
 
