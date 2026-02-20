@@ -23,7 +23,7 @@ func main() {
 	fmt.Println()
 
 	// Method 1: abi.encodePacked (no padding)
-	periodBytes := big.NewInt(int64(period)).Bytes()
+	periodBytes := new(big.Int).SetUint64(period).Bytes()
 	addressBytes := userAddress.Bytes()
 	amountBytes := amount.Bytes()
 
@@ -37,7 +37,7 @@ func main() {
 	fmt.Println()
 
 	// Method 2: With 32-byte padding
-	periodPadded := common.LeftPadBytes(big.NewInt(int64(period)).Bytes(), 32)
+	periodPadded := common.LeftPadBytes(new(big.Int).SetUint64(period).Bytes(), 32)
 	amountPadded := common.LeftPadBytes(amount.Bytes(), 32)
 
 	fmt.Println("📊 Method 2: With 32-byte padding")

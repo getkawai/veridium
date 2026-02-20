@@ -90,7 +90,7 @@ func main() {
 		log.Fatalf("Failed to load distributor contract: %v", err)
 	}
 
-	onChainRoot, err := distributor.PeriodMerkleRoots(nil, big.NewInt(int64(period)))
+	onChainRoot, err := distributor.PeriodMerkleRoots(nil, new(big.Int).SetUint64(period))
 	if err != nil {
 		log.Fatalf("Failed to get on-chain merkle root: %v", err)
 	}
@@ -117,7 +117,7 @@ func main() {
 	amount.SetString(proofRecord.Amount, 10)
 
 	// Hash: keccak256(abi.encodePacked(period, user, amount))
-	periodBytes := big.NewInt(int64(period)).Bytes()
+	periodBytes := new(big.Int).SetUint64(period).Bytes()
 	addressBytes := common.HexToAddress(userAddress).Bytes()
 	amountBytes := amount.Bytes()
 

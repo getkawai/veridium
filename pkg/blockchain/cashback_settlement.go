@@ -398,7 +398,7 @@ func (cs *CashbackSettlement) setMerkleRoot(ctx context.Context, period uint64, 
 		log.Printf("📝 [CashbackSettlement] Advance period tx: %s", tx.Hash().Hex())
 	} else {
 		// Set root for specific period (allows retroactive settlements)
-		tx, err = cs.distributor.SetPeriodMerkleRoot(auth, big.NewInt(int64(period)), merkleRoot)
+		tx, err = cs.distributor.SetPeriodMerkleRoot(auth, new(big.Int).SetUint64(period), merkleRoot)
 		if err != nil {
 			return fmt.Errorf("failed to set period Merkle root: %w", err)
 		}

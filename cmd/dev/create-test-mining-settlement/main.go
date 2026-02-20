@@ -192,7 +192,7 @@ func generateMiningMerkleLeaf(
 	// Solidity abi.encodePacked packs values tightly without padding
 	// For uint256, it uses 32 bytes; for address, it uses 20 bytes
 	return crypto.Keccak256(
-		common.LeftPadBytes(big.NewInt(int64(period)).Bytes(), 32), // uint256
+		common.LeftPadBytes(new(big.Int).SetUint64(period).Bytes(), 32), // uint256
 		contributor.Bytes(),                             // address (20 bytes)
 		common.LeftPadBytes(contributorAmt.Bytes(), 32), // uint256
 		common.LeftPadBytes(developerAmt.Bytes(), 32),   // uint256

@@ -126,7 +126,7 @@ func main() {
 
 	// 9. Submit transaction
 	fmt.Println("⏳ Submitting claim transaction...")
-	tx, err := distributor.ClaimCashback(auth, big.NewInt(int64(period)), amount, merkleProof)
+	tx, err := distributor.ClaimCashback(auth, new(big.Int).SetUint64(period), amount, merkleProof)
 	if err != nil {
 		log.Fatalf("❌ Transaction failed: %v", err)
 	}

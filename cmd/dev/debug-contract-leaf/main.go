@@ -163,7 +163,7 @@ func generateContractLeaf(
 	// Exact match to contract Solidity code:
 	// keccak256(abi.encodePacked(period, msg.sender, contributorAmount, developerAmount, userAmount, affiliatorAmount, developer, user, affiliator))
 	return crypto.Keccak256(
-		common.LeftPadBytes(big.NewInt(int64(period)).Bytes(), 32), // uint256 period
+		common.LeftPadBytes(new(big.Int).SetUint64(period).Bytes(), 32), // uint256 period
 		msgSender.Bytes(), // address msg.sender (20 bytes)
 		common.LeftPadBytes(contributorAmt.Bytes(), 32), // uint256 contributorAmount
 		common.LeftPadBytes(developerAmt.Bytes(), 32),   // uint256 developerAmount

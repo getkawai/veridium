@@ -1014,7 +1014,7 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 	}
 
 	// 6. Submit claim transaction
-	tx, err := distributor.ClaimCashback(opts, big.NewInt(int64(period)), amount, merkleProof)
+	tx, err := distributor.ClaimCashback(opts, new(big.Int).SetUint64(period), amount, merkleProof)
 	if err != nil {
 		// Rollback pending status on transaction failure
 		if s.kv != nil {

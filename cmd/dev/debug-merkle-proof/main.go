@@ -55,7 +55,7 @@ func main() {
 	amount.SetString(proofRecord.Amount, 10)
 
 	// Calculate leaf hash (with 32-byte padding)
-	periodBytes := common.LeftPadBytes(big.NewInt(int64(period)).Bytes(), 32)
+	periodBytes := common.LeftPadBytes(new(big.Int).SetUint64(period).Bytes(), 32)
 	addressBytes := common.HexToAddress(userAddress).Bytes()
 	amountBytes := common.LeftPadBytes(amount.Bytes(), 32)
 

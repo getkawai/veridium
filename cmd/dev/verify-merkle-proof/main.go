@@ -194,7 +194,7 @@ func generateMiningMerkleLeaf(
 	// For uint256, it uses 32 bytes; for address, it uses 20 bytes
 	// Order must match contract: period, msg.sender, amounts, addresses
 	return crypto.Keccak256(
-		common.LeftPadBytes(big.NewInt(int64(period)).Bytes(), 32), // uint256 period
+		common.LeftPadBytes(new(big.Int).SetUint64(period).Bytes(), 32), // uint256 period
 		contributor.Bytes(),                             // address msg.sender (20 bytes)
 		common.LeftPadBytes(contributorAmt.Bytes(), 32), // uint256 contributorAmount
 		common.LeftPadBytes(developerAmt.Bytes(), 32),   // uint256 developerAmount
