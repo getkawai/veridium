@@ -12,7 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/kawai-network/veridium/internal/generate/abi/otcmarket"
+	"github.com/kawai-network/contracts/otcmarket"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/store"
 )

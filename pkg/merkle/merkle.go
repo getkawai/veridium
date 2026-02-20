@@ -24,13 +24,20 @@ func NewMerkleTree(leaves [][]byte) *MerkleTree {
 	// Here we just take the leaves as is, usually the caller should sort them if they want a specific order (e.g. by address).
 	// For standard airdrops (Uniswap style), leaves are usually sorted.
 
+	// Copy caller-owned leaves so tree construction is deterministic
+	// without mutating external state.
+	sortedLeaves := make([][]byte, len(leaves))
+	for i := range leaves {
+		sortedLeaves[i] = append([]byte(nil), leaves[i]...)
+	}
+
 	// Let's sort the leaves to be safe and deterministic.
-	sort.Slice(leaves, func(i, j int) bool {
-		return bytes.Compare(leaves[i], leaves[j]) < 0
+	sort.Slice(sortedLeaves, func(i, j int) bool {
+		return bytes.Compare(sortedLeaves[i], sortedLeaves[j]) < 0
 	})
 
 	tree := &MerkleTree{
-		Leafs: leaves,
+		Leafs: sortedLeaves,
 	}
 	tree.build()
 	return tree
@@ -101,7 +108,10 @@ func hashPair(a, b []byte) []byte {
 	if bytes.Compare(a, b) > 0 {
 		a, b = b, a
 	}
-	return crypto.Keccak256(append(a, b...))
+	combined := make([]byte, len(a)+len(b))
+	copy(combined, a)
+	copy(combined[len(a):], b)
+	return crypto.Keccak256(combined)
 }
 
 // Helper to Hash (Index, Account, Amount) to match Solidity:
@@ -120,7 +130,7 @@ func HashLeaf(index uint64, account common.Address, amount *big.Int) []byte {
 	// Go's binary.BigEndian can be used, or math/big with specific byte length.
 
 	return crypto.Keccak256(
-		common.LeftPadBytes(big.NewInt(int64(index)).Bytes(), 32),
+		common.LeftPadBytes(new(big.Int).SetUint64(index).Bytes(), 32),
 		account.Bytes(),
 		common.LeftPadBytes(amount.Bytes(), 32),
 	)

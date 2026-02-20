@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/internal/generate/abi/otcmarket"
+	"github.com/kawai-network/contracts/otcmarket"
 	"github.com/kawai-network/veridium/internal/services"
 )
 

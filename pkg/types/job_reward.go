@@ -5,7 +5,7 @@ import "time"
 // JobRewardRecord stores detailed reward split for a single job
 // This is used to:
 // 1. Generate 9-field Merkle leaves for MiningRewardDistributor (pkg/store)
-// 2. Send to Telegram for double-verification audit trail (pkg/alert)
+// 2. Send to Telegram for double-verification audit trail (x/alert)
 // Defined in separate package to avoid circular dependency
 type JobRewardRecord struct {
 	Timestamp          time.Time `json:"timestamp"`

@@ -10,7 +10,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/kawai-network/veridium/pkg/store"
-	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/y/types"
 )
 
 // Keep os import for os.Exit

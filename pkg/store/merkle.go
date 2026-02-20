@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/y/types"
 )
 
 // ClaimStatus represents the status of a claim

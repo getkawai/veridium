@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/alert"
+	"github.com/kawai-network/x/alert"
 	"github.com/kawai-network/x/constant"
 )
 

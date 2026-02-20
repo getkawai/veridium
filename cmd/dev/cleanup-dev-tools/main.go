@@ -21,7 +21,6 @@ func cleanupDevTools() error {
 	devTools := []string{
 		"cmd/dev/debug-contract-leaf",
 		"cmd/dev/debug-correct-leaf",
-		"cmd/dev/debug-tree-structure",
 		"cmd/dev/debug-claim-call",
 		"cmd/dev/manual-proof-verify",
 		"cmd/dev/test-merkle-verification",

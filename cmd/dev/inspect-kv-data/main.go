@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/kawai-network/veridium/pkg/store"
-	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/y/types"
 )
 
 func main() {

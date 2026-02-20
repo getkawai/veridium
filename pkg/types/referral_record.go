@@ -5,7 +5,7 @@ import "time"
 // ReferralTrialRecord stores detailed information for a trial claim with referral
 // This is used to:
 // 1. Track trial claims in KV store (pkg/store)
-// 2. Send to Telegram for double-verification audit trail (pkg/alert)
+// 2. Send to Telegram for double-verification audit trail (x/alert)
 // Defined in separate package to avoid circular dependency
 type ReferralTrialRecord struct {
 	UserAddress     string    `json:"user_address"`

@@ -2,11 +2,14 @@ package store
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"testing"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/kawai-network/y/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -154,30 +157,65 @@ func TestJobRewardRecordCreation(t *testing.T) {
 
 // TestMerkleLeafGeneration tests 9-field Merkle leaf generation
 func TestMerkleLeafGeneration(t *testing.T) {
-	// This would test the actual Merkle leaf generation
-	// matching the Solidity keccak256(abi.encodePacked(...))
+	t.Run("matches manual abi_encode_packed_keccak", func(t *testing.T) {
+		period := uint64(1704326400)
+		contributor := common.HexToAddress("0x1234567890123456789012345678901234567890")
+		developer := common.HexToAddress("0x1111111111111111111111111111111111111111")
+		user := common.HexToAddress("0x2222222222222222222222222222222222222222")
+		affiliator := common.HexToAddress("0x3333333333333333333333333333333333333333")
 
-	// Mock data
-	period := uint64(1704326400)
-	contributor := "0x1234567890123456789012345678901234567890"
-	contributorAmt := "85000000000000000000"
-	developerAmt := "5000000000000000000"
-	userAmt := "5000000000000000000"
-	affiliatorAmt := "5000000000000000000"
-	developer := "0xDEV1234567890123456789012345678901234567890"
-	user := "0xUSER123456789012345678901234567890123456789"
-	affiliator := "0xAFF1234567890123456789012345678901234567890"
+		contributorAmt := new(big.Int).Mul(big.NewInt(85), big.NewInt(1e18))
+		developerAmt := new(big.Int).Mul(big.NewInt(5), big.NewInt(1e18))
+		userAmt := new(big.Int).Mul(big.NewInt(5), big.NewInt(1e18))
+		affiliatorAmt := new(big.Int).Mul(big.NewInt(5), big.NewInt(1e18))
 
-	// In real implementation, this would call generateMiningMerkleLeaf()
-	// and verify it matches the smart contract's leaf generation
+		got := generateMiningMerkleLeaf(
+			period,
+			contributor,
+			contributorAmt,
+			developerAmt,
+			userAmt,
+			affiliatorAmt,
+			developer,
+			user,
+			affiliator,
+		)
 
-	t.Log("Period:", period)
-	t.Log("Contributor:", contributor)
-	t.Log("Amounts:", contributorAmt, developerAmt, userAmt, affiliatorAmt)
-	t.Log("Addresses:", developer, user, affiliator)
+		want := crypto.Keccak256(
+			common.LeftPadBytes(new(big.Int).SetUint64(period).Bytes(), 32),
+			contributor.Bytes(),
+			common.LeftPadBytes(contributorAmt.Bytes(), 32),
+			common.LeftPadBytes(developerAmt.Bytes(), 32),
+			common.LeftPadBytes(userAmt.Bytes(), 32),
+			common.LeftPadBytes(affiliatorAmt.Bytes(), 32),
+			developer.Bytes(),
+			user.Bytes(),
+			affiliator.Bytes(),
+		)
 
-	// TODO: Implement actual Merkle leaf generation test
-	// This requires the generateMiningMerkleLeaf function to be testable
+		assert.Equal(t, fmt.Sprintf("%x", want), fmt.Sprintf("%x", got))
+	})
+
+	t.Run("supports full uint64 period without overflow", func(t *testing.T) {
+		period := uint64(math.MaxUint64)
+		addr := common.HexToAddress("0x1234567890123456789012345678901234567890")
+		amt := big.NewInt(1)
+
+		got := generateMiningMerkleLeaf(period, addr, amt, amt, amt, amt, addr, addr, addr)
+		want := crypto.Keccak256(
+			common.LeftPadBytes(new(big.Int).SetUint64(period).Bytes(), 32),
+			addr.Bytes(),
+			common.LeftPadBytes(amt.Bytes(), 32),
+			common.LeftPadBytes(amt.Bytes(), 32),
+			common.LeftPadBytes(amt.Bytes(), 32),
+			common.LeftPadBytes(amt.Bytes(), 32),
+			addr.Bytes(),
+			addr.Bytes(),
+			addr.Bytes(),
+		)
+
+		assert.Equal(t, fmt.Sprintf("%x", want), fmt.Sprintf("%x", got))
+	})
 }
 
 // Helper function

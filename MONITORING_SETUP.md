@@ -1,7 +1,7 @@
 # Monitoring & Alerts - Production Ready ✅
 
 **Status:** Ready to integrate  
-**Location:** `pkg/alert/telegram.go`  
+**Location:** `x/alert/telegram.go`  
 **Last Updated:** 2026-01-13
 
 ---
@@ -24,7 +24,7 @@ make test-telegram-alert
 
 ### Current Implementation
 ```go
-// pkg/alert/telegram.go
+// x/alert/telegram.go
 type TelegramAlert struct {
     BotToken string
     ChatID   string
@@ -53,7 +53,7 @@ alert.SendAlert("ERROR", "Settlement", "Failed to upload merkle root")
 Add alerts for settlement operations:
 
 ```go
-import "github.com/kawai-network/veridium/pkg/alert"
+import "github.com/kawai-network/x/alert"
 
 func generateMiningSettlement(ctx context.Context, kv store.Store) error {
     alerter := alert.NewTelegramAlert()
@@ -109,7 +109,7 @@ func uploadMiningRoot(ctx context.Context, kv store.Store) error {
 Add alerts for failed claims:
 
 ```go
-import "github.com/kawai-network/veridium/pkg/alert"
+import "github.com/kawai-network/x/alert"
 
 func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, proof []string) (*ClaimResult, error) {
     alerter := alert.NewTelegramAlert()
@@ -153,7 +153,7 @@ package main
 import (
     "context"
     "time"
-    "github.com/kawai-network/veridium/pkg/alert"
+    "github.com/kawai-network/x/alert"
 )
 
 func startHealthMonitor() {
@@ -209,8 +209,8 @@ import (
     "github.com/ethereum/go-ethereum/common"
     "github.com/ethereum/go-ethereum/ethclient"
     "github.com/kawai-network/x/constant"
-    "github.com/kawai-network/veridium/internal/generate/abi/kawaitoken"
-    "github.com/kawai-network/veridium/pkg/alert"
+    "github.com/kawai-network/contracts/kawaitoken"
+    "github.com/kawai-network/x/alert"
 )
 
 // MonitorContractBalances checks if distributors have enough tokens
@@ -293,7 +293,7 @@ import (
     
     "github.com/ethereum/go-ethereum/ethclient"
     "github.com/kawai-network/x/constant"
-    "github.com/kawai-network/veridium/pkg/alert"
+    "github.com/kawai-network/x/alert"
 )
 
 // MonitorGasPrice alerts when gas price is unusually high
@@ -353,7 +353,7 @@ package main
 
 import (
     "fmt"
-    "github.com/kawai-network/veridium/pkg/alert"
+    "github.com/kawai-network/x/alert"
 )
 
 func main() {
@@ -386,7 +386,7 @@ go run cmd/dev/test-telegram-alert/main.go
 package main
 
 import (
-    "github.com/kawai-network/veridium/pkg/alert"
+    "github.com/kawai-network/x/alert"
     "github.com/kawai-network/veridium/pkg/monitoring"
 )
 

@@ -10,9 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/kawai-network/veridium/internal/generate/abi/kawaitoken"
-	"github.com/kawai-network/veridium/internal/generate/abi/mockstablecoin"
-	"github.com/kawai-network/veridium/internal/generate/abi/otcmarket"
+	"github.com/kawai-network/contracts/kawaitoken"
+	"github.com/kawai-network/contracts/mockstablecoin"
+	"github.com/kawai-network/contracts/otcmarket"
 	"golang.org/x/time/rate"
 )
 

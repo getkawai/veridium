@@ -23,6 +23,7 @@ import (
 
 	bleve "github.com/kawai-network/veridium/pkg/jarvis/bleve"
 	jarviscommon "github.com/kawai-network/veridium/pkg/jarvis/common"
+	"github.com/kawai-network/contracts"
 	db "github.com/kawai-network/veridium/pkg/jarvis/db"
 	"github.com/kawai-network/veridium/pkg/jarvis/networks"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/broadcaster"
@@ -654,7 +655,7 @@ func GetABIString(addr string, network networks.Network) (string, error) {
 	if err == nil {
 		// remove common noise from name if necessary, or just check direct match
 		// The keys in ProjectABIs are generated from filenames (e.g., "KawaiToken")
-		if abiStr, ok := jarviscommon.ProjectABIs[name]; ok {
+		if abiStr, ok := contracts.ProjectABIs[name]; ok {
 			return abiStr, nil
 		}
 		// Also try case-insensitive match or cleaned up name if needed?

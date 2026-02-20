@@ -5,7 +5,7 @@ import "time"
 // CashbackRecord stores detailed cashback information for a deposit
 // This is used to:
 // 1. Track cashback in KV store (pkg/store)
-// 2. Send to Telegram for double-verification audit trail (pkg/alert)
+// 2. Send to Telegram for double-verification audit trail (x/alert)
 // Defined in separate package to avoid circular dependency
 type CashbackRecord struct {
 	UserAddress    string    `json:"user_address"`

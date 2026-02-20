@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/y/types"
 )
 
 // JobRewardRecord is defined in pkg/types to avoid circular dependency

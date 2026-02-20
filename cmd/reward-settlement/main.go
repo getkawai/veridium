@@ -15,13 +15,13 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/kawai-network/veridium/internal/generate/abi/cashbackdistributor"
-	"github.com/kawai-network/veridium/internal/generate/abi/miningdistributor"
-	"github.com/kawai-network/veridium/internal/generate/abi/referraldistributor"
-	"github.com/kawai-network/veridium/pkg/alert"
+	"github.com/kawai-network/contracts/cashbackdistributor"
+	"github.com/kawai-network/contracts/miningdistributor"
+	"github.com/kawai-network/contracts/referraldistributor"
+	"github.com/kawai-network/x/alert"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/store"
-	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/y/types"
 	"github.com/kawai-network/x/constant"
 )
 

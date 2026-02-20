@@ -14,7 +14,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/y/types"
 	"github.com/kawai-network/x/constant"
 )
 
