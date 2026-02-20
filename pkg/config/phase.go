@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/contracts/kawaitoken"
@@ -82,14 +83,16 @@ func (pd *PhaseDetector) detectPhase(ctx context.Context) (Phase, error) {
 		return Phase1, fmt.Errorf("failed to load KawaiToken: %w", err)
 	}
 
+	callOpts := &bind.CallOpts{Context: ctx}
+
 	// Get total supply
-	totalSupply, err := kawaiToken.TotalSupply(nil)
+	totalSupply, err := kawaiToken.TotalSupply(callOpts)
 	if err != nil {
 		return Phase1, fmt.Errorf("failed to get total supply: %w", err)
 	}
 
 	// Get max supply (cap)
-	maxSupply, err := kawaiToken.Cap(nil)
+	maxSupply, err := kawaiToken.Cap(callOpts)
 	if err != nil {
 		return Phase1, fmt.Errorf("failed to get max supply: %w", err)
 	}
@@ -140,12 +143,14 @@ func (pd *PhaseDetector) GetPhaseInfo(ctx context.Context) (map[string]interface
 		return nil, fmt.Errorf("failed to load KawaiToken: %w", err)
 	}
 
-	totalSupply, err := kawaiToken.TotalSupply(nil)
+	callOpts := &bind.CallOpts{Context: ctx}
+
+	totalSupply, err := kawaiToken.TotalSupply(callOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get total supply: %w", err)
 	}
 
-	maxSupply, err := kawaiToken.Cap(nil)
+	maxSupply, err := kawaiToken.Cap(callOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get max supply: %w", err)
 	}
@@ -182,17 +187,27 @@ func getPhaseDescription(phase Phase) string {
 
 // Global phase detector instance
 var (
-	globalDetector *PhaseDetector
-	detectorOnce   sync.Once
+	globalDetector    *PhaseDetector
+	globalDetectorErr error
+	detectorOnce      sync.Once
+
+	phaseDetectorFactory = NewPhaseDetector
 )
 
 // GetGlobalPhaseDetector returns the global phase detector instance
 func GetGlobalPhaseDetector() (*PhaseDetector, error) {
-	var err error
 	detectorOnce.Do(func() {
-		globalDetector, err = NewPhaseDetector()
+		globalDetector, globalDetectorErr = phaseDetectorFactory()
 	})
-	return globalDetector, err
+
+	if globalDetectorErr != nil {
+		return nil, globalDetectorErr
+	}
+	if globalDetector == nil {
+		return nil, fmt.Errorf("phase detector is not initialized")
+	}
+
+	return globalDetector, nil
 }
 
 // IsPhase2Active is a convenience function using the global detector

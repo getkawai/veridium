@@ -51,13 +51,3 @@ func GetFreeTrialAmountUSDT() float64 {
 	}
 	return DefaultFreeTrialAmountUSDT
 }
-
-// RewardMode represents the current economic phase
-type RewardMode string
-
-const (
-	// ModeMining = Phase 1: Workers earn KAWAI tokens
-	ModeMining RewardMode = "mining"
-	// ModeUSDT = Phase 2: Workers earn USDT (post max supply)
-	ModeUSDT RewardMode = "usdt"
-)

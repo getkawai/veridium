@@ -413,12 +413,12 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 	adminAddress := constant.GetRandomTreasuryAddress()
 
 	// Check if we reached max supply (1B tokens)
-	mode := config.ModeMining
+	phase := config.Phase1
 	if s.supplyQuerier != nil {
 		currentSupply, _ := s.supplyQuerier.GetTotalSupply(ctx)
 		maxSupply, _ := s.supplyQuerier.GetMaxSupply(ctx)
 		if currentSupply != nil && maxSupply != nil && currentSupply.Cmp(maxSupply) >= 0 {
-			mode = config.ModeUSDT // Max supply reached, switch to USDT
+			phase = config.Phase2 // Max supply reached, switch to USDT
 		}
 	}
 
@@ -489,7 +489,7 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 	var contributorShare, developerShare, userShare, affiliatorShare *big.Int
 	var balanceField types.RewardType
 
-	if mode == config.ModeMining {
+	if phase == config.Phase1 {
 		// Phase 1: KAWAI Mining with Dynamic Difficulty (Halving)
 
 		// Default Rate: 100 KAWAI per Million Tokens

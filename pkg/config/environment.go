@@ -26,14 +26,8 @@ type Config struct {
 
 var currentConfig *Config
 
-// Initialize sets up the configuration based on environment variables
-// This should be called once at application startup
-func Initialize() error {
+func configFromRPCURL(rpcURL string) (*Config, error) {
 	cfg := &Config{}
-
-	// Determine environment from RPC URL
-	// Priority: Check RPC URL pattern
-	rpcURL := constant.MonadRpcUrl
 
 	if strings.Contains(rpcURL, "testnet") {
 		cfg.Environment = EnvironmentTestnet
@@ -41,15 +35,28 @@ func Initialize() error {
 		cfg.IsMainnet = false
 		cfg.ChainID = 10143
 		cfg.NetworkName = "Monad Testnet"
-	} else if strings.Contains(rpcURL, "mainnet") || !strings.Contains(rpcURL, "testnet") {
-		// Assume mainnet if not explicitly testnet
+		return cfg, nil
+	}
+
+	if strings.Contains(rpcURL, "mainnet") {
 		cfg.Environment = EnvironmentMainnet
 		cfg.IsTestnet = false
 		cfg.IsMainnet = true
 		cfg.ChainID = 143
 		cfg.NetworkName = "Monad Mainnet"
-	} else {
-		return fmt.Errorf("unable to determine environment from RPC URL: %s", rpcURL)
+		return cfg, nil
+	}
+
+	return nil, fmt.Errorf("unable to determine environment from RPC URL: %s", rpcURL)
+}
+
+// Initialize sets up the configuration based on environment variables
+// This should be called once at application startup
+func Initialize() error {
+	rpcURL := constant.MonadRpcUrl
+	cfg, err := configFromRPCURL(rpcURL)
+	if err != nil {
+		return err
 	}
 
 	currentConfig = cfg
@@ -112,9 +119,4 @@ func ValidateForProduction() error {
 	}
 
 	return nil
-}
-
-// String returns a string representation of the environment
-func (e Environment) String() string {
-	return string(e)
 }

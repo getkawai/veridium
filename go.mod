@@ -31,6 +31,7 @@ require (
 	github.com/kawai-network/stablediffusion v0.1.1
 	github.com/kawai-network/whisper v0.4.0
 	github.com/kawai-network/x v1.0.14
+	github.com/kawai-network/y v0.1.0
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/nikolalohinski/gonja/v2 v2.5.0
 	github.com/openai/openai-go/v2 v2.7.1
@@ -159,7 +160,6 @@ require (
 	github.com/kaptinlin/go-i18n v0.2.0 // indirect
 	github.com/kaptinlin/jsonpointer v0.4.6 // indirect
 	github.com/kaptinlin/messageformat-go v0.4.6 // indirect
-	github.com/kawai-network/y v0.1.0 // indirect
 	github.com/kevinburke/ssh_config v1.4.0 // indirect
 	github.com/klauspost/compress v1.18.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
