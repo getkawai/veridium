@@ -256,6 +256,7 @@ func (s *DownloadService) DownloadStableDiffusionModel(ctx context.Context) *Dow
 }
 
 // DownloadStableDiffusionModelSmart downloads a hardware-selected Stable Diffusion model.
+// Uses HuggingFace URL to determine path: models/{author}/{repo}/{filename}
 func (s *DownloadService) DownloadStableDiffusionModelSmart(ctx context.Context, spec sdmodels.ModelSpec) *DownloadResult {
 	startTime := time.Now()
 
@@ -267,9 +268,16 @@ func (s *DownloadService) DownloadStableDiffusionModelSmart(ctx context.Context,
 		}
 	}
 
-	modelPath := filepath.Join(paths.Models(), "stablediffusion", spec.Filename)
+	modelDir, err := paths.ModelPath(spec.URL)
+	if err != nil {
+		return &DownloadResult{
+			Success:  false,
+			Error:    fmt.Errorf("failed to parse model URL: %w", err),
+			Duration: time.Since(startTime),
+		}
+	}
+	modelPath := filepath.Join(modelDir, spec.Filename)
 
-	// Create directory
 	if err := os.MkdirAll(filepath.Dir(modelPath), 0755); err != nil {
 		return &DownloadResult{
 			Success:  false,

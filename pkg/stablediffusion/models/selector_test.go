@@ -44,8 +44,8 @@ func TestSelectOptimalModel(t *testing.T) {
 				AvailableRAM: 4,
 				GPUMemory:    2,
 			},
-			expectedType: "SD1.4",
-			description:  "Should select SD1.4 for minimal system (smallest model that fits)",
+			expectedType: "SD1.5",
+			description:  "Should select SD1.5 for minimal system (smallest model that fits)",
 		},
 		{
 			name: "cpu_only_system",

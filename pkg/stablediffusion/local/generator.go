@@ -69,18 +69,26 @@ func (g *SDGenerator) IsAvailable() bool {
 }
 
 // GetFirstAvailableModel returns the first available SD model
+// Scans models directory recursively to find supported model formats
 func (g *SDGenerator) GetFirstAvailableModel() string {
-	files, err := os.ReadDir(g.modelsPath)
+	return g.findFirstModel(g.modelsPath)
+}
+
+// findFirstModel recursively searches for the first supported model file
+func (g *SDGenerator) findFirstModel(dir string) string {
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return ""
 	}
 
 	for _, file := range files {
-		if !file.IsDir() {
-			name := file.Name()
-			if g.isSupportedModelFormat(name) {
-				return filepath.Join(g.modelsPath, name)
+		fullPath := filepath.Join(dir, file.Name())
+		if file.IsDir() {
+			if model := g.findFirstModel(fullPath); model != "" {
+				return model
 			}
+		} else if g.isSupportedModelFormat(file.Name()) {
+			return fullPath
 		}
 	}
 	return ""
