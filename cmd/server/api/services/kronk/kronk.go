@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -31,6 +33,7 @@ import (
 	pkglogger "github.com/kawai-network/veridium/pkg/logger"
 	sd "github.com/kawai-network/veridium/pkg/stablediffusion"
 	"github.com/kawai-network/veridium/pkg/stablediffusion/modeldownloader"
+	sdmodels "github.com/kawai-network/veridium/pkg/stablediffusion/models"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/veridium/pkg/tools/catalog"
 	"github.com/kawai-network/veridium/pkg/tools/defaults"
@@ -404,7 +407,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		log.Info(ctx, "startup", "status", "whisper service ready", "models", len(models))
 	}
 
-	imageEngine, err := initStableDiffusion(ctx, log)
+	imageEngine, err := initStableDiffusion(ctx, log, hwSpecs)
 	if err != nil {
 		return err
 	}
@@ -618,7 +621,7 @@ func startHeartbeat(ctx context.Context, log *logger.Logger, kv *store.KVStore, 
 }
 
 // initStableDiffusion initializes the stable diffusion engine
-func initStableDiffusion(ctx context.Context, log *logger.Logger) (*sd.StableDiffusion, error) {
+func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardware.HardwareSpecs) (*sd.StableDiffusion, error) {
 	log.Info(ctx, "startup", "status", "initializing stable diffusion")
 
 	if !sd.IsLibraryInstalled() {
@@ -628,9 +631,31 @@ func initStableDiffusion(ctx context.Context, log *logger.Logger) (*sd.StableDif
 	modelsPath := paths.Models()
 	downloader := modeldownloader.New(modelsPath)
 
-	modelFile, err := downloader.DiscoverModel()
-	if err != nil {
-		log.Warn(ctx, "startup", "status", "error discovering models", "error", err)
+	var modelFile string
+	if hwSpecs != nil {
+		selectedModel := sdmodels.SelectOptimalModel(&sdmodels.HardwareSpecs{
+			TotalRAM:     hwSpecs.TotalRAM,
+			AvailableRAM: hwSpecs.AvailableRAM,
+			CPU:          hwSpecs.CPU,
+			CPUCores:     hwSpecs.CPUCores,
+			GPUMemory:    hwSpecs.GPUMemory,
+			GPUModel:     hwSpecs.GPUModel,
+		})
+		preferred, findErr := findModelByFilename(modelsPath, selectedModel.Filename)
+		if findErr != nil {
+			log.Warn(ctx, "startup", "status", "error searching preferred SD model", "model", selectedModel.Name, "error", findErr)
+		} else if preferred != "" {
+			modelFile = preferred
+			log.Info(ctx, "startup", "status", "selected SD model based on hardware", "model", selectedModel.Name, "path", modelFile)
+		}
+	}
+
+	if modelFile == "" {
+		var err error
+		modelFile, err = downloader.DiscoverModel()
+		if err != nil {
+			log.Warn(ctx, "startup", "status", "error discovering models", "error", err)
+		}
 	}
 
 	if modelFile == "" {
@@ -645,6 +670,11 @@ func initStableDiffusion(ctx context.Context, log *logger.Logger) (*sd.StableDif
 		OffloadParamsToCPU: true,
 	}
 
+	libPath := sd.GetLibraryPath()
+	if err := sd.InitLibrary(libPath); err != nil {
+		return nil, fmt.Errorf("failed to initialize stable diffusion library at %s: %w", libPath, err)
+	}
+
 	eng, err := sd.NewStableDiffusion(ctxParams)
 	if err != nil {
 		log.Warn(ctx, "startup", "status", "failed to init SD engine", "error", err)
@@ -653,6 +683,31 @@ func initStableDiffusion(ctx context.Context, log *logger.Logger) (*sd.StableDif
 
 	log.Info(ctx, "startup", "status", "stable diffusion ready")
 	return eng, nil
+}
+
+func findModelByFilename(root string, filename string) (string, error) {
+	if filename == "" {
+		return "", nil
+	}
+
+	var match string
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if strings.EqualFold(info.Name(), filename) {
+			match = path
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return match, nil
 }
 
 var logo = `
@@ -681,7 +736,7 @@ func startTunnel(ctx context.Context, log *logger.Logger) string {
 		// Start tunnel in goroutine with timeout
 		tunnelURL := make(chan string, 1)
 		errChan := make(chan error, 1)
-		
+
 		go func() {
 			if err := tunnelkit.RunTunnel(ctx, tunnel.TunnelToken); err != nil {
 				errChan <- err

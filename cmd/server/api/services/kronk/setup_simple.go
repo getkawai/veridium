@@ -12,6 +12,8 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/services"
+	"github.com/kawai-network/veridium/pkg/hardware"
+	sdmodels "github.com/kawai-network/veridium/pkg/stablediffusion/models"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/term"
@@ -231,8 +233,31 @@ func (s *SimpleSetup) Run(ctx context.Context) (*SetupResult, error) {
 	fmt.Println("Step 4/6: Stable Diffusion Model (Image Generation)")
 	fmt.Println("---------------------------------------------------")
 
+	hw := hardware.DetectHardwareSpecs()
+	selectedModel := sdmodels.SelectOptimalModel(&sdmodels.HardwareSpecs{
+		TotalRAM:     hw.TotalRAM,
+		AvailableRAM: hw.AvailableRAM,
+		CPU:          hw.CPU,
+		CPUCores:     hw.CPUCores,
+		GPUMemory:    hw.GPUMemory,
+		GPUModel:     hw.GPUModel,
+	})
+	fmt.Printf("Hardware detected: RAM=%dGB, VRAM=%dGB, CPU cores=%d\n", hw.TotalRAM, hw.GPUMemory, hw.CPUCores)
+	fmt.Printf("Selected SD model: %s (%s, ~%dMB)\n", selectedModel.Name, selectedModel.ModelType, selectedModel.Size)
+	fmt.Println()
+
 	sdSvc := s.createProgressBar("Downloading Stable Diffusion")
-	sdResult := sdSvc.DownloadStableDiffusionModel(ctx)
+	sdResult := sdSvc.DownloadStableDiffusionModelSmart(ctx, selectedModel)
+	if !sdResult.Success {
+		fmt.Printf("⚠️  Selected model download failed (%s): %v\n", selectedModel.Name, sdResult.Error)
+		fmt.Println("Falling back to default Stable Diffusion model (sd-v1-4.ckpt)...")
+		fallback := sdSvc.DownloadStableDiffusionModel(ctx)
+		if fallback.Success {
+			sdResult = fallback
+			result.Warnings = append(result.Warnings, fmt.Errorf("stable diffusion fallback used: %s", selectedModel.Name))
+		}
+	}
+
 	if sdResult.Success {
 		result.StableDiffReady = true
 		fmt.Printf("✅ Stable Diffusion model ready (%.2f MB)\n", float64(sdResult.Bytes)/1024/1024)

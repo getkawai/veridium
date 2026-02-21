@@ -12,6 +12,7 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/app/domain/ttsapp"
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/stablediffusion/modeldownloader"
+	sdmodels "github.com/kawai-network/veridium/pkg/stablediffusion/models"
 	"github.com/kawai-network/veridium/pkg/tools/downloader"
 	"github.com/kawai-network/veridium/pkg/tools/libs"
 )
@@ -21,25 +22,25 @@ type ProgressCallback func(completed, total int64, percent float64, mbps float64
 
 // DownloadResult represents the result of a download operation
 type DownloadResult struct {
-	Success    bool
-	FilePath   string
-	Bytes      int64
-	Duration   time.Duration
-	Error      error
-	Resumed    bool // True if download was resumed from partial file
+	Success  bool
+	FilePath string
+	Bytes    int64
+	Duration time.Duration
+	Error    error
+	Resumed  bool // True if download was resumed from partial file
 }
 
 // DownloadService handles all download operations with resume and retry support
 type DownloadService struct {
-	basePath       string
-	modelsPath     string
-	maxRetries     int
-	retryDelay     time.Duration
-	timeout        time.Duration
-	progressCb     ProgressCallback
-	mu             sync.Mutex
-	lastProgress   time.Time
-	lastBytes      int64
+	basePath     string
+	modelsPath   string
+	maxRetries   int
+	retryDelay   time.Duration
+	timeout      time.Duration
+	progressCb   ProgressCallback
+	mu           sync.Mutex
+	lastProgress time.Time
+	lastBytes    int64
 }
 
 // DownloadServiceOption configures the DownloadService
@@ -136,7 +137,7 @@ func (s *DownloadService) DownloadWithRetry(ctx context.Context, url, dest strin
 
 		// Create context with timeout for this attempt
 		downloadCtx, cancel := context.WithTimeout(ctx, s.timeout)
-		
+
 		result = s.downloadInternal(downloadCtx, url, dest, startTime)
 		cancel()
 
@@ -176,7 +177,7 @@ func (s *DownloadService) downloadInternal(ctx context.Context, url, dest string
 
 	// Download with resume support (via grab package)
 	downloaded, err := downloader.Download(ctx, url, dest, progressCb, downloader.SizeIntervalMIB)
-	
+
 	result := &DownloadResult{
 		FilePath: dest,
 		Duration: time.Since(startTime),
@@ -227,19 +228,6 @@ func (s *DownloadService) DownloadWhisperModel(ctx context.Context, modelName st
 		}
 	}
 
-	// Download with progress - grab handles resume automatically
-	if s.progressCb != nil {
-		cb := s.progressCb
-		progressFunc := func(src string, currentSize, totalSize int64, mibPerSec float64, complete bool) {
-			percent := 0.0
-			if totalSize > 0 {
-				percent = float64(currentSize) / float64(totalSize) * 100
-			}
-			cb(currentSize, totalSize, percent, mibPerSec)
-		}
-		_ = progressFunc
-	}
-
 	result := s.DownloadWithRetry(ctx, modelURL, modelPath)
 	result.Duration = time.Since(startTime)
 	return result
@@ -262,20 +250,35 @@ func (s *DownloadService) DownloadStableDiffusionModel(ctx context.Context) *Dow
 		}
 	}
 
-	// Download with progress - grab handles resume automatically
-	if s.progressCb != nil {
-		cb := s.progressCb
-		progressFunc := func(src string, currentSize, totalSize int64, mibPerSec float64, complete bool) {
-			percent := 0.0
-			if totalSize > 0 {
-				percent = float64(currentSize) / float64(totalSize) * 100
-			}
-			cb(currentSize, totalSize, percent, mibPerSec)
+	result := s.DownloadWithRetry(ctx, modelURL, modelPath)
+	result.Duration = time.Since(startTime)
+	return result
+}
+
+// DownloadStableDiffusionModelSmart downloads a hardware-selected Stable Diffusion model.
+func (s *DownloadService) DownloadStableDiffusionModelSmart(ctx context.Context, spec sdmodels.ModelSpec) *DownloadResult {
+	startTime := time.Now()
+
+	if spec.URL == "" || spec.Filename == "" {
+		return &DownloadResult{
+			Success:  false,
+			Error:    fmt.Errorf("invalid model spec: missing URL or filename"),
+			Duration: time.Since(startTime),
 		}
-		_ = progressFunc
 	}
 
-	result := s.DownloadWithRetry(ctx, modelURL, modelPath)
+	modelPath := filepath.Join(paths.Models(), "stablediffusion", spec.Filename)
+
+	// Create directory
+	if err := os.MkdirAll(filepath.Dir(modelPath), 0755); err != nil {
+		return &DownloadResult{
+			Success:  false,
+			Error:    fmt.Errorf("failed to create model directory: %w", err),
+			Duration: time.Since(startTime),
+		}
+	}
+
+	result := s.DownloadWithRetry(ctx, spec.URL, modelPath)
 	result.Duration = time.Since(startTime)
 	return result
 }
@@ -295,19 +298,6 @@ func (s *DownloadService) DownloadTTSModel(ctx context.Context) *DownloadResult 
 			Error:    fmt.Errorf("failed to create model directory: %w", err),
 			Duration: time.Since(startTime),
 		}
-	}
-
-	// Download with progress - grab handles resume automatically
-	if s.progressCb != nil {
-		cb := s.progressCb
-		progressFunc := func(src string, currentSize, totalSize int64, mibPerSec float64, complete bool) {
-			percent := 0.0
-			if totalSize > 0 {
-				percent = float64(currentSize) / float64(totalSize) * 100
-			}
-			cb(currentSize, totalSize, percent, mibPerSec)
-		}
-		_ = progressFunc
 	}
 
 	result := s.DownloadWithRetry(ctx, modelURL, modelPath)
@@ -330,19 +320,6 @@ func (s *DownloadService) DownloadLLMModel(ctx context.Context, org, repo, filen
 			Error:    fmt.Errorf("failed to create model directory: %w", err),
 			Duration: time.Since(startTime),
 		}
-	}
-
-	// Download with progress - grab handles resume automatically
-	if s.progressCb != nil {
-		cb := s.progressCb
-		progressFunc := func(src string, currentSize, totalSize int64, mibPerSec float64, complete bool) {
-			percent := 0.0
-			if totalSize > 0 {
-				percent = float64(currentSize) / float64(totalSize) * 100
-			}
-			cb(currentSize, totalSize, percent, mibPerSec)
-		}
-		_ = progressFunc
 	}
 
 	result := s.DownloadWithRetry(ctx, modelURL, modelPath)
@@ -377,7 +354,7 @@ func (s *DownloadService) DownloadLibraries(ctx context.Context) ([]DownloadResu
 		// Create lib manager for specific library
 		libMgr, err := libs.New(
 			libs.WithBasePath(paths.Base()),
-			libs.WithAllowUpgrade(false), // Don't check for upgrades - just use existing
+			libs.WithAllowUpgrade(true), // Setup should install missing libraries
 			libs.WithLibraryType(libType),
 		)
 		if err != nil {

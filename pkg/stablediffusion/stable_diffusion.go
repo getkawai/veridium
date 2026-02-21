@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"unsafe"
 
 	sd "github.com/kawai-network/stablediffusion"
 )
@@ -23,10 +22,10 @@ var internalSDMu sync.RWMutex
 // Subsequent calls will reinitialize the library (not recommended).
 func InitLibrary(libPath string) error {
 	var err error
-	
+
 	internalSDMu.Lock()
 	defer internalSDMu.Unlock()
-	
+
 	internalSD, err = sd.New(sd.LibraryConfig{LibPath: libPath})
 	return err
 }
@@ -695,7 +694,7 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 	sdImgGenParams.ClipSkip = imgGenParams.ClipSkip
 
 	sdImgGenParams.InitImage = generateImageFromPath(imgGenParams.InitImagePath)
-	
+
 	// Process reference images - keep slice alive during C library call
 	refImagesSlice := generateImagesFromPaths(imgGenParams.RefImagesPath)
 	if len(refImagesSlice) > 0 {
@@ -703,7 +702,7 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 	} else {
 		sdImgGenParams.RefImages = nil
 	}
-	
+
 	// Set reference images count, use actual loaded count if user didn't provide
 	sdImgGenParams.RefImagesCount = int32(len(imgGenParams.RefImagesPath))
 	if imgGenParams.RefImagesCount > 0 {
@@ -713,12 +712,16 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 	sdImgGenParams.IncreaseRefIndex = imgGenParams.IncreaseRefIndex
 	sdImgGenParams.MaskImage = generateImageFromPath(imgGenParams.MaskImagePath)
 
-	// For img2img, ensure generated image dimensions match initial image dimensions
-	// If initial image is specified, use initial image dimensions
+	// For img2img, use requested dimensions if explicitly provided.
+	// Otherwise fallback to initial image dimensions.
 	if imgGenParams.InitImagePath != "" {
-		// Use initial image dimensions and convert type
-		sdImgGenParams.Width = int32(sdImgGenParams.InitImage.Width)
-		sdImgGenParams.Height = int32(sdImgGenParams.InitImage.Height)
+		if imgGenParams.Width > 0 && imgGenParams.Height > 0 {
+			sdImgGenParams.Width = imgGenParams.Width
+			sdImgGenParams.Height = imgGenParams.Height
+		} else {
+			sdImgGenParams.Width = int32(sdImgGenParams.InitImage.Width)
+			sdImgGenParams.Height = int32(sdImgGenParams.InitImage.Height)
+		}
 	} else {
 		// Otherwise use default dimensions
 		if imgGenParams.Width == 0 {
@@ -881,11 +884,6 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 	if img == nil {
 		return errors.New("failed to generate image: context returned nil image")
 	}
-
-	fmt.Println("\nImage generated successfully!")
-	fmt.Printf("Image dimensions: %dx%d\n", img.Width, img.Height)
-	fmt.Printf("Channels: %d\n", img.Channel)
-	fmt.Printf("Data pointer: %p\n", unsafe.Pointer(img.Data))
 
 	// Save image
 	if err := sd.SaveImage(img, newImagePath); err != nil {

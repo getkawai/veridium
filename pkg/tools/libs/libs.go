@@ -234,6 +234,21 @@ func (lib *Libs) InstalledVersion() (VersionTag, error) {
 		return VersionTag{}, fmt.Errorf("installed-version: unable to parse version info file: %w", err)
 	}
 
+	downloader := GetDownloader(lib.libType)
+	if downloader == nil {
+		return VersionTag{}, ErrUnsupportedLibrary
+	}
+
+	libraryName := downloader.LibraryName(lib.os.String())
+	if libraryName == "" {
+		return VersionTag{}, fmt.Errorf("installed-version: empty library name for %s", lib.libType.DisplayName())
+	}
+
+	libraryPath := filepath.Join(lib.path, libraryName)
+	if _, err := os.Stat(libraryPath); err != nil {
+		return VersionTag{}, fmt.Errorf("installed-version: library file missing: %s: %w", libraryPath, err)
+	}
+
 	tag.Library = lib.libType
 	return tag, nil
 }

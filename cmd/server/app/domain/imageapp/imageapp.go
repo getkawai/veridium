@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ import (
 type app struct {
 	log    *logger.Logger
 	engine *sd.StableDiffusion
+	mu     sync.Mutex
 }
 
 func newApp(cfg Config) *app {
@@ -139,7 +141,7 @@ func (a *app) generateImages(ctx context.Context, req ImageGenerationRequest) ([
 			Height:      int32(height),
 			SampleSteps: 20,
 			CfgScale:    7.0,
-			Seed:        0, // Random
+			Seed:        -1, // Random
 		}
 
 		if req.Quality == "hd" {
@@ -149,7 +151,7 @@ func (a *app) generateImages(ctx context.Context, req ImageGenerationRequest) ([
 		a.log.Info(ctx, "generating image", "id", imageID, "params", params)
 
 		// Generate using the library backend
-		if err := a.engine.GenerateImage(params, outputPath); err != nil {
+		if err := a.generateImage(params, outputPath); err != nil {
 			return nil, fmt.Errorf("generation failed for image %d: %w", i, err)
 		}
 
@@ -276,15 +278,15 @@ func (a *app) editImages(ctx context.Context, req ImageEditRequest) ([]ImageData
 
 		// Map to pkg/stablediffusion Params
 		params := &sd.ImgGenParams{
-			Prompt:         req.Prompt,
-			InitImagePath:  initImagePath,
-			MaskImagePath:  maskImagePath,
-			Width:          int32(width),
-			Height:         int32(height),
-			SampleSteps:    20,
-			CfgScale:       7.0,
-			ImageCfgScale:  1.0,
-			Seed:           0, // Random
+			Prompt:        req.Prompt,
+			InitImagePath: initImagePath,
+			MaskImagePath: maskImagePath,
+			Width:         int32(width),
+			Height:        int32(height),
+			SampleSteps:   20,
+			CfgScale:      7.0,
+			ImageCfgScale: 1.0,
+			Seed:          -1, // Random
 		}
 
 		if req.Quality == "hd" {
@@ -294,7 +296,7 @@ func (a *app) editImages(ctx context.Context, req ImageEditRequest) ([]ImageData
 		a.log.Info(ctx, "editing image", "id", imageID, "params", params)
 
 		// Generate using the library backend
-		if err := a.engine.GenerateImage(params, outputPath); err != nil {
+		if err := a.generateImage(params, outputPath); err != nil {
 			return nil, fmt.Errorf("edit failed for image %d: %w", i, err)
 		}
 
@@ -405,14 +407,14 @@ func (a *app) variateImages(ctx context.Context, req ImageVariationRequest) ([]I
 
 		// Map to pkg/stablediffusion Params
 		params := &sd.ImgGenParams{
-			Prompt:         "", // No prompt for pure variation
-			InitImagePath:  initImagePath,
-			Width:          int32(width),
-			Height:         int32(height),
-			SampleSteps:    20,
-			CfgScale:       7.0,
-			Strength:       0.75, // Default strength for img2img variation
-			Seed:           0,    // Random seed for variation
+			Prompt:        "", // No prompt for pure variation
+			InitImagePath: initImagePath,
+			Width:         int32(width),
+			Height:        int32(height),
+			SampleSteps:   20,
+			CfgScale:      7.0,
+			Strength:      0.75, // Default strength for img2img variation
+			Seed:          -1,   // Random seed for variation
 		}
 
 		if req.Quality == "hd" {
@@ -422,7 +424,7 @@ func (a *app) variateImages(ctx context.Context, req ImageVariationRequest) ([]I
 		a.log.Info(ctx, "generating variation", "id", imageID, "params", params)
 
 		// Generate using the library backend
-		if err := a.engine.GenerateImage(params, outputPath); err != nil {
+		if err := a.generateImage(params, outputPath); err != nil {
 			return nil, fmt.Errorf("variation failed for image %d: %w", i, err)
 		}
 
@@ -480,4 +482,11 @@ func (a *app) saveImageFromBase64(base64Data string, prefix string) (string, err
 	}
 
 	return tempFile.Name(), nil
+}
+
+// generateImage serializes access because StableDiffusion context is not thread-safe.
+func (a *app) generateImage(params *sd.ImgGenParams, outputPath string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.engine.GenerateImage(params, outputPath)
 }
