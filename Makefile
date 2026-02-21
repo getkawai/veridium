@@ -7,7 +7,7 @@
         admin-register admin-register-dry \
         release-prepare release-version \
         release-darwin release-darwin-package release-darwin-archive \
-        release-linux release-linux-archive \
+        release-linux release-linux-deb release-linux-archive \
         release-windows release-windows-archive \
         release-all release-archives release-clean \
         contributor contributor-dev contributor-dev-fresh contributor-build
@@ -36,6 +36,7 @@ help:
 	@echo "  make release-darwin-package  Build + package for macOS"
 	@echo "  make release-darwin-archive  Build + create distribution archive"
 	@echo "  make release-linux           Build for Linux (amd64)"
+	@echo "  make release-linux-deb       Build + create .deb package"
 	@echo "  make release-linux-archive   Build + create distribution archive"
 	@echo "  make release-windows         Build for Windows (amd64)"
 	@echo "  make release-windows-archive Build + create distribution archive"
@@ -153,6 +154,13 @@ release-linux-archive:
 	@cd build/bin && shasum -a 256 Kawai-*-linux-*.tar.gz >> checksums.txt
 	@echo "✅ Linux archive created with checksum!"
 	@echo "📦 Location: build/bin/Kawai-*-linux-amd64.tar.gz"
+
+release-linux-deb:
+	@echo "📦 Creating Linux .deb package..."
+	@$(MAKE) release-linux
+	@wails3 task linux:create:deb
+	@echo "✅ Debian package complete!"
+	@echo "📦 Location: build/bin/"
 
 release-windows:
 	@echo "🪟 Building for Windows (amd64)..."
