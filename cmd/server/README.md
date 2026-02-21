@@ -163,8 +163,7 @@ Jika Anda memiliki multiple wallets, setup akan menampilkan daftar wallet dan An
 
 ### Contributor (Implemented)
 - `POST /v1/audio/transcriptions` - Whisper STT (go-whisper)
-- `GET /v1/contributor/status` - Contributor info (TODO)
-- `GET /v1/contributor/hardware` - Hardware specs (TODO)
+- `GET /v1/health` - Real-time health status (online/offline, active requests, is_busy)
 
 ---
 
@@ -179,21 +178,20 @@ Jika Anda memiliki multiple wallets, setup akan menampilkan daftar wallet dan An
 - [x] Add hardware detection
 - [x] Add tunnel integration
 - [x] Add contributor registry
-- [x] Add heartbeat system
 - [x] Integrate Whisper service
 - [x] Integrate Stable Diffusion
+- [x] Add health check endpoint (/v1/health)
 
 ### Phase 2: ✅ API Routes (DONE)
 - [x] Add image generation endpoint to mux
 - [x] Add file server for generated images
 - [x] Add Whisper endpoint to mux (go-whisper)
-- [ ] Add contributor status endpoint
-- [ ] Add hardware info endpoint
+- [x] Add health check endpoint (/v1/health)
 
 ### Phase 3: Testing (TODO)
 - [ ] Test wallet creation/unlock
 - [ ] Test contributor registration
-- [ ] Test heartbeat system
+- [ ] Test health check endpoint
 - [ ] Test tunnel connectivity
 - [ ] Test Whisper transcription
 - [ ] Test SD image generation

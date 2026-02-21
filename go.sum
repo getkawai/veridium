@@ -380,10 +380,10 @@ github.com/kawai-network/stablediffusion v0.1.1 h1:hXc74w8VBB34TVJLRjwgYFAGXJ+3w
 github.com/kawai-network/stablediffusion v0.1.1/go.mod h1:+4JGw9AnxfuI6g6PMI1b5Z3j0P/WYmsxnt4kL8SZ37w=
 github.com/kawai-network/whisper v0.4.0 h1:HcypCIoG9QPON0XmXnLkI2d+VlEENBxUa8TwkybMUek=
 github.com/kawai-network/whisper v0.4.0/go.mod h1:cq5yqj3mTh2SPp7MnlkLN7MwNiI+ljGEoQ0lk20tFzY=
-github.com/kawai-network/x v1.0.14 h1:YjuBmQx42m3V5QSr6v+94/nCzsI0BFp619M/pto5gVo=
-github.com/kawai-network/x v1.0.14/go.mod h1:LcZTk6tWuw4N8bPR1e5JJzJn4ACj8jRwnJTP9zPAO0M=
-github.com/kawai-network/y v0.1.0 h1:KqyXFHXXagkMQP7j1Bh9NKBuXk2veAEqe6nhKgzv9bE=
-github.com/kawai-network/y v0.1.0/go.mod h1:SxlR6h8wP5eWvk1fAEOdQyKQd1agx+yDcRK3frJkwSg=
+github.com/kawai-network/x v1.0.15 h1:C+Ge4In1EsxIDWxB5EPeEvYuxR+os8Cs1OGa7JqRyP0=
+github.com/kawai-network/x v1.0.15/go.mod h1:LcZTk6tWuw4N8bPR1e5JJzJn4ACj8jRwnJTP9zPAO0M=
+github.com/kawai-network/y v0.1.2 h1:/fX6FtPrV60uVd+eYmcxELMf3BFzkqrVdFbp7OvkS34=
+github.com/kawai-network/y v0.1.2/go.mod h1:ruIHjT8pREGwfKi6Z5BNp02l0wvxvQZK0mwiXtQxeuA=
 github.com/kevinburke/ssh_config v1.4.0 h1:6xxtP5bZ2E4NF5tuQulISpTO2z8XbtH8cg1PWkxoFkQ=
 github.com/kevinburke/ssh_config v1.4.0/go.mod h1:q2RIzfka+BXARoNexmF9gkxEX7DmvbW9P4hIVx2Kg4M=
 github.com/klauspost/asmfmt v1.3.2 h1:4Ri7ox3EwapiOjCki+hw14RyKk201CN4rzyCJRFLpK4=

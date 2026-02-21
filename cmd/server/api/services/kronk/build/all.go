@@ -3,8 +3,8 @@ package build
 
 import (
 	"github.com/kawai-network/veridium/cmd/server/app/domain/chatapp"
-	"github.com/kawai-network/veridium/cmd/server/app/domain/checkapp"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/embedapp"
+	"github.com/kawai-network/veridium/cmd/server/app/domain/healthcheck"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/imageapp"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/msgsapp"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/rerankapp"
@@ -26,9 +26,9 @@ type all struct{}
 
 // Add implements the RouterAdder interface.
 func (all) Add(app *web.App, cfg mux.Config) {
-	checkapp.Routes(app, checkapp.Config{
-		Build: cfg.Build,
+	healthcheck.Routes(app, healthcheck.Config{
 		Log:   cfg.Log,
+		Cache: cfg.Cache,
 	})
 
 	toolapp.Routes(app, toolapp.Config{

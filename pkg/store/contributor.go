@@ -163,6 +163,12 @@ func (s *KVStore) UpdateHeartbeat(ctx context.Context, address string) error {
 // UpdateContributorMetrics updates discovery and performance metrics for a contributor
 // This should be called periodically (e.g., every 30s) to keep metrics fresh
 func (s *KVStore) UpdateContributorMetrics(ctx context.Context, address string, metrics *ContributorMetrics) error {
+	// Acquire per-address lock to prevent race conditions
+	lockInterface, _ := contributorLocks.LoadOrStore(address, &sync.Mutex{})
+	lock := lockInterface.(*sync.Mutex)
+	lock.Lock()
+	defer lock.Unlock()
+
 	contributor, err := s.GetContributor(ctx, address)
 	if err != nil {
 		return err

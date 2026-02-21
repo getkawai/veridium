@@ -51,7 +51,6 @@ var tag = "develop"
 
 const (
 	SentryDSN             = "https://6d138acbdde2516e32e24f016b472031@o4510620614983680.ingest.us.sentry.io/4510620618850304"
-	HeartbeatInterval     = 30 * time.Second
 	SentryFlushTimeout    = 2 * time.Second
 	ServerShutdownTimeout = 1 * time.Minute
 	ServerReadTimeout     = 30 * time.Second
@@ -65,19 +64,6 @@ const (
 	CatalogGithubRepo   = "https://api.github.com/repos/ardanlabs/kronk_catalogs/contents/catalogs"
 	TemplatesGithubRepo = "https://api.github.com/repos/ardanlabs/kronk_catalogs/contents/templates"
 	SetupRequiredMsg    = "Please run 'kawai-contributor setup' first to %s"
-)
-
-const (
-	regionUSWest       = "us-west"
-	regionUSEast       = "us-east"
-	regionEUWest       = "eu-west"
-	regionEUEast       = "eu-east"
-	regionAsiaWest     = "asia-west"
-	regionAsiaEast     = "asia-east"
-	regionOceania      = "oceania"
-	regionSouthAmerica = "south-america"
-	regionAfrica       = "africa"
-	regionUnknown      = "unknown"
 )
 
 // StartCommand runs the server (equivalent to the old Run function)
@@ -388,10 +374,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	}
 	log.Info(ctx, "startup", "status", "contributor registered", "wallet", contributor.WalletAddress, "since", contributor.RegisteredAt.Format("2006-01-02"))
 
-	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
-	defer heartbeatCancel()
-
-	startHeartbeat(heartbeatCtx, log, kv, walletAddress, cacheSvc, hwSpecs)
+	// No heartbeat - client will check /v1/health directly for real-time status
 
 	whisperModelsDir := paths.WhisperModels()
 	if err := os.MkdirAll(whisperModelsDir, 0755); err != nil {
@@ -575,51 +558,6 @@ func initContributorFeatures(ctx context.Context, log *logger.Logger, shutdownTi
 	return kv, walletAddress, hwSpecs, nil
 }
 
-// startHeartbeat starts the contributor heartbeat goroutine
-func startHeartbeat(ctx context.Context, log *logger.Logger, kv *store.KVStore, walletAddress string, cacheSvc *cache.Cache, hwSpecs *hardware.HardwareSpecs) {
-	go func() {
-		ticker := time.NewTicker(HeartbeatInterval)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				region := detectRegion()
-				availableModels := getAvailableModels(cacheSvc)
-
-				modelStatus, err := cacheSvc.ModelStatus()
-				var activeRequests int64
-				if err == nil {
-					for _, model := range modelStatus {
-						activeRequests += int64(model.ActiveStreams)
-					}
-				}
-
-				metrics := &store.ContributorMetrics{
-					Region:          region,
-					AvailableModels: availableModels,
-					ActiveRequests:  activeRequests,
-					TotalRequests:   0,
-					AvgResponseTime: 0,
-					SuccessRate:     1.0,
-					CPUCores:        hwSpecs.CPUCores,
-					TotalRAM:        hwSpecs.TotalRAM,
-					AvailableRAM:    hwSpecs.AvailableRAM,
-					GPUModel:        hwSpecs.GPUModel,
-					GPUMemory:       hwSpecs.GPUMemory,
-				}
-
-				if err := kv.UpdateContributorMetrics(ctx, walletAddress, metrics); err != nil {
-					log.Info(ctx, "heartbeat", "status", "failed", "error", err)
-				}
-			}
-		}
-	}()
-	log.Info(ctx, "startup", "status", "heartbeat with metrics started", "interval", HeartbeatInterval)
-}
-
 // initStableDiffusion initializes the stable diffusion engine
 func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardware.HardwareSpecs) (*sd.StableDiffusion, error) {
 	log.Info(ctx, "startup", "status", "initializing stable diffusion")
@@ -761,52 +699,4 @@ func startTunnel(ctx context.Context, log *logger.Logger) string {
 		}
 	}
 	return ""
-}
-
-// detectRegion detects the contributor's geographic region based on timezone offset
-func detectRegion() string {
-	_, offset := time.Now().Zone()
-	offsetHours := offset / 3600
-
-	switch {
-	case offsetHours >= -8 && offsetHours < -5:
-		return regionUSWest
-	case offsetHours >= -5 && offsetHours < -3:
-		return regionUSEast
-	case offsetHours >= -3 && offsetHours < 0:
-		return regionSouthAmerica
-	case offsetHours >= 0 && offsetHours < 1:
-		return regionEUWest
-	case offsetHours >= 1 && offsetHours < 4:
-		return regionAfrica
-	case offsetHours >= 3 && offsetHours < 6:
-		return regionEUEast
-	case offsetHours >= 6 && offsetHours < 9:
-		return regionAsiaWest
-	case offsetHours >= 9 && offsetHours < 12:
-		return regionAsiaEast
-	case offsetHours >= 12 && offsetHours <= 14:
-		return regionOceania
-	default:
-		return regionUnknown
-	}
-}
-
-// getAvailableModels returns list of available model IDs from cache
-func getAvailableModels(cacheSvc *cache.Cache) []string {
-	if cacheSvc == nil {
-		return []string{}
-	}
-
-	modelDetails, err := cacheSvc.ModelStatus()
-	if err != nil {
-		return []string{}
-	}
-
-	modelIDs := make([]string, 0, len(modelDetails))
-	for _, model := range modelDetails {
-		modelIDs = append(modelIDs, model.ID)
-	}
-
-	return modelIDs
 }

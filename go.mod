@@ -1,6 +1,6 @@
 module github.com/kawai-network/veridium
 
-go 1.25.5
+go 1.26.0
 
 require (
 	cloud.google.com/go/auth v0.17.0
@@ -30,8 +30,8 @@ require (
 	github.com/kawai-network/grab v0.1.0
 	github.com/kawai-network/stablediffusion v0.1.1
 	github.com/kawai-network/whisper v0.4.0
-	github.com/kawai-network/x v1.0.14
-	github.com/kawai-network/y v0.1.0
+	github.com/kawai-network/x v1.0.15
+	github.com/kawai-network/y v0.1.2
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/nikolalohinski/gonja/v2 v2.5.0
 	github.com/openai/openai-go/v2 v2.7.1
