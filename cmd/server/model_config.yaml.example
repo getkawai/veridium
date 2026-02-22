@@ -1,0 +1,41 @@
+# Per-model runtime tuning for Kronk cache.
+# Activate with:
+#   KRONK_CACHE_MODELCONFIGFILE=./cmd/server/model_config.yaml.example ./server start
+#
+# Model keys must match model IDs from `GET /v1/models` (lowercase).
+
+# Default setup model:
+# unsloth/Nemotron-3-Nano-30B-A3B-GGUF/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
+nemotron-3-nano-30b-a3b-q4_k_m:
+  # Conservative baseline for single-user/low-concurrency on ~24GB VRAM.
+  context-window: 32768
+  nbatch: 1024
+  nubatch: 512
+  cache-type-k: q8_0
+  cache-type-v: q8_0
+  flash-attention: enabled
+  split-mode: row
+  nseq-max: 1
+  offload-kqv: true
+  op-offload: true
+  ngpu-layers: 0
+  system-prompt-cache: true
+  first-message-cache: false
+  cache-min-tokens: 256
+
+# Optional profile if you download UD quant variant.
+nemotron-3-nano-30b-a3b-ud-q4_k_xl:
+  context-window: 32768
+  nbatch: 1024
+  nubatch: 512
+  cache-type-k: q8_0
+  cache-type-v: q8_0
+  flash-attention: enabled
+  split-mode: row
+  nseq-max: 1
+  offload-kqv: true
+  op-offload: true
+  ngpu-layers: 0
+  system-prompt-cache: true
+  first-message-cache: false
+  cache-min-tokens: 256

@@ -28,6 +28,23 @@ type app struct {
 	mu         sync.Mutex
 }
 
+const (
+	// Qwen-Image 2512 stable-diffusion.cpp baseline.
+	qwenImageDefaultSteps = 40
+	qwenImageHDSteps      = 50
+	qwenImageCFGScale     = 2.5
+	qwenImageFallback1Dim = 768
+	qwenImageFallback2Dim = 512
+)
+
+type imageFallbackPreset struct {
+	name      string
+	steps     int32
+	cfgScale  float32
+	maxDim    int32
+	forceSize bool
+}
+
 func newApp(cfg Config) *app {
 	return &app{
 		log:        cfg.Log,
@@ -141,19 +158,19 @@ func (a *app) generateImages(ctx context.Context, req ImageGenerationRequest) ([
 			Prompt:      req.Prompt,
 			Width:       int32(width),
 			Height:      int32(height),
-			SampleSteps: 20,
-			CfgScale:    7.0,
+			SampleSteps: qwenImageDefaultSteps,
+			CfgScale:    qwenImageCFGScale,
 			Seed:        -1, // Random
 		}
 
 		if req.Quality == "hd" {
-			params.SampleSteps = 30
+			params.SampleSteps = qwenImageHDSteps
 		}
 
 		a.log.Info(ctx, "generating image", "id", imageID, "params", params)
 
 		// Generate using the library backend
-		if err := a.generateImage(a.engine, params, outputPath); err != nil {
+		if err := a.generateImage(ctx, a.engine, params, outputPath); err != nil {
 			return nil, fmt.Errorf("generation failed for image %d: %w", i, err)
 		}
 
@@ -285,20 +302,20 @@ func (a *app) editImages(ctx context.Context, req ImageEditRequest) ([]ImageData
 			MaskImagePath: maskImagePath,
 			Width:         int32(width),
 			Height:        int32(height),
-			SampleSteps:   20,
-			CfgScale:      7.0,
+			SampleSteps:   qwenImageDefaultSteps,
+			CfgScale:      qwenImageCFGScale,
 			ImageCfgScale: 1.0,
 			Seed:          -1, // Random
 		}
 
 		if req.Quality == "hd" {
-			params.SampleSteps = 30
+			params.SampleSteps = qwenImageHDSteps
 		}
 
 		a.log.Info(ctx, "editing image", "id", imageID, "params", params)
 
 		// Generate using the library backend
-		if err := a.generateImage(a.editEngine, params, outputPath); err != nil {
+		if err := a.generateImage(ctx, a.editEngine, params, outputPath); err != nil {
 			return nil, fmt.Errorf("edit failed for image %d: %w", i, err)
 		}
 
@@ -413,20 +430,20 @@ func (a *app) variateImages(ctx context.Context, req ImageVariationRequest) ([]I
 			InitImagePath: initImagePath,
 			Width:         int32(width),
 			Height:        int32(height),
-			SampleSteps:   20,
-			CfgScale:      7.0,
+			SampleSteps:   qwenImageDefaultSteps,
+			CfgScale:      qwenImageCFGScale,
 			Strength:      0.75, // Default strength for img2img variation
 			Seed:          -1,   // Random seed for variation
 		}
 
 		if req.Quality == "hd" {
-			params.SampleSteps = 30
+			params.SampleSteps = qwenImageHDSteps
 		}
 
 		a.log.Info(ctx, "generating variation", "id", imageID, "params", params)
 
 		// Generate using the library backend
-		if err := a.generateImage(a.editEngine, params, outputPath); err != nil {
+		if err := a.generateImage(ctx, a.editEngine, params, outputPath); err != nil {
 			return nil, fmt.Errorf("variation failed for image %d: %w", i, err)
 		}
 
@@ -487,12 +504,106 @@ func (a *app) saveImageFromBase64(base64Data string, prefix string) (string, err
 }
 
 // generateImage serializes access because StableDiffusion context is not thread-safe.
-func (a *app) generateImage(engine *sd.StableDiffusion, params *sd.ImgGenParams, outputPath string) error {
+// If an OOM-like error occurs, it retries with lower-cost presets automatically.
+func (a *app) generateImage(ctx context.Context, engine *sd.StableDiffusion, params *sd.ImgGenParams, outputPath string) error {
 	if engine == nil {
 		return fmt.Errorf("image generation engine is not available")
 	}
 
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return engine.GenerateImage(params, outputPath)
+	presets := []imageFallbackPreset{
+		{name: "primary", steps: params.SampleSteps, cfgScale: params.CfgScale},
+		{name: "fallback_768", steps: 28, cfgScale: 2.0, maxDim: qwenImageFallback1Dim},
+		{name: "fallback_512", steps: 20, cfgScale: 1.8, maxDim: qwenImageFallback2Dim, forceSize: true},
+	}
+
+	base := *params
+	var lastErr error
+
+	for idx, preset := range presets {
+		attemptParams := base
+		if idx > 0 {
+			attemptParams.SampleSteps = preset.steps
+			attemptParams.CfgScale = preset.cfgScale
+			if preset.forceSize {
+				attemptParams.Width = preset.maxDim
+				attemptParams.Height = preset.maxDim
+			} else {
+				attemptParams.Width, attemptParams.Height = scaleDimensions(base.Width, base.Height, preset.maxDim)
+			}
+		}
+
+		a.mu.Lock()
+		err := engine.GenerateImage(&attemptParams, outputPath)
+		a.mu.Unlock()
+		if err == nil {
+			if idx > 0 {
+				a.log.Info(ctx, "image generation fallback succeeded",
+					"preset", preset.name,
+					"steps", attemptParams.SampleSteps,
+					"cfg_scale", attemptParams.CfgScale,
+					"size", fmt.Sprintf("%dx%d", attemptParams.Width, attemptParams.Height),
+				)
+			}
+			return nil
+		}
+
+		lastErr = err
+		if !isOOMError(err) {
+			return err
+		}
+
+		if idx < len(presets)-1 {
+			a.log.Warn(ctx, "image generation OOM, retrying with fallback preset",
+				"current_preset", preset.name,
+				"error", err,
+			)
+		}
+	}
+
+	return fmt.Errorf("insufficient VRAM: %w", lastErr)
+}
+
+func scaleDimensions(width, height, maxDim int32) (int32, int32) {
+	if maxDim <= 0 || width <= maxDim && height <= maxDim {
+		return width, height
+	}
+
+	if width >= height {
+		scaledHeight := int32(float64(height) * float64(maxDim) / float64(width))
+		if scaledHeight < 64 {
+			scaledHeight = 64
+		}
+		return maxDim, scaledHeight
+	}
+
+	scaledWidth := int32(float64(width) * float64(maxDim) / float64(height))
+	if scaledWidth < 64 {
+		scaledWidth = 64
+	}
+	return scaledWidth, maxDim
+}
+
+func isOOMError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := strings.ToLower(err.Error())
+	patterns := []string{
+		"out of memory",
+		"cuda out of memory",
+		"not enough memory",
+		"insufficient memory",
+		"failed to allocate",
+		"vram",
+		"memory allocation",
+	}
+
+	for _, pattern := range patterns {
+		if strings.Contains(msg, pattern) {
+			return true
+		}
+	}
+
+	return false
 }

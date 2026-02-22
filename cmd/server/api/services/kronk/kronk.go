@@ -589,6 +589,7 @@ func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardw
 		VAEPath:            bundle.vaePath,
 		DiffusionFlashAttn: true,
 		OffloadParamsToCPU: true,
+		FlowShift:          3.0,
 	}
 
 	libPath := sd.GetLibraryPath()
@@ -610,6 +611,7 @@ func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardw
 			VAEPath:            bundle.vaePath,
 			DiffusionFlashAttn: true,
 			OffloadParamsToCPU: true,
+			FlowShift:          3.0,
 		}
 
 		editEngine, err = sd.NewStableDiffusion(editCtxParams)

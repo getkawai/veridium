@@ -79,7 +79,26 @@ KRONK_TUNNEL_ENABLED=true
 KRONK_WEB_APIHOST=localhost:8080
 KRONK_CACHE_MODELSINCACHE=3
 KRONK_CACHE_TTL=20m
+KRONK_CACHE_MODELCONFIGFILE=./cmd/server/model_config.yaml.example
 ```
+
+### Model Tuning (Recommended)
+
+Untuk contributor, `cmd/server` sekarang menggunakan auto-tuning built-in untuk model Nemotron (tanpa perlu konfigurasi manual).
+
+File YAML bersifat opsional untuk override advanced. Contoh baseline Nemotron tersedia di:
+
+`cmd/server/model_config.yaml.example`
+
+Jika ingin override manual:
+
+```bash
+KRONK_CACHE_MODELCONFIGFILE=./cmd/server/model_config.yaml.example ./server start
+```
+
+Catatan:
+- Key model di YAML harus sama dengan model ID dari `GET /v1/models` (lowercase)
+- Jika tidak diset, server memakai auto-tuning built-in (terutama untuk Nemotron)
 
 ---
 
@@ -103,6 +122,9 @@ KRONK_CACHE_TTL=20m
 
 # Dengan custom config
 KRONK_CACHE_MODELSINCACHE=5 ./server start
+
+# Dengan model tuning file (Nemotron baseline)
+KRONK_CACHE_MODELCONFIGFILE=./cmd/server/model_config.yaml.example ./server start
 ```
 
 ### Multiple Wallets

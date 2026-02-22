@@ -98,6 +98,27 @@ type modelConfig struct {
 	CacheMinTokens       int                      `yaml:"cache-min-tokens"`
 }
 
+var builtInModelProfiles = []struct {
+	match string
+	cfg   modelConfig
+}{
+	{
+		match: "nemotron-3-nano-30b-a3b",
+		cfg: modelConfig{
+			ContextWindow:     32768,
+			NBatch:            1024,
+			NUBatch:           512,
+			CacheTypeK:        model.GGMLTypeQ8_0,
+			CacheTypeV:        model.GGMLTypeQ8_0,
+			FlashAttention:    model.FlashAttentionEnabled,
+			SplitMode:         model.SplitModeRow,
+			NSeqMax:           1,
+			SystemPromptCache: true,
+			CacheMinTokens:    256,
+		},
+	},
+}
+
 func (mc modelConfig) String() string {
 	formatBoolPtr := func(p *bool) string {
 		if p == nil {
@@ -267,8 +288,8 @@ func (c *Cache) AquireModel(ctx context.Context, modelID string) (*kronk.Kronk, 
 		return keys
 	}()))
 
-	mc, found := c.modelConfig[strings.ToLower(modelID)]
-	c.log(ctx, "model config result", "found", found, "mc", mc.String())
+	mc, source, found := c.resolveModelConfig(modelID)
+	c.log(ctx, "model config result", "found", found, "source", source, "mc", mc.String())
 
 	if c.ignoreIntegrityCheck {
 		mc.IgnoreIntegrityCheck = true
@@ -334,6 +355,22 @@ func (c *Cache) AquireModel(ctx context.Context, modelID string) (*kronk.Kronk, 
 	c.log(ctx, "acquire-model", info...)
 
 	return krn, nil
+}
+
+func (c *Cache) resolveModelConfig(modelID string) (modelConfig, string, bool) {
+	if len(c.modelConfig) > 0 {
+		if mc, found := c.modelConfig[modelID]; found {
+			return mc, "file", true
+		}
+	}
+
+	for _, profile := range builtInModelProfiles {
+		if strings.Contains(modelID, profile.match) {
+			return profile.cfg, "builtin", true
+		}
+	}
+
+	return modelConfig{}, "default", false
 }
 
 // allSlotsActive returns true if all model slots are occupied and every
