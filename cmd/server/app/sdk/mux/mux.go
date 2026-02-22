@@ -58,13 +58,14 @@ type Config struct {
 	Build string
 	Log   *logger.Logger
 
-	Tracer      trace.Tracer
-	Cache       *cache.Cache
-	Libs        *libs.Libs
-	Models      *models.Models
-	Catalog     *catalog.Catalog
-	Templates   *templates.Templates
-	ImageEngine *sd.StableDiffusion
+	Tracer          trace.Tracer
+	Cache           *cache.Cache
+	Libs            *libs.Libs
+	Models          *models.Models
+	Catalog         *catalog.Catalog
+	Templates       *templates.Templates
+	ImageEngine     *sd.StableDiffusion
+	ImageEditEngine *sd.StableDiffusion
 }
 
 // RouteAdder defines behavior that sets the routes to bind for an instance

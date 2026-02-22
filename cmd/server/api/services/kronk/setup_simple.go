@@ -124,17 +124,24 @@ func NewSimpleSetup() (*SimpleSetup, error) {
 // createProgressBar creates a progress bar and returns a new DownloadService instance
 // This avoids race conditions by creating separate service instances for each download
 func (s *SimpleSetup) createProgressBar(description string) *DownloadService {
-	bar := progressbar.NewOptions64(
-		-1,
-		progressbar.OptionSetDescription(description),
-		progressbar.OptionSetWidth(40),
-		progressbar.OptionShowBytes(true),
-		progressbar.OptionSetPredictTime(true),
-		progressbar.OptionShowCount(),
-		progressbar.OptionOnCompletion(func() {
-			fmt.Println()
-		}),
-	)
+	newBar := func() *progressbar.ProgressBar {
+		return progressbar.NewOptions64(
+			-1,
+			progressbar.OptionSetDescription(description),
+			progressbar.OptionSetWidth(40),
+			progressbar.OptionShowBytes(true),
+			progressbar.OptionSetPredictTime(true),
+			progressbar.OptionShowCount(),
+			progressbar.OptionOnCompletion(func() {
+				fmt.Println()
+			}),
+		)
+	}
+
+	bar := newBar()
+	var lastCompleted int64
+	var lastTotal int64
+	var reachedComplete bool
 
 	return NewDownloadService(
 		WithBasePath(paths.Base()),
@@ -143,9 +150,22 @@ func (s *SimpleSetup) createProgressBar(description string) *DownloadService {
 		WithRetryDelay(5*time.Second),
 		WithTimeout(2*time.Hour),
 		WithProgressCallback(func(completed, total int64, percent float64, mbps float64) {
+			// progressbar/v3 can't be reused after hitting 100%, so create a new bar
+			// when a subsequent file starts (progress counter drops/reset).
+			if reachedComplete && (completed < lastCompleted || completed == 0) {
+				bar = newBar()
+				reachedComplete = false
+			}
+
 			if total > 0 {
 				bar.ChangeMax64(total)
-				bar.Set64(completed)
+			}
+			bar.Set64(completed)
+
+			lastCompleted = completed
+			lastTotal = total
+			if lastTotal > 0 && completed >= lastTotal {
+				reachedComplete = true
 			}
 		}),
 	)
@@ -250,12 +270,6 @@ func (s *SimpleSetup) Run(ctx context.Context) (*SetupResult, error) {
 	sdResult := sdSvc.DownloadStableDiffusionModelSmart(ctx, selectedModel)
 	if !sdResult.Success {
 		fmt.Printf("⚠️  Selected model download failed (%s): %v\n", selectedModel.Name, sdResult.Error)
-		fmt.Println("Falling back to default Stable Diffusion model (sd-v1-4.ckpt)...")
-		fallback := sdSvc.DownloadStableDiffusionModel(ctx)
-		if fallback.Success {
-			sdResult = fallback
-			result.Warnings = append(result.Warnings, fmt.Errorf("stable diffusion fallback used: %s", selectedModel.Name))
-		}
 	}
 
 	if sdResult.Success {
@@ -611,7 +625,9 @@ func DownloadWithProgress(ctx context.Context, url, dest string) error {
 
 	svc := NewDownloadService(
 		WithProgressCallback(func(completed, total int64, percent float64, mbps float64) {
-			bar.ChangeMax64(total)
+			if total > 0 {
+				bar.ChangeMax64(total)
+			}
 			bar.Set64(completed)
 		}),
 	)

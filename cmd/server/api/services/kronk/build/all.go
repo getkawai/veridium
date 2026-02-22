@@ -74,7 +74,8 @@ func (all) Add(app *web.App, cfg mux.Config) {
 	imageapp.Routes(app, imageapp.Config{
 		Log: cfg.Log,
 
-		Engine: cfg.ImageEngine,
+		Engine:     cfg.ImageEngine,
+		EditEngine: cfg.ImageEditEngine,
 	})
 
 	whisperapp.Routes(app, whisperapp.RouteConfig{

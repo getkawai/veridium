@@ -17,8 +17,8 @@ func TestSelectOptimalModel(t *testing.T) {
 				AvailableRAM: 32,
 				GPUMemory:    12,
 			},
-			expectedType: "SDXL",
-			description:  "Should select SDXL for high-end system",
+			expectedType: "Qwen-Image-2512",
+			description:  "Should select Qwen-Image-2512 for high-end system",
 		},
 		{
 			name: "mid_range_system",
@@ -26,8 +26,8 @@ func TestSelectOptimalModel(t *testing.T) {
 				AvailableRAM: 16,
 				GPUMemory:    8,
 			},
-			expectedType: "SDXL",
-			description:  "Should select SDXL for mid-range system",
+			expectedType: "Qwen-Image-2512",
+			description:  "Should select Qwen-Image-2512 q4 for mid-range system",
 		},
 		{
 			name: "low_end_system",
@@ -35,8 +35,8 @@ func TestSelectOptimalModel(t *testing.T) {
 				AvailableRAM: 8,
 				GPUMemory:    4,
 			},
-			expectedType: "SDXL",
-			description:  "Should select SDXL q4_0 for low-end system (best that fits)",
+			expectedType: "Qwen-Image-2512",
+			description:  "Should fallback to first catalog entry when no model fits",
 		},
 		{
 			name: "minimal_system",
@@ -44,8 +44,8 @@ func TestSelectOptimalModel(t *testing.T) {
 				AvailableRAM: 4,
 				GPUMemory:    2,
 			},
-			expectedType: "SD1.5",
-			description:  "Should select SD1.5 for minimal system (smallest model that fits)",
+			expectedType: "Qwen-Image-2512",
+			description:  "Should fallback to first catalog entry for minimal system",
 		},
 		{
 			name: "cpu_only_system",
@@ -53,8 +53,8 @@ func TestSelectOptimalModel(t *testing.T) {
 				AvailableRAM: 16,
 				GPUMemory:    0,
 			},
-			expectedType: "SDXL",
-			description:  "Should select best CPU-compatible model",
+			expectedType: "Qwen-Image-2512",
+			description:  "Should select CPU-compatible Qwen-Image variant",
 		},
 	}
 
@@ -71,15 +71,12 @@ func TestSelectOptimalModel(t *testing.T) {
 					model.ModelType, tt.expectedType, tt.description)
 			}
 
-			// Verify model meets hardware requirements
-			if model.MinRAM > tt.specs.AvailableRAM {
-				t.Errorf("Selected model requires %dGB RAM but system has %dGB",
-					model.MinRAM, tt.specs.AvailableRAM)
-			}
-
-			if tt.specs.GPUMemory > 0 && model.MinVRAM > tt.specs.GPUMemory {
-				t.Errorf("Selected model requires %dGB VRAM but system has %dGB",
-					model.MinVRAM, tt.specs.GPUMemory)
+			// If model exceeds specs, selector should have fallen back to first model.
+			if model.MinRAM > tt.specs.AvailableRAM || (tt.specs.GPUMemory > 0 && model.MinVRAM > tt.specs.GPUMemory) {
+				first := GetAvailableModels()[0]
+				if model.Name != first.Name {
+					t.Errorf("SelectOptimalModel() expected fallback %s, got %s", first.Name, model.Name)
+				}
 			}
 		})
 	}
@@ -131,29 +128,37 @@ func TestGetAvailableModels(t *testing.T) {
 func TestModelSpecFields(t *testing.T) {
 	models := GetAvailableModels()
 
-	// Test specific known models
-	var sdTurbo *ModelSpec
+	// Test specific known model
+	var qwenQ4 *ModelSpec
 	for i := range models {
-		if models[i].Name == "sd-turbo-q8_0" {
-			sdTurbo = &models[i]
+		if models[i].Name == "qwen-image-2512-q4_k_m" {
+			qwenQ4 = &models[i]
 			break
 		}
 	}
 
-	if sdTurbo == nil {
-		t.Fatal("SD-Turbo model not found in catalog")
+	if qwenQ4 == nil {
+		t.Fatal("Qwen-Image q4 model not found in catalog")
 	}
 
-	// Verify SD-Turbo specs
-	if sdTurbo.ModelType != "SD-Turbo" {
-		t.Errorf("SD-Turbo ModelType = %v, want SD-Turbo", sdTurbo.ModelType)
+	// Verify Qwen-Image specs
+	if qwenQ4.ModelType != "Qwen-Image-2512" {
+		t.Errorf("Qwen-Image ModelType = %v, want Qwen-Image-2512", qwenQ4.ModelType)
 	}
 
-	if sdTurbo.Quantization != "q8_0" {
-		t.Errorf("SD-Turbo Quantization = %v, want q8_0", sdTurbo.Quantization)
+	if qwenQ4.Quantization != "q4_k_m" {
+		t.Errorf("Qwen-Image Quantization = %v, want q4_k_m", qwenQ4.Quantization)
 	}
 
-	if sdTurbo.MinRAM != 4 {
-		t.Errorf("SD-Turbo MinRAM = %v, want 4", sdTurbo.MinRAM)
+	if qwenQ4.LLMURL == "" || qwenQ4.LLMFilename == "" {
+		t.Error("Qwen-Image model missing LLM component")
+	}
+
+	if qwenQ4.VAEURL == "" || qwenQ4.VAEFilename == "" {
+		t.Error("Qwen-Image model missing VAE component")
+	}
+
+	if qwenQ4.EditModelURL == "" || qwenQ4.EditModelFile == "" {
+		t.Error("Qwen-Image model missing edit component")
 	}
 }

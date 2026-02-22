@@ -22,15 +22,17 @@ import (
 )
 
 type app struct {
-	log    *logger.Logger
-	engine *sd.StableDiffusion
-	mu     sync.Mutex
+	log        *logger.Logger
+	engine     *sd.StableDiffusion
+	editEngine *sd.StableDiffusion
+	mu         sync.Mutex
 }
 
 func newApp(cfg Config) *app {
 	return &app{
-		log:    cfg.Log,
-		engine: cfg.Engine,
+		log:        cfg.Log,
+		engine:     cfg.Engine,
+		editEngine: cfg.EditEngine,
 	}
 }
 
@@ -151,7 +153,7 @@ func (a *app) generateImages(ctx context.Context, req ImageGenerationRequest) ([
 		a.log.Info(ctx, "generating image", "id", imageID, "params", params)
 
 		// Generate using the library backend
-		if err := a.generateImage(params, outputPath); err != nil {
+		if err := a.generateImage(a.engine, params, outputPath); err != nil {
 			return nil, fmt.Errorf("generation failed for image %d: %w", i, err)
 		}
 
@@ -192,7 +194,7 @@ type ImageEditRequest struct {
 
 // edits handles POST /v1/images/edits
 func (a *app) edits(ctx context.Context, r *http.Request) web.Encoder {
-	if a.engine == nil {
+	if a.editEngine == nil {
 		return errs.Errorf(errs.Unimplemented, "image editing service not available")
 	}
 
@@ -296,7 +298,7 @@ func (a *app) editImages(ctx context.Context, req ImageEditRequest) ([]ImageData
 		a.log.Info(ctx, "editing image", "id", imageID, "params", params)
 
 		// Generate using the library backend
-		if err := a.generateImage(params, outputPath); err != nil {
+		if err := a.generateImage(a.editEngine, params, outputPath); err != nil {
 			return nil, fmt.Errorf("edit failed for image %d: %w", i, err)
 		}
 
@@ -334,7 +336,7 @@ type ImageVariationRequest struct {
 
 // variations handles POST /v1/images/variations
 func (a *app) variations(ctx context.Context, r *http.Request) web.Encoder {
-	if a.engine == nil {
+	if a.editEngine == nil {
 		return errs.Errorf(errs.Unimplemented, "image variation service not available")
 	}
 
@@ -424,7 +426,7 @@ func (a *app) variateImages(ctx context.Context, req ImageVariationRequest) ([]I
 		a.log.Info(ctx, "generating variation", "id", imageID, "params", params)
 
 		// Generate using the library backend
-		if err := a.generateImage(params, outputPath); err != nil {
+		if err := a.generateImage(a.editEngine, params, outputPath); err != nil {
 			return nil, fmt.Errorf("variation failed for image %d: %w", i, err)
 		}
 
@@ -485,8 +487,12 @@ func (a *app) saveImageFromBase64(base64Data string, prefix string) (string, err
 }
 
 // generateImage serializes access because StableDiffusion context is not thread-safe.
-func (a *app) generateImage(params *sd.ImgGenParams, outputPath string) error {
+func (a *app) generateImage(engine *sd.StableDiffusion, params *sd.ImgGenParams, outputPath string) error {
+	if engine == nil {
+		return fmt.Errorf("image generation engine is not available")
+	}
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.engine.GenerateImage(params, outputPath)
+	return engine.GenerateImage(params, outputPath)
 }

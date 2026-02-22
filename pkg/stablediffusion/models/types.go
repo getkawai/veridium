@@ -4,17 +4,25 @@ import "time"
 
 // ModelSpec represents a Stable Diffusion model specification for catalog
 type ModelSpec struct {
-	Name            string // Model name/identifier
-	URL             string // Download URL for the model
-	Filename        string // Local filename for the model
-	Size            int64  // Model file size in MB
-	MinRAM          int64  // Minimum RAM required in GB
-	RecommendedRAM  int64  // Recommended RAM in GB
-	MinVRAM         int64  // Minimum VRAM required in GB (0 if CPU-only)
-	RecommendedVRAM int64  // Recommended VRAM in GB
-	ModelType       string // Type of model (SD1.5, SDXL, etc.)
-	Description     string // Model description
-	Quantization    string // Quantization level (f16, q4_0, q8_0, etc.)
+	Name             string // Model name/identifier
+	URL              string // Download URL for the primary diffusion model
+	Filename         string // Local filename for the primary diffusion model
+	LLMURL           string // Optional download URL for LLM/text encoder model
+	LLMFilename      string // Optional filename for LLM/text encoder model
+	VAEURL           string // Optional download URL for VAE model
+	VAEFilename      string // Optional filename for VAE model
+	EditModelURL     string // Optional download URL for image edit model
+	EditModelFile    string // Optional filename for image edit model
+	EditFallbackURL  string // Optional fallback URL for image edit model
+	EditFallbackFile string // Optional fallback filename for image edit model
+	Size             int64  // Model file size in MB
+	MinRAM           int64  // Minimum RAM required in GB
+	RecommendedRAM   int64  // Recommended RAM in GB
+	MinVRAM          int64  // Minimum VRAM required in GB (0 if CPU-only)
+	RecommendedVRAM  int64  // Recommended VRAM in GB
+	ModelType        string // Type of model (SD1.5, SDXL, etc.)
+	Description      string // Model description
+	Quantization     string // Quantization level (f16, q4_0, q8_0, etc.)
 }
 
 // HardwareSpecs represents system hardware specifications

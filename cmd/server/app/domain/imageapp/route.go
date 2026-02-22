@@ -13,7 +13,8 @@ import (
 type Config struct {
 	Log *logger.Logger
 
-	Engine *sd.StableDiffusion
+	Engine     *sd.StableDiffusion
+	EditEngine *sd.StableDiffusion
 }
 
 // Routes adds specific routes for this group.

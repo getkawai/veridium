@@ -165,6 +165,9 @@ func (s *DownloadService) downloadInternal(ctx context.Context, url, dest string
 	// Create progress wrapper
 	var progressCb downloader.ProgressFunc
 	if s.progressCb != nil {
+		// Signal a fresh transfer so UI progress bars can reset between files/attempts.
+		s.progressCb(0, 0, 0, 0)
+
 		cb := s.progressCb
 		progressCb = func(src string, currentSize, totalSize int64, mibPerSec float64, complete bool) {
 			percent := 0.0
@@ -190,6 +193,16 @@ func (s *DownloadService) downloadInternal(ctx context.Context, url, dest string
 	}
 
 	if !downloaded {
+		// grab may report zero transferred bytes when the destination file is already
+		// fully present (e.g., resumed/validated from previous run). Treat this as success
+		// if the file exists and has content.
+		if info, statErr := os.Stat(dest); statErr == nil && info.Size() > 0 {
+			result.Bytes = info.Size()
+			result.Success = true
+			result.Resumed = true
+			return result
+		}
+
 		result.Error = fmt.Errorf("download completed but no data transferred")
 		result.Success = false
 		return result
@@ -268,27 +281,85 @@ func (s *DownloadService) DownloadStableDiffusionModelSmart(ctx context.Context,
 		}
 	}
 
-	modelDir, err := paths.ModelPath(spec.URL)
-	if err != nil {
-		return &DownloadResult{
-			Success:  false,
-			Error:    fmt.Errorf("failed to parse model URL: %w", err),
-			Duration: time.Since(startTime),
+	totalBytes := int64(0)
+
+	downloadOne := func(component, url, filename string) *DownloadResult {
+		modelDir, err := paths.ModelPath(url)
+		if err != nil {
+			return &DownloadResult{
+				Success:  false,
+				Error:    fmt.Errorf("failed to parse %s model URL (%s): %w", component, url, err),
+				Duration: time.Since(startTime),
+			}
+		}
+
+		modelPath := filepath.Join(modelDir, filename)
+		if err := os.MkdirAll(filepath.Dir(modelPath), 0755); err != nil {
+			return &DownloadResult{
+				Success:  false,
+				Error:    fmt.Errorf("failed to create model directory: %w", err),
+				Duration: time.Since(startTime),
+			}
+		}
+
+		result := s.DownloadWithRetry(ctx, url, modelPath)
+		if result.Success {
+			totalBytes += result.Bytes
+		} else if result.Error != nil {
+			result.Error = fmt.Errorf("%s model download failed (%s): %w", component, url, result.Error)
+		}
+		return result
+	}
+
+	primary := downloadOne("diffusion", spec.URL, spec.Filename)
+	if !primary.Success {
+		primary.Duration = time.Since(startTime)
+		return primary
+	}
+
+	if spec.LLMURL != "" && spec.LLMFilename != "" {
+		fmt.Printf("\n→ Downloading SD component: llm (%s)\n", spec.LLMFilename)
+		llm := downloadOne("llm", spec.LLMURL, spec.LLMFilename)
+		if !llm.Success {
+			llm.Duration = time.Since(startTime)
+			return llm
 		}
 	}
-	modelPath := filepath.Join(modelDir, spec.Filename)
 
-	if err := os.MkdirAll(filepath.Dir(modelPath), 0755); err != nil {
-		return &DownloadResult{
-			Success:  false,
-			Error:    fmt.Errorf("failed to create model directory: %w", err),
-			Duration: time.Since(startTime),
+	if spec.VAEURL != "" && spec.VAEFilename != "" {
+		fmt.Printf("\n→ Downloading SD component: vae (%s)\n", spec.VAEFilename)
+		vae := downloadOne("vae", spec.VAEURL, spec.VAEFilename)
+		if !vae.Success {
+			vae.Duration = time.Since(startTime)
+			return vae
 		}
 	}
 
-	result := s.DownloadWithRetry(ctx, spec.URL, modelPath)
-	result.Duration = time.Since(startTime)
-	return result
+	if spec.EditModelURL != "" && spec.EditModelFile != "" {
+		fmt.Printf("\n→ Downloading SD component: edit (%s)\n", spec.EditModelFile)
+		edit := downloadOne("edit", spec.EditModelURL, spec.EditModelFile)
+		if !edit.Success {
+			if spec.EditFallbackURL != "" && spec.EditFallbackFile != "" {
+				fmt.Printf("\n→ Primary edit model failed, trying fallback: %s\n", spec.EditFallbackFile)
+				fallback := downloadOne("edit_fallback", spec.EditFallbackURL, spec.EditFallbackFile)
+				if !fallback.Success {
+					fallback.Duration = time.Since(startTime)
+					fallback.Error = fmt.Errorf("failed to download edit model (primary and fallback): primary=%v fallback=%w", edit.Error, fallback.Error)
+					return fallback
+				}
+			} else {
+				edit.Duration = time.Since(startTime)
+				return edit
+			}
+		}
+	}
+
+	return &DownloadResult{
+		Success:  true,
+		FilePath: primary.FilePath,
+		Bytes:    totalBytes,
+		Duration: time.Since(startTime),
+	}
 }
 
 // DownloadTTSModel downloads the Text-to-Speech model

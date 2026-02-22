@@ -390,7 +390,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		log.Info(ctx, "startup", "status", "whisper service ready", "models", len(models))
 	}
 
-	imageEngine, err := initStableDiffusion(ctx, log, hwSpecs)
+	imageEngine, imageEditEngine, err := initStableDiffusion(ctx, log, hwSpecs)
 	if err != nil {
 		return err
 	}
@@ -415,13 +415,14 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		Build: tag,
 		Log:   log,
 
-		Tracer:      nil,
-		Cache:       cacheSvc,
-		Libs:        llamaLibs,
-		Models:      models,
-		Catalog:     catalogSvc,
-		Templates:   templatesSvc,
-		ImageEngine: imageEngine,
+		Tracer:          nil,
+		Cache:           cacheSvc,
+		Libs:            llamaLibs,
+		Models:          models,
+		Catalog:         catalogSvc,
+		Templates:       templatesSvc,
+		ImageEngine:     imageEngine,
+		ImageEditEngine: imageEditEngine,
 	}
 
 	webAPI := mux.WebAPI(cfgMux,
@@ -558,20 +559,81 @@ func initContributorFeatures(ctx context.Context, log *logger.Logger, shutdownTi
 	return kv, walletAddress, hwSpecs, nil
 }
 
-// initStableDiffusion initializes the stable diffusion engine
-func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardware.HardwareSpecs) (*sd.StableDiffusion, error) {
+type stableDiffusionModelBundle struct {
+	selectedModel sdmodels.ModelSpec
+	diffusionPath string
+	llmPath       string
+	vaePath       string
+	editModelPath string
+}
+
+// initStableDiffusion initializes generation and edit Stable Diffusion engines.
+func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardware.HardwareSpecs) (*sd.StableDiffusion, *sd.StableDiffusion, error) {
 	log.Info(ctx, "startup", "status", "initializing stable diffusion")
 
 	if !sd.IsLibraryInstalled() {
-		return nil, fmt.Errorf("stable diffusion library not found. "+SetupRequiredMsg, "install SD library")
+		return nil, nil, fmt.Errorf("stable diffusion library not found. "+SetupRequiredMsg, "install SD library")
 	}
 
 	modelsPath := paths.Models()
+	bundle, err := resolveStableDiffusionModelBundle(modelsPath, hwSpecs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	log.Info(ctx, "startup", "status", "selected SD model based on hardware", "model", bundle.selectedModel.Name, "path", bundle.diffusionPath)
+
+	ctxParams := &sd.ContextParams{
+		DiffusionModelPath: bundle.diffusionPath,
+		LLMPath:            bundle.llmPath,
+		VAEPath:            bundle.vaePath,
+		DiffusionFlashAttn: true,
+		OffloadParamsToCPU: true,
+	}
+
+	libPath := sd.GetLibraryPath()
+	if err := sd.InitLibrary(libPath); err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize stable diffusion library at %s: %w", libPath, err)
+	}
+
+	generationEngine, err := sd.NewStableDiffusion(ctxParams)
+	if err != nil {
+		log.Warn(ctx, "startup", "status", "failed to init SD engine", "error", err)
+		return nil, nil, fmt.Errorf("failed to initialize stable diffusion generation engine: %w", err)
+	}
+
+	var editEngine *sd.StableDiffusion
+	if bundle.editModelPath != "" {
+		editCtxParams := &sd.ContextParams{
+			DiffusionModelPath: bundle.editModelPath,
+			LLMPath:            bundle.llmPath,
+			VAEPath:            bundle.vaePath,
+			DiffusionFlashAttn: true,
+			OffloadParamsToCPU: true,
+		}
+
+		editEngine, err = sd.NewStableDiffusion(editCtxParams)
+		if err != nil {
+			log.Warn(ctx, "startup", "status", "failed to init SD edit engine", "error", err)
+			editEngine = nil
+		}
+	}
+
+	log.Info(ctx, "startup", "status", "stable diffusion ready", "edit_model_available", editEngine != nil)
+	return generationEngine, editEngine, nil
+}
+
+func resolveStableDiffusionModelBundle(modelsPath string, hwSpecs *hardware.HardwareSpecs) (*stableDiffusionModelBundle, error) {
 	downloader := modeldownloader.New(modelsPath)
 
-	var modelFile string
+	models := sdmodels.GetAvailableModels()
+	if len(models) == 0 {
+		return nil, errors.New("stable diffusion catalog is empty")
+	}
+
+	selectedModel := models[0]
 	if hwSpecs != nil {
-		selectedModel := sdmodels.SelectOptimalModel(&sdmodels.HardwareSpecs{
+		selectedModel = sdmodels.SelectOptimalModel(&sdmodels.HardwareSpecs{
 			TotalRAM:     hwSpecs.TotalRAM,
 			AvailableRAM: hwSpecs.AvailableRAM,
 			CPU:          hwSpecs.CPU,
@@ -579,48 +641,59 @@ func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardw
 			GPUMemory:    hwSpecs.GPUMemory,
 			GPUModel:     hwSpecs.GPUModel,
 		})
-		preferred, findErr := findModelByFilename(modelsPath, selectedModel.Filename)
-		if findErr != nil {
-			log.Warn(ctx, "startup", "status", "error searching preferred SD model", "model", selectedModel.Name, "error", findErr)
-		} else if preferred != "" {
-			modelFile = preferred
-			log.Info(ctx, "startup", "status", "selected SD model based on hardware", "model", selectedModel.Name, "path", modelFile)
-		}
 	}
 
-	if modelFile == "" {
-		var err error
-		modelFile, err = downloader.DiscoverModel()
+	diffusionPath, err := findModelByFilename(modelsPath, selectedModel.Filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed searching diffusion model: %w", err)
+	}
+	if diffusionPath == "" {
+		diffusionPath, err = downloader.DiscoverModel()
 		if err != nil {
-			log.Warn(ctx, "startup", "status", "error discovering models", "error", err)
+			return nil, fmt.Errorf("stable diffusion model not found: %w", err)
 		}
 	}
-
-	if modelFile == "" {
+	if diffusionPath == "" {
 		return nil, fmt.Errorf("stable diffusion model not found. "+SetupRequiredMsg, "download SD model")
 	}
 
-	log.Info(ctx, "startup", "status", "found SD model", "path", modelFile)
-
-	ctxParams := &sd.ContextParams{
-		DiffusionModelPath: modelFile,
-		DiffusionFlashAttn: true,
-		OffloadParamsToCPU: true,
-	}
-
-	libPath := sd.GetLibraryPath()
-	if err := sd.InitLibrary(libPath); err != nil {
-		return nil, fmt.Errorf("failed to initialize stable diffusion library at %s: %w", libPath, err)
-	}
-
-	eng, err := sd.NewStableDiffusion(ctxParams)
+	llmPath, err := findModelByFilename(modelsPath, selectedModel.LLMFilename)
 	if err != nil {
-		log.Warn(ctx, "startup", "status", "failed to init SD engine", "error", err)
-		return nil, nil
+		return nil, fmt.Errorf("failed searching LLM model: %w", err)
+	}
+	if llmPath == "" && selectedModel.LLMFilename != "" {
+		return nil, fmt.Errorf("required LLM model not found: %s. %s", selectedModel.LLMFilename, fmt.Sprintf(SetupRequiredMsg, "download SD model bundle"))
 	}
 
-	log.Info(ctx, "startup", "status", "stable diffusion ready")
-	return eng, nil
+	vaePath, err := findModelByFilename(modelsPath, selectedModel.VAEFilename)
+	if err != nil {
+		return nil, fmt.Errorf("failed searching VAE model: %w", err)
+	}
+	if vaePath == "" && selectedModel.VAEFilename != "" {
+		return nil, fmt.Errorf("required VAE model not found: %s. %s", selectedModel.VAEFilename, fmt.Sprintf(SetupRequiredMsg, "download SD model bundle"))
+	}
+
+	editModelPath, err := findModelByFilename(modelsPath, selectedModel.EditModelFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed searching edit model: %w", err)
+	}
+	if editModelPath == "" && selectedModel.EditFallbackFile != "" {
+		editModelPath, err = findModelByFilename(modelsPath, selectedModel.EditFallbackFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed searching fallback edit model: %w", err)
+		}
+	}
+	if editModelPath == "" && selectedModel.EditModelFile != "" {
+		return nil, fmt.Errorf("required edit model not found: %s. %s", selectedModel.EditModelFile, fmt.Sprintf(SetupRequiredMsg, "download SD model bundle"))
+	}
+
+	return &stableDiffusionModelBundle{
+		selectedModel: selectedModel,
+		diffusionPath: diffusionPath,
+		llmPath:       llmPath,
+		vaePath:       vaePath,
+		editModelPath: editModelPath,
+	}, nil
 }
 
 func findModelByFilename(root string, filename string) (string, error) {
