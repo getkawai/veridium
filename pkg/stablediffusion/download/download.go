@@ -348,6 +348,15 @@ func extractTarGz(downloadFile, dest string) error {
 }
 
 func isSafeExtractPath(dest, filePath string) bool {
-	cleanDest := filepath.Clean(dest) + string(os.PathSeparator)
-	return strings.HasPrefix(filePath, cleanDest)
+	cleanDest := filepath.Clean(dest)
+	cleanPath := filepath.Clean(filePath)
+
+	rel, err := filepath.Rel(cleanDest, cleanPath)
+	if err != nil {
+		return false
+	}
+	if rel == "." {
+		return true
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
 }
