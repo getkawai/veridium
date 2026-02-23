@@ -1,18 +1,26 @@
 name: Release Contributor (cmd/server)
 
 on:
-  # push:
-  #   branches:
-  #     - '**'
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
     inputs:
       version:
         description: 'Version to release (e.g., 1.0.0)'
         required: true
         type: string
+      build_run_id:
+        description: 'Optional build run ID (defaults to latest successful push build on master)'
+        required: false
+        type: string
 
 permissions:
   contents: write
+  actions: read
   packages: write
 
 env:
@@ -23,71 +31,13 @@ env:
   GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
 jobs:
-  prepare:
-    name: Prepare Release
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Get version
-        id: get_version
-        run: |
-          echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: contributor-v${{ steps.get_version.outputs.version }}
-          name: Kawai Contributor v${{ steps.get_version.outputs.version }}
-          draft: true
-          prerelease: false
-          body: |
-            ## 🎉 Kawai Contributor v${{ steps.get_version.outputs.version }}
-
-            Kawai Contributor is the OpenAI-compatible model server for GPU contributors.
-
-            ### 📦 Downloads
-
-            Choose the appropriate binary for your platform:
-
-            - **Linux AMD64**: `kawai-contributor-${{ steps.get_version.outputs.version }}-linux-amd64.tar.gz`
-            - **Linux ARM64**: `kawai-contributor-${{ steps.get_version.outputs.version }}-linux-arm64.tar.gz`
-            - **macOS AMD64**: `kawai-contributor-${{ steps.get_version.outputs.version }}-darwin-amd64.tar.gz`
-            - **macOS ARM64**: `kawai-contributor-${{ steps.get_version.outputs.version }}-darwin-arm64.tar.gz`
-            - **Windows AMD64**: `kawai-contributor-${{ steps.get_version.outputs.version }}-windows-amd64.zip`
-
-            ### 🚀 Quick Install
-
-            ```bash
-            curl -fsSL https://getkawai.com/contributor | sh
-            ```
-
-            ### 🔐 Verification
-
-            Verify your download with SHA256 checksums in `checksums.txt`
-
-            ### 📝 What's New
-
-            <!-- Add release notes here -->
-
-            ### 🐛 Bug Fixes
-
-            <!-- Add bug fixes here -->
-
   build-linux:
+    if: github.event_name != 'workflow_dispatch'
     name: Build Linux
-    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       matrix:
         arch: [amd64]
-        # Note: ARM64 cross-compilation requires proper cross-compiler setup
-        # For now, only build AMD64 on Linux runners
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -106,62 +56,40 @@ jobs:
         run: |
           git config --global url."https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
-      # Note: whisper library is downloaded at runtime by pkg/whisper
-      # No need to build it in CI - purego will download the appropriate
-      # shared library for the target platform on first run
-
       - name: Build Linux ${{ matrix.arch }}
         env:
           GOOS: linux
           GOARCH: ${{ matrix.arch }}
           CGO_ENABLED: 1
         run: |
+          BUILD_REF="${GITHUB_SHA::7}"
           mkdir -p bin
-          go build -ldflags "-s -w -X github.com/kawai-network/veridium/cmd/server/api/services/kronk.tag=production" \
+          go build -ldflags "-s -w -X github.com/kawai-network/veridium/cmd/server/api/services/kronk.tag=build-${BUILD_REF}" \
             -o bin/kawai-contributor ./cmd/server
 
       - name: Create distribution archive
         run: |
+          BUILD_REF="${GITHUB_SHA::7}"
           cd bin
-          VERSION="${{ needs.prepare.outputs.version }}"
-          tar -czf "kawai-contributor-${VERSION}-linux-${{ matrix.arch }}.tar.gz" kawai-contributor
-          sha256sum "kawai-contributor-${VERSION}-linux-${{ matrix.arch }}.tar.gz" > "checksums-linux-${{ matrix.arch }}.txt"
+          tar -czf "kawai-contributor-build-${BUILD_REF}-linux-${{ matrix.arch }}.tar.gz" kawai-contributor
+          sha256sum "kawai-contributor-build-${BUILD_REF}-linux-${{ matrix.arch }}.tar.gz" > "checksums-linux-${{ matrix.arch }}.txt"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-build-${{ matrix.arch }}
+          retention-days: 30
           path: |
-            bin/kawai-contributor-*.tar.gz
+            bin/kawai-contributor-build-*.tar.gz
             bin/checksums-linux-*.txt
 
-      - name: Prepare R2 upload
-        run: |
-          mkdir -p r2-upload
-          cp bin/kawai-contributor-*.tar.gz r2-upload/
-          cp bin/checksums-linux-*.txt r2-upload/
-
-      - name: Upload to Cloudflare R2
-        uses: yudaprama/r2-upload-action@master
-        with:
-          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: r2-upload
-          destination-dir: ${{ needs.prepare.outputs.version }}/contributor
-          output-file-url: true
-          
-
   build-macos:
+    if: github.event_name != 'workflow_dispatch'
     name: Build macOS
-    needs: prepare
     runs-on: macos-latest
     strategy:
       matrix:
         arch: [arm64]
-        # Note: macOS runners are Apple Silicon (ARM64) only
-        # AMD64 would need cross-compilation or separate Intel runner
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -170,9 +98,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
-      # No need to build it in CI - purego will download the appropriate
-      # shared library for the target platform on first run
 
       - name: Configure Git for private modules
         run: |
@@ -184,46 +109,30 @@ jobs:
           GOARCH: ${{ matrix.arch }}
           CGO_ENABLED: 1
         run: |
+          BUILD_REF="${GITHUB_SHA::7}"
           mkdir -p bin
-          go build -ldflags "-s -w -X github.com/kawai-network/veridium/cmd/server/api/services/kronk.tag=production -extldflags '-mmacosx-version-min=12.0'" \
+          go build -ldflags "-s -w -X github.com/kawai-network/veridium/cmd/server/api/services/kronk.tag=build-${BUILD_REF} -extldflags '-mmacosx-version-min=12.0'" \
             -o bin/kawai-contributor ./cmd/server
 
       - name: Create distribution archive
         run: |
+          BUILD_REF="${GITHUB_SHA::7}"
           cd bin
-          VERSION="${{ needs.prepare.outputs.version }}"
-          tar -czf "kawai-contributor-${VERSION}-darwin-${{ matrix.arch }}.tar.gz" kawai-contributor
-          shasum -a 256 "kawai-contributor-${VERSION}-darwin-${{ matrix.arch }}.tar.gz" > "checksums-darwin-${{ matrix.arch }}.txt"
+          tar -czf "kawai-contributor-build-${BUILD_REF}-darwin-${{ matrix.arch }}.tar.gz" kawai-contributor
+          shasum -a 256 "kawai-contributor-build-${BUILD_REF}-darwin-${{ matrix.arch }}.tar.gz" > "checksums-darwin-${{ matrix.arch }}.txt"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: darwin-build-${{ matrix.arch }}
+          retention-days: 30
           path: |
-            bin/kawai-contributor-*.tar.gz
+            bin/kawai-contributor-build-*.tar.gz
             bin/checksums-darwin-*.txt
 
-      - name: Prepare R2 upload
-        run: |
-          mkdir -p r2-upload
-          cp bin/kawai-contributor-*.tar.gz r2-upload/
-          cp bin/checksums-darwin-*.txt r2-upload/
-
-      - name: Upload to Cloudflare R2
-        uses: yudaprama/r2-upload-action@master
-        with:
-          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: r2-upload
-          destination-dir: ${{ needs.prepare.outputs.version }}/contributor
-          output-file-url: true
-          
-
   build-windows:
+    if: github.event_name != 'workflow_dispatch'
     name: Build Windows
-    needs: prepare
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -248,14 +157,15 @@ jobs:
           CGO_ENABLED: 1
           CC: gcc
         run: |
-          mkdir -p bin
-          go build -ldflags "-s -w -X github.com/kawai-network/veridium/cmd/server/api/services/kronk.tag=production" -o bin/kawai-contributor.exe ./cmd/server
+          $BUILD_REF = "${{ github.sha }}".Substring(0,7)
+          New-Item -ItemType Directory -Force -Path bin | Out-Null
+          go build -ldflags "-s -w -X github.com/kawai-network/veridium/cmd/server/api/services/kronk.tag=build-$BUILD_REF" -o bin/kawai-contributor.exe ./cmd/server
 
       - name: Create distribution archive
         run: |
           cd bin
-          $VERSION = "${{ needs.prepare.outputs.version }}"
-          $ARCHIVE = "kawai-contributor-${VERSION}-windows-amd64.zip"
+          $BUILD_REF = "${{ github.sha }}".Substring(0,7)
+          $ARCHIVE = "kawai-contributor-build-${BUILD_REF}-windows-amd64.zip"
           Compress-Archive -Path kawai-contributor.exe -DestinationPath $ARCHIVE
           Get-FileHash -Algorithm SHA256 $ARCHIVE | ForEach-Object { "$($_.Hash.ToLower())  $((Split-Path -Leaf $_.Path))" } | Out-File -Encoding ASCII checksums-windows-amd64.txt
 
@@ -263,23 +173,107 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
+          retention-days: 30
           path: |
-            bin/kawai-contributor-*.zip
-            bin/checksums-windows.txt
+            bin/kawai-contributor-build-*.zip
+            bin/checksums-windows-amd64.txt
 
-      - name: Prepare R2 upload
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    name: Release From Latest Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve build run ID
+        id: resolve_run
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          INPUT_RUN_ID: ${{ inputs.build_run_id }}
         run: |
-          New-Item -ItemType Directory -Force -Path r2-upload
-          Copy-Item bin/kawai-contributor-*.zip r2-upload/
-          Copy-Item bin/checksums-windows-amd64.txt r2-upload/
+          if [ -n "$INPUT_RUN_ID" ]; then
+            echo "run_id=$INPUT_RUN_ID" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
-      - name: Upload to Cloudflare R2
+          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/release-contributor.yml/runs" \
+            --jq '.workflow_runs | map(select(.event=="push" and .head_branch=="master" and .conclusion=="success")) | first | .id')
+
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "No successful push build found on master"
+            exit 1
+          fi
+
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Download Linux build artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GH_TOKEN }}
+          run_id: ${{ steps.resolve_run.outputs.run_id }}
+          name: linux-build-amd64
+          path: artifacts/linux
+
+      - name: Download macOS build artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GH_TOKEN }}
+          run_id: ${{ steps.resolve_run.outputs.run_id }}
+          name: darwin-build-arm64
+          path: artifacts/darwin
+
+      - name: Download Windows build artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GH_TOKEN }}
+          run_id: ${{ steps.resolve_run.outputs.run_id }}
+          name: windows-build
+          path: artifacts/windows
+
+      - name: Prepare release assets
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+
+          cp artifacts/linux/kawai-contributor-build-*-linux-amd64.tar.gz "release-assets/kawai-contributor-${VERSION}-linux-amd64.tar.gz"
+          cp artifacts/darwin/kawai-contributor-build-*-darwin-arm64.tar.gz "release-assets/kawai-contributor-${VERSION}-darwin-arm64.tar.gz"
+          cp artifacts/windows/kawai-contributor-build-*-windows-amd64.zip "release-assets/kawai-contributor-${VERSION}-windows-amd64.zip"
+
+          (
+            cd release-assets
+            sha256sum kawai-contributor-${VERSION}-* > checksums.txt
+          )
+
+      - name: Create draft release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: contributor-v${{ inputs.version }}
+          name: Kawai Contributor v${{ inputs.version }}
+          draft: true
+          prerelease: false
+          body: |
+            ## 🎉 Kawai Contributor v${{ inputs.version }}
+
+            Release dibuat dari latest successful build pada branch `master` tanpa rebuild.
+
+            ### 📦 Downloads
+            - **Linux AMD64**: `kawai-contributor-${{ inputs.version }}-linux-amd64.tar.gz`
+            - **macOS ARM64**: `kawai-contributor-${{ inputs.version }}-darwin-arm64.tar.gz`
+            - **Windows AMD64**: `kawai-contributor-${{ inputs.version }}-windows-amd64.zip`
+            - **Checksums**: `checksums.txt`
+          files: |
+            release-assets/kawai-contributor-${{ inputs.version }}-linux-amd64.tar.gz
+            release-assets/kawai-contributor-${{ inputs.version }}-darwin-arm64.tar.gz
+            release-assets/kawai-contributor-${{ inputs.version }}-windows-amd64.zip
+            release-assets/checksums.txt
+
+      - name: Upload release assets to Cloudflare R2
         uses: yudaprama/r2-upload-action@master
         with:
           r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: r2-upload
-          destination-dir: ${{ needs.prepare.outputs.version }}/contributor
+          source-dir: release-assets
+          destination-dir: ${{ inputs.version }}/contributor
           output-file-url: true
