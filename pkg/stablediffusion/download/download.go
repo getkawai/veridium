@@ -1,7 +1,9 @@
 package download
 
 import (
+	"archive/tar"
 	"archive/zip"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -22,8 +24,8 @@ var (
 	ErrInvalidVersion = errors.New("invalid version")
 )
 
-// DefaultVersion is the default stable-diffusion.cpp version to use
-var DefaultVersion = "master-487-43e829f"
+// DefaultVersion is the default gosd release version to use.
+var DefaultVersion = "v0.1.4"
 
 // Arch represents the CPU architecture
 type Arch int
@@ -90,34 +92,26 @@ var ProgressTracker ProgressCallback = func(url string, bytesComplete, totalByte
 
 // getDownloadLocationAndFilename returns the download location and filename for the given parameters.
 func getDownloadLocationAndFilename(arch Arch, os OS, version string) (location, filename string, err error) {
-	location = fmt.Sprintf("https://github.com/leejet/stable-diffusion.cpp/releases/download/%s", version)
-
-	// Extract commit hash from version (e.g., "master-487-43e829f" -> "43e829f")
-	parts := strings.Split(version, "-")
-	if len(parts) < 3 {
-		return "", "", fmt.Errorf("invalid version format: %s", version)
+	if version == "" || !strings.HasPrefix(version, "v") {
+		return "", "", fmt.Errorf("%w: expected semantic version tag like v0.1.4, got %q", ErrInvalidVersion, version)
 	}
-	commitHash := parts[len(parts)-1] // Get last part (commit hash)
+	location = fmt.Sprintf("https://github.com/getkawai/stablediffusion/releases/download/%s", version)
 
 	switch os {
 	case Linux:
 		if arch == ARM64 {
 			return "", "", errors.New("precompiled binaries for Linux ARM64 are not available")
 		}
-		filename = fmt.Sprintf("sd-master-%s-bin-ubuntu-x64.zip", commitHash)
+		filename = "libgosd-linux.tar.gz"
 
 	case Darwin:
-		if arch == ARM64 {
-			filename = fmt.Sprintf("sd-master-%s-bin-Darwin-macOS-15.7.3-arm64.zip", commitHash)
-		} else {
-			filename = fmt.Sprintf("sd-master-%s-bin-Darwin-macOS-x64.zip", commitHash)
-		}
+		filename = "libgosd-macos.tar.gz"
 
 	case Windows:
 		if arch == ARM64 {
 			return "", "", errors.New("precompiled binaries for Windows ARM64 are not available")
 		}
-		filename = fmt.Sprintf("sd-master-%s-bin-win-x64.zip", commitHash)
+		filename = "libgosd-windows.zip"
 
 	default:
 		return "", "", ErrUnknownOS
@@ -126,8 +120,8 @@ func getDownloadLocationAndFilename(arch Arch, os OS, version string) (location,
 	return location, filename, nil
 }
 
-// Get downloads the stable-diffusion.cpp precompiled binaries for the current system.
-// version should be the desired version tag (e.g., "master-487-43e829f").
+// Get downloads gosd precompiled binaries for the current system.
+// version should be the desired release tag (e.g., "v0.1.4").
 // If version is empty, it will use DefaultVersion.
 // If dest is empty, it will use the default lib directory.
 func Get(version string) error {
@@ -137,13 +131,13 @@ func Get(version string) error {
 	return GetWithProgress(version, "", ProgressTracker)
 }
 
-// GetWithProgress downloads the stable-diffusion.cpp precompiled binaries with progress callback.
+// GetWithProgress downloads gosd precompiled binaries with progress callback.
 func GetWithProgress(version string, dest string, progress ProgressCallback) error {
 	return GetWithContext(context.Background(), version, dest, progress)
 }
 
-// GetWithContext downloads the stable-diffusion.cpp precompiled binaries using the provided context.
-// If version is empty, it will use DefaultVersion (master-487-43e829f).
+// GetWithContext downloads gosd precompiled binaries using the provided context.
+// If version is empty, it will use DefaultVersion.
 func GetWithContext(ctx context.Context, version string, dest string, progress ProgressCallback) error {
 	arch, err := ParseArch(runtime.GOARCH)
 	if err != nil {
@@ -170,11 +164,11 @@ func GetWithContext(ctx context.Context, version string, dest string, progress P
 	}
 
 	url := fmt.Sprintf("%s/%s", location, filename)
-	return downloadAndExtractZip(ctx, url, dest, progress)
+	return downloadAndExtractArchive(ctx, url, dest, progress)
 }
 
-// downloadAndExtractZip downloads a .zip file and extracts it to the destination directory.
-func downloadAndExtractZip(ctx context.Context, url, dest string, progress ProgressCallback) error {
+// downloadAndExtractArchive downloads an archive (.zip or .tar.gz) and extracts it.
+func downloadAndExtractArchive(ctx context.Context, url, dest string, progress ProgressCallback) error {
 	// Ensure destination directory exists
 	if err := os.MkdirAll(dest, 0755); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
@@ -231,7 +225,17 @@ func downloadAndExtractZip(ctx context.Context, url, dest string, progress Progr
 		_ = os.Remove(downloadFile)
 	}()
 
-	// Open the downloaded zip file
+	switch {
+	case strings.HasSuffix(downloadFile, ".zip"):
+		return extractZip(downloadFile, dest)
+	case strings.HasSuffix(downloadFile, ".tar.gz"), strings.HasSuffix(downloadFile, ".tgz"):
+		return extractTarGz(downloadFile, dest)
+	default:
+		return fmt.Errorf("unsupported archive format: %s", filepath.Base(downloadFile))
+	}
+}
+
+func extractZip(downloadFile, dest string) error {
 	zipReader, err := zip.OpenReader(downloadFile)
 	if err != nil {
 		return fmt.Errorf("failed to open zip file: %w", err)
@@ -242,50 +246,34 @@ func downloadAndExtractZip(ctx context.Context, url, dest string, progress Progr
 		}
 	}()
 
-	// Extract files
 	for _, file := range zipReader.File {
-		// Get the file path
 		filePath := filepath.Join(dest, file.Name)
-
-		// Check for ZipSlip vulnerability
-		if !strings.HasPrefix(filePath, filepath.Clean(dest)+string(os.PathSeparator)) {
+		if !isSafeExtractPath(dest, filePath) {
 			return fmt.Errorf("illegal file path: %s", filePath)
 		}
-
 		if file.FileInfo().IsDir() {
-			// Create directory
 			if err := os.MkdirAll(filePath, file.Mode()); err != nil {
 				return fmt.Errorf("failed to create directory: %w", err)
 			}
 			continue
 		}
-
-		// Ensure parent directory exists
 		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 			return fmt.Errorf("failed to create parent directory: %w", err)
 		}
-
-		// Open the file in the zip
 		srcFile, err := file.Open()
 		if err != nil {
 			return fmt.Errorf("failed to open file in zip: %w", err)
 		}
-
-		// Create the destination file
 		dstFile, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, file.Mode())
 		if err != nil {
 			_ = srcFile.Close()
 			return fmt.Errorf("failed to create file: %w", err)
 		}
-
-		// Copy contents
 		if _, err := io.Copy(dstFile, srcFile); err != nil {
 			_ = srcFile.Close()
 			_ = dstFile.Close()
 			return fmt.Errorf("failed to write file: %w", err)
 		}
-
-		// Close files
 		if err := srcFile.Close(); err != nil {
 			_ = dstFile.Close()
 			return fmt.Errorf("failed to close source file: %w", err)
@@ -294,6 +282,72 @@ func downloadAndExtractZip(ctx context.Context, url, dest string, progress Progr
 			return fmt.Errorf("failed to close destination file: %w", err)
 		}
 	}
+	return nil
+}
+
+func extractTarGz(downloadFile, dest string) error {
+	f, err := os.Open(downloadFile)
+	if err != nil {
+		return fmt.Errorf("failed to open tar.gz file: %w", err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("failed to close tar.gz file: %v", err)
+		}
+	}()
+
+	gzr, err := gzip.NewReader(f)
+	if err != nil {
+		return fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer func() {
+		if err := gzr.Close(); err != nil {
+			log.Printf("failed to close gzip reader: %v", err)
+		}
+	}()
+
+	tr := tar.NewReader(gzr)
+	for {
+		header, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed reading tar entry: %w", err)
+		}
+
+		filePath := filepath.Join(dest, header.Name)
+		if !isSafeExtractPath(dest, filePath) {
+			return fmt.Errorf("illegal file path: %s", filePath)
+		}
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(filePath, os.FileMode(header.Mode)); err != nil {
+				return fmt.Errorf("failed to create directory: %w", err)
+			}
+		case tar.TypeReg, tar.TypeRegA:
+			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+				return fmt.Errorf("failed to create parent directory: %w", err)
+			}
+			dstFile, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.FileMode(header.Mode))
+			if err != nil {
+				return fmt.Errorf("failed to create file: %w", err)
+			}
+			if _, err := io.Copy(dstFile, tr); err != nil {
+				_ = dstFile.Close()
+				return fmt.Errorf("failed to write file: %w", err)
+			}
+			if err := dstFile.Close(); err != nil {
+				return fmt.Errorf("failed to close destination file: %w", err)
+			}
+		}
+	}
 
 	return nil
+}
+
+func isSafeExtractPath(dest, filePath string) bool {
+	cleanDest := filepath.Clean(dest) + string(os.PathSeparator)
+	return strings.HasPrefix(filePath, cleanDest)
 }

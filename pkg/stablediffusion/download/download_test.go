@@ -52,7 +52,7 @@ func TestLibraryName_Consistency(t *testing.T) {
 
 func TestDefaultVersion(t *testing.T) {
 	assert.NotEmpty(t, DefaultVersion, "default version should not be empty")
-	assert.Contains(t, DefaultVersion, "master", "version should contain 'master'")
+	assert.Regexp(t, `^v\d+\.\d+\.\d+`, DefaultVersion, "version should be semver tag format")
 }
 
 func TestProgressTracker_ValidInput(t *testing.T) {
@@ -111,16 +111,10 @@ func TestGetWithProgress_NilCallback(t *testing.T) {
 }
 
 func TestLibraryURL_Format(t *testing.T) {
-	// Test URL construction logic (if exposed)
-	version := "master-123-abc"
-	libName := LibraryName()
-
-	assert.NotEmpty(t, version)
-	assert.NotEmpty(t, libName)
-
-	// URL should follow pattern: https://github.com/.../releases/download/{version}/{libName}
-	expectedPattern := version + "/" + libName
-	assert.NotEmpty(t, expectedPattern)
+	location, filename, err := getDownloadLocationAndFilename(AMD64, Linux, "v0.1.4")
+	require.NoError(t, err)
+	assert.Contains(t, location, "github.com/getkawai/stablediffusion/releases/download/v0.1.4")
+	assert.Equal(t, "libgosd-linux.tar.gz", filename)
 }
 
 func TestDownloadToPath_DirectoryCreation(t *testing.T) {
