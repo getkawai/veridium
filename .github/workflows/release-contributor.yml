@@ -24,7 +24,7 @@ permissions:
   packages: write
 
 env:
-  GO_VERSION: '1.25.5'
+  GO_VERSION: '1.26'
   R2_BUCKET: 'kawai'
   R2_PUBLIC_URL: 'https://storage.getkawai.com'
   GOPRIVATE: 'github.com/kawai-network/*'

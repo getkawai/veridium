@@ -19,7 +19,7 @@ on:
         type: string
 
 env:
-  GO_VERSION: '1.25.5'
+  GO_VERSION: '1.26'
   NODE_VERSION: '22'
   BUN_VERSION: '1.3.9'
   R2_BUCKET: 'kawai'
@@ -189,7 +189,8 @@ jobs:
       - name: Update build version in config
         run: |
           $BUILD_REF = "${{ github.sha }}".Substring(0,7)
-          (Get-Content build/config.yml) -replace 'version: ".*"', "version: \"build-$BUILD_REF\"" | Set-Content build/config.yml
+          $VERSION_LINE = 'version: "build-' + $BUILD_REF + '"'
+          (Get-Content build/config.yml) -replace 'version: ".*"', $VERSION_LINE | Set-Content build/config.yml
 
       - name: Install frontend dependencies
         run: |
