@@ -192,6 +192,8 @@ github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff h1:tY80oXqG
 github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff/go.mod h1:x7DCsMOv1taUwEWCzT4cmDeAkigA5/QCwUodaVOe8Ww=
 github.com/getkawai/stablediffusion v0.0.0-20260223082942-6d24f864311a h1:HnxOz3BP9BhV/o2xhRijA82/Q4i7zhCHlGfjee1LAYc=
 github.com/getkawai/stablediffusion v0.0.0-20260223082942-6d24f864311a/go.mod h1:1dc/3dGpVZidb+qc2KaAgui0wkwsg/VG8PRGV5U/K+U=
+github.com/getkawai/stablediffusion v0.1.4 h1:xKxdR1UzfAHV7d69d5N2DatjTw9LzeESDVBzY64UKt0=
+github.com/getkawai/stablediffusion v0.1.4/go.mod h1:1dc/3dGpVZidb+qc2KaAgui0wkwsg/VG8PRGV5U/K+U=
 github.com/getsentry/sentry-go v0.40.0 h1:VTJMN9zbTvqDqPwheRVLcp0qcUcM+8eFivvGocAaSbo=
 github.com/getsentry/sentry-go v0.40.0/go.mod h1:eRXCoh3uvmjQLY6qu63BjUZnaBu5L5WhMV1RwYO8W5s=
 github.com/gin-contrib/sse v0.1.0/go.mod h1:RHrZQHXnP2xjPF+u1gW/2HnVO7nvIa9PG3Gm+fLHvGI=

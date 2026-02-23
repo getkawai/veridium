@@ -17,6 +17,7 @@ require (
 	github.com/duckdb/duckdb-go/v2 v2.5.4
 	github.com/ebitengine/purego v0.9.1
 	github.com/ethereum/go-ethereum v1.17.0
+	github.com/getkawai/stablediffusion v0.1.4
 	github.com/getsentry/sentry-go v0.40.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
@@ -25,7 +26,6 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/jupiterrider/ffi v0.5.1
 	github.com/kaptinlin/jsonschema v0.6.2
-	github.com/getkawai/stablediffusion v0.0.0-20260223082942-6d24f864311a
 	github.com/kawai-network/TTS.cpp/bindings/go v0.1.4
 	github.com/kawai-network/contracts v0.1.2
 	github.com/kawai-network/grab v0.1.0
