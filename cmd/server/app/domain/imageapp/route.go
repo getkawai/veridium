@@ -9,12 +9,18 @@ import (
 	sd "github.com/kawai-network/veridium/pkg/stablediffusion"
 )
 
+// ImageEngine defines the minimum backend contract required by imageapp endpoints.
+type ImageEngine interface {
+	GenerateImage(imgGenParams *sd.ImgGenParams, newImagePath string) error
+	IsReady() bool
+}
+
 // Config contains all the mandatory systems required by handlers.
 type Config struct {
 	Log *logger.Logger
 
-	Engine     *sd.StableDiffusion
-	EditEngine *sd.StableDiffusion
+	Engine     ImageEngine
+	EditEngine ImageEngine
 }
 
 // Routes adds specific routes for this group.

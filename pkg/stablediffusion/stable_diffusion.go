@@ -422,6 +422,11 @@ type StableDiffusion struct {
 	engine *gosd.Engine
 }
 
+// IsReady reports whether the Stable Diffusion backend engine is loaded.
+func (sDiffusion *StableDiffusion) IsReady() bool {
+	return sDiffusion != nil && sDiffusion.engine != nil
+}
+
 // Free releases all resources held by the StableDiffusion context.
 // After calling Free(), the instance cannot be used for further generations.
 // It is safe to call Free() multiple times - subsequent calls are no-ops.

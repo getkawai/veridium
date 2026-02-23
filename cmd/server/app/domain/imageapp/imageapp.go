@@ -23,8 +23,8 @@ import (
 
 type app struct {
 	log        *logger.Logger
-	engine     *sd.StableDiffusion
-	editEngine *sd.StableDiffusion
+	engine     ImageEngine
+	editEngine ImageEngine
 	mu         sync.Mutex
 }
 
@@ -86,7 +86,7 @@ type ImageData struct {
 }
 
 func (a *app) generations(ctx context.Context, r *http.Request) web.Encoder {
-	if a.engine == nil {
+	if a.engine == nil || !a.engine.IsReady() {
 		return errs.Errorf(errs.Unimplemented, "image generation service not available")
 	}
 
@@ -211,7 +211,7 @@ type ImageEditRequest struct {
 
 // edits handles POST /v1/images/edits
 func (a *app) edits(ctx context.Context, r *http.Request) web.Encoder {
-	if a.editEngine == nil {
+	if a.editEngine == nil || !a.editEngine.IsReady() {
 		return errs.Errorf(errs.Unimplemented, "image editing service not available")
 	}
 
@@ -353,7 +353,7 @@ type ImageVariationRequest struct {
 
 // variations handles POST /v1/images/variations
 func (a *app) variations(ctx context.Context, r *http.Request) web.Encoder {
-	if a.editEngine == nil {
+	if a.editEngine == nil || !a.editEngine.IsReady() {
 		return errs.Errorf(errs.Unimplemented, "image variation service not available")
 	}
 
@@ -505,8 +505,8 @@ func (a *app) saveImageFromBase64(base64Data string, prefix string) (string, err
 
 // generateImage serializes access because StableDiffusion context is not thread-safe.
 // If an OOM-like error occurs, it retries with lower-cost presets automatically.
-func (a *app) generateImage(ctx context.Context, engine *sd.StableDiffusion, params *sd.ImgGenParams, outputPath string) error {
-	if engine == nil {
+func (a *app) generateImage(ctx context.Context, engine ImageEngine, params *sd.ImgGenParams, outputPath string) error {
+	if engine == nil || !engine.IsReady() {
 		return fmt.Errorf("image generation engine is not available")
 	}
 

@@ -567,6 +567,59 @@ type stableDiffusionModelBundle struct {
 	editModelPath string
 }
 
+func validateStableDiffusionModelBundle(bundle *stableDiffusionModelBundle) error {
+	if bundle == nil {
+		return errors.New("stable diffusion model bundle is nil")
+	}
+
+	required := []struct {
+		name string
+		path string
+	}{
+		{name: "diffusion_model", path: bundle.diffusionPath},
+		{name: "llm_model", path: bundle.llmPath},
+		{name: "vae_model", path: bundle.vaePath},
+	}
+
+	for _, model := range required {
+		if err := validateStableDiffusionModelFile(model.name, model.path); err != nil {
+			return err
+		}
+	}
+
+	// Edit model is optional at startup, but if selected it must be valid.
+	if bundle.editModelPath != "" {
+		if err := validateStableDiffusionModelFile("edit_model", bundle.editModelPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateStableDiffusionModelFile(name, modelPath string) error {
+	if modelPath == "" {
+		return fmt.Errorf("stable diffusion required model path is empty (%s)", name)
+	}
+
+	info, err := os.Stat(modelPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("stable diffusion required model file not found (%s): %s", name, modelPath)
+		}
+		return fmt.Errorf("failed to stat stable diffusion model file (%s): %w", name, err)
+	}
+
+	if info.IsDir() {
+		return fmt.Errorf("stable diffusion required model path points to a directory (%s): %s", name, modelPath)
+	}
+	if info.Size() == 0 {
+		return fmt.Errorf("stable diffusion required model file is empty (%s): %s", name, modelPath)
+	}
+
+	return nil
+}
+
 // initStableDiffusion initializes generation and edit Stable Diffusion engines.
 func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardware.HardwareSpecs) (*sd.StableDiffusion, *sd.StableDiffusion, error) {
 	log.Info(ctx, "startup", "status", "initializing stable diffusion")
@@ -580,6 +633,9 @@ func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardw
 	bundle, err := resolveStableDiffusionModelBundle(modelsPath, hwSpecs)
 	if err != nil {
 		return nil, nil, err
+	}
+	if err := validateStableDiffusionModelBundle(bundle); err != nil {
+		return nil, nil, fmt.Errorf("stable diffusion model validation failed: %w", err)
 	}
 
 	log.Info(ctx, "startup", "status", "selected SD model based on hardware", "model", bundle.selectedModel.Name, "path", bundle.diffusionPath)
@@ -602,6 +658,9 @@ func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardw
 		log.Warn(ctx, "startup", "status", "failed to init SD engine", "error", err)
 		return nil, nil, fmt.Errorf("failed to initialize stable diffusion generation engine: %w", err)
 	}
+	if !generationEngine.IsReady() {
+		return nil, nil, errors.New("stable diffusion generation engine not ready after initialization")
+	}
 
 	var editEngine *sd.StableDiffusion
 	if bundle.editModelPath != "" {
@@ -617,6 +676,9 @@ func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardw
 		editEngine, err = sd.NewStableDiffusion(editCtxParams)
 		if err != nil {
 			log.Warn(ctx, "startup", "status", "failed to init SD edit engine", "error", err)
+			editEngine = nil
+		} else if !editEngine.IsReady() {
+			log.Warn(ctx, "startup", "status", "stable diffusion edit engine created but not ready")
 			editEngine = nil
 		}
 	}
