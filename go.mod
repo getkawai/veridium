@@ -25,6 +25,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/jupiterrider/ffi v0.5.1
 	github.com/kaptinlin/jsonschema v0.6.2
+	github.com/getkawai/stablediffusion v0.0.0-20260223082942-6d24f864311a
 	github.com/kawai-network/TTS.cpp/bindings/go v0.1.4
 	github.com/kawai-network/contracts v0.1.2
 	github.com/kawai-network/grab v0.1.0

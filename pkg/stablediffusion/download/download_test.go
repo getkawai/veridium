@@ -18,11 +18,11 @@ func TestLibraryName_CurrentPlatform(t *testing.T) {
 	// Verify it matches current platform
 	switch runtime.GOOS {
 	case "windows":
-		assert.Equal(t, "stable-diffusion.dll", name)
+		assert.Equal(t, "libgosd-fallback.dll", name)
 	case "linux":
-		assert.Equal(t, "libstable-diffusion.so", name)
+		assert.Equal(t, "libgosd-fallback.so", name)
 	case "darwin":
-		assert.Equal(t, "libstable-diffusion.dylib", name)
+		assert.Equal(t, "libgosd-fallback.dylib", name)
 	default:
 		t.Skipf("Unsupported platform: %s", runtime.GOOS)
 	}

@@ -5,37 +5,35 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
+	gosd "github.com/getkawai/stablediffusion"
 	sd "github.com/kawai-network/stablediffusion"
 )
 
-// internalSD is the internal StableDiffusion instance
-// Protected by internalSDMu mutex for thread-safe access
-var internalSD *sd.StableDiffusion
-
-// internalSDMu protects access to internalSD
+// internalSDMu protects initialization state
 var internalSDMu sync.RWMutex
+var libraryInitialized bool
 
 // InitLibrary initializes the stable diffusion library.
 // This function is thread-safe and should be called once at application startup.
 // Subsequent calls will reinitialize the library (not recommended).
 func InitLibrary(libPath string) error {
-	var err error
-
 	internalSDMu.Lock()
 	defer internalSDMu.Unlock()
 
-	internalSD, err = sd.New(sd.LibraryConfig{LibPath: libPath})
-	return err
-}
-
-// getInternalSD returns the internal SD instance with proper synchronization
-// Returns nil if the library has not been initialized
-func getInternalSD() *sd.StableDiffusion {
-	internalSDMu.RLock()
-	defer internalSDMu.RUnlock()
-	return internalSD
+	if libPath == "" {
+		return errors.New("library path is empty")
+	}
+	if _, err := os.Stat(libPath); err != nil {
+		return fmt.Errorf("invalid library path: %w", err)
+	}
+	if err := gosd.Init(libPath); err != nil {
+		return fmt.Errorf("failed to initialize gosd library: %w", err)
+	}
+	libraryInitialized = true
+	return nil
 }
 
 // ============================================================================
@@ -421,7 +419,7 @@ type VidGenParams struct {
 // StableDiffusion instances are NOT thread-safe. Do not call generation methods
 // from multiple goroutines simultaneously on the same instance.
 type StableDiffusion struct {
-	ctx *sd.SDContext // SD context pointer
+	engine *gosd.Engine
 }
 
 // Free releases all resources held by the StableDiffusion context.
@@ -437,175 +435,94 @@ type StableDiffusion struct {
 //	}
 //	defer sd.Free()
 func (sDiffusion *StableDiffusion) Free() {
-	if sDiffusion.ctx != nil {
-		sDiffusion.ctx.Free()
-		sDiffusion.ctx = nil
+	if sDiffusion.engine != nil {
+		sDiffusion.engine.Close()
+		sDiffusion.engine = nil
 	}
 }
 
 // NewStableDiffusion creates a stable diffusion instance
 func NewStableDiffusion(ctxParams *ContextParams) (*StableDiffusion, error) {
-	// Check if library is initialized
-	lib := getInternalSD()
-	if lib == nil {
+	internalSDMu.RLock()
+	initialized := libraryInitialized
+	internalSDMu.RUnlock()
+	if !initialized {
 		return nil, errors.New("library not initialized, call InitLibrary first")
 	}
-
-	// 1. Initialize context parameters
-	var sdCtxParams sd.SDContextParams
-	lib.ContextParamsInit(&sdCtxParams)
-
-	if ctxParams.ModelPath != "" {
-		sdCtxParams.ModelPath = sd.CString(ctxParams.ModelPath)
+	if ctxParams == nil {
+		return nil, errors.New("context params cannot be nil")
 	}
 
-	if ctxParams.ClipLPath != "" {
-		sdCtxParams.ClipLPath = sd.CString(ctxParams.ClipLPath)
+	modelFile := ctxParams.DiffusionModelPath
+	if modelFile == "" {
+		modelFile = ctxParams.ModelPath
+	}
+	if modelFile == "" {
+		return nil, errors.New("missing model path: set DiffusionModelPath or ModelPath")
 	}
 
-	if ctxParams.ClipGPath != "" {
-		sdCtxParams.ClipGPath = sd.CString(ctxParams.ClipGPath)
-	}
-
-	if ctxParams.ClipVisionPath != "" {
-		sdCtxParams.ClipVisionPath = sd.CString(ctxParams.ClipVisionPath)
-	}
-
-	if ctxParams.T5XXLPath != "" {
-		sdCtxParams.T5XXLPath = sd.CString(ctxParams.T5XXLPath)
-	}
-
+	pathsForBase := []string{modelFile}
 	if ctxParams.LLMPath != "" {
-		sdCtxParams.LLMPath = sd.CString(ctxParams.LLMPath)
+		pathsForBase = append(pathsForBase, ctxParams.LLMPath)
 	}
-
-	if ctxParams.LLMVisionPath != "" {
-		sdCtxParams.LLMVisionPath = sd.CString(ctxParams.LLMVisionPath)
-	}
-
-	if ctxParams.DiffusionModelPath != "" {
-		sdCtxParams.DiffusionModelPath = sd.CString(ctxParams.DiffusionModelPath)
-	}
-
-	if ctxParams.HighNoiseDiffusionModelPath != "" {
-		sdCtxParams.HighNoiseDiffusionModelPath = sd.CString(ctxParams.HighNoiseDiffusionModelPath)
-	}
-
 	if ctxParams.VAEPath != "" {
-		sdCtxParams.VAEPath = sd.CString(ctxParams.VAEPath)
+		pathsForBase = append(pathsForBase, ctxParams.VAEPath)
 	}
+	baseDir := commonBaseDir(pathsForBase)
 
-	if ctxParams.TAESDPath != "" {
-		sdCtxParams.TAESDPath = sd.CString(ctxParams.TAESDPath)
-	}
-
-	if ctxParams.ControlNetPath != "" {
-		sdCtxParams.ControlNetPath = sd.CString(ctxParams.ControlNetPath)
-	}
-
-	if ctxParams.Embeddings != nil {
-		sdCtxParams.Embeddings = &sd.SDEmbedding{
-			Name: sd.CString(ctxParams.Embeddings.Name),
-			Path: sd.CString(ctxParams.Embeddings.Path),
-		}
-	}
-
-	if ctxParams.EmbeddingCount > 0 {
-		sdCtxParams.EmbeddingCount = ctxParams.EmbeddingCount
-	}
-
-	if ctxParams.PhotoMakerPath != "" {
-		sdCtxParams.PhotoMakerPath = sd.CString(ctxParams.PhotoMakerPath)
-	}
-
-	if ctxParams.TensorTypeRules != "" {
-		sdCtxParams.TensorTypeRules = sd.CString(ctxParams.TensorTypeRules)
-	}
-
-	sdCtxParams.VAEDecodeOnly = ctxParams.VAEDecodeOnly
-	sdCtxParams.FreeParamsImmediately = ctxParams.FreeParamsImmediately
-
-	if ctxParams.NThreads > 0 {
-		sdCtxParams.NThreads = ctxParams.NThreads
-	}
-
-	if ctxParams.WType != "" {
-		if WType, ok := SDTypeMap[ctxParams.WType]; ok {
-			sdCtxParams.WType = WType
-		} else {
-			return nil, fmt.Errorf("invalid WType: %s", ctxParams.WType)
-		}
-	}
-
-	if ctxParams.RNGType != "" {
-		if RNGType, ok := RNGTypeMap[ctxParams.RNGType]; ok {
-			sdCtxParams.RNGType = RNGType
-		} else {
-			return nil, fmt.Errorf("invalid RNG type: %s", ctxParams.RNGType)
-		}
-	}
-
-	if ctxParams.SamplerRNGType != "" {
-		if RNGType, ok := RNGTypeMap[ctxParams.SamplerRNGType]; ok {
-			sdCtxParams.SamplerRNGType = RNGType
-		} else {
-			return nil, fmt.Errorf("invalid Sampler RNG type: %s", ctxParams.SamplerRNGType)
-		}
-	}
-
-	if ctxParams.Prediction != "" {
-		if Prediction, ok := PredictionMap[ctxParams.Prediction]; ok {
-			sdCtxParams.Prediction = Prediction
-		} else {
-			return nil, fmt.Errorf("invalid Prediction: %s", ctxParams.Prediction)
-		}
-	}
-
-	if ctxParams.LoraApplyMode != "" {
-		if LoraApplyMode, ok := LoraApplyModeMap[ctxParams.LoraApplyMode]; ok {
-			sdCtxParams.LoraApplyMode = LoraApplyMode
-		} else {
-			return nil, fmt.Errorf("invalid LoraApplyMode: %s", ctxParams.LoraApplyMode)
-		}
-	}
-
-	sdCtxParams.OffloadParamsToCPU = ctxParams.OffloadParamsToCPU
-	sdCtxParams.EnableMmap = ctxParams.EnableMmap
-	sdCtxParams.KeepClipOnCPU = ctxParams.KeepClipOnCPU
-	sdCtxParams.KeepControlNetOnCPU = ctxParams.KeepControlNetOnCPU
-	sdCtxParams.KeepVAEOnCPU = ctxParams.KeepVAEOnCPU
-	sdCtxParams.DiffusionFlashAttn = ctxParams.DiffusionFlashAttn
-	sdCtxParams.TAEPreviewOnly = ctxParams.TAEPreviewOnly
-	sdCtxParams.DiffusionConvDirect = ctxParams.DiffusionConvDirect
-	sdCtxParams.VAEConvDirect = ctxParams.VAEConvDirect
-	sdCtxParams.CircularX = ctxParams.CircularX
-	sdCtxParams.CircularY = ctxParams.CircularY
-	sdCtxParams.ForceSDXLVAConvScale = ctxParams.ForceSDXLVAConvScale
-	sdCtxParams.ChromaUseDitMask = ctxParams.ChromaUseDitMask
-	sdCtxParams.ChromaUseT5Mask = ctxParams.ChromaUseT5Mask
-
-	if ctxParams.ChromaT5MaskPad != 0 {
-		sdCtxParams.ChromaT5MaskPad = ctxParams.ChromaT5MaskPad
-	}
-
-	sdCtxParams.QwenImageZeroCondT = ctxParams.QwenImageZeroCondT
-
-	if ctxParams.FlowShift != 0 {
-		sdCtxParams.FlowShift = ctxParams.FlowShift
-	}
-
-	// 2. Create new context
-	ctx, err := lib.NewContext(&sdCtxParams)
+	relModel, err := filepath.Rel(baseDir, modelFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create context: %w", err)
+		return nil, fmt.Errorf("failed to resolve model path: %w", err)
 	}
-	if ctx == nil {
-		return nil, errors.New("failed to create context: returned nil")
+	if strings.HasPrefix(relModel, "..") {
+		return nil, fmt.Errorf("model path %q is outside base directory %q", modelFile, baseDir)
 	}
 
-	return &StableDiffusion{
-		ctx: ctx,
-	}, nil
+	opts := []string{"diffusion_model"}
+	appendPathOpt := func(name, value string) error {
+		if value == "" {
+			return nil
+		}
+		rel, err := filepath.Rel(baseDir, value)
+		if err != nil {
+			return fmt.Errorf("failed to resolve %s: %w", name, err)
+		}
+		if strings.HasPrefix(rel, "..") {
+			return fmt.Errorf("%s path %q is outside base directory %q", name, value, baseDir)
+		}
+		opts = append(opts, fmt.Sprintf("%s:%s", name, rel))
+		return nil
+	}
+
+	if err := appendPathOpt("llm_path", ctxParams.LLMPath); err != nil {
+		return nil, err
+	}
+	if err := appendPathOpt("vae_path", ctxParams.VAEPath); err != nil {
+		return nil, err
+	}
+
+	if ctxParams.OffloadParamsToCPU {
+		opts = append(opts, "offload_params_to_cpu:true")
+	}
+	if ctxParams.DiffusionFlashAttn {
+		opts = append(opts, "diffusion_flash_attn:true")
+	}
+	if ctxParams.FlowShift != 0 {
+		opts = append(opts, fmt.Sprintf("flow_shift:%g", ctxParams.FlowShift))
+	}
+
+	engine := &gosd.Engine{}
+	if err := engine.Load(gosd.ModelOptions{
+		Threads:   ctxParams.NThreads,
+		ModelPath: baseDir,
+		ModelFile: relModel,
+		Options:   opts,
+		CFGScale:  float32(DefaultCfgScale),
+	}); err != nil {
+		return nil, fmt.Errorf("failed to load stable diffusion model: %w", err)
+	}
+
+	return &StableDiffusion{engine: engine}, nil
 }
 
 // GenerateImage generates an image from a text prompt or existing image (img2img).
@@ -647,250 +564,73 @@ func NewStableDiffusion(ctxParams *ContextParams) (*StableDiffusion, error) {
 //	    }
 //	}
 func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, newImagePath string) error {
-	// Extract the directory part of newImagePath and create it if it doesn't exist
+	if sDiffusion == nil || sDiffusion.engine == nil {
+		return errors.New("image generation engine is not available")
+	}
+	if imgGenParams == nil {
+		return errors.New("image generation params cannot be nil")
+	}
+
 	dir := filepath.Dir(newImagePath)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		err = os.MkdirAll(dir, os.ModePerm)
-		if err != nil {
-			return errors.New("failed to create directory")
+		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+			return fmt.Errorf("failed to create directory: %w", err)
 		}
 	}
 
-	// Initialize image generation parameters
-	var sdImgGenParams sd.SDImgGenParams
-	lib := getInternalSD()
-	if lib == nil {
-		return errors.New("library not initialized")
+	width := imgGenParams.Width
+	height := imgGenParams.Height
+	if width == 0 {
+		width = DefaultWidth
 	}
-	lib.ImgGenParamsInit(&sdImgGenParams)
-
-	// Set generation parameters
-	sdImgGenParams.Prompt = sd.CString(imgGenParams.Prompt)
-	if imgGenParams.NegativePrompt == "" {
-		imgGenParams.NegativePrompt = "blurry, low quality, distorted"
+	if height == 0 {
+		height = DefaultHeight
 	}
 
-	sdImgGenParams.NegativePrompt = sd.CString(imgGenParams.NegativePrompt)
-
-	if imgGenParams.Loras == nil {
-		sdImgGenParams.Loras = &sd.SDLora{
-			IsHighNoise: false,
-			Multiplier:  0,
-			Path:        sd.CString(""),
-		}
-	} else {
-		sdImgGenParams.Loras = &sd.SDLora{
-			IsHighNoise: imgGenParams.Loras.IsHighNoise,
-			Multiplier:  imgGenParams.Loras.Multiplier,
-			Path:        sd.CString(imgGenParams.Loras.Path),
-		}
+	steps := imgGenParams.SampleSteps
+	if steps == 0 {
+		steps = DefaultSampleSteps
 	}
 
-	sdImgGenParams.LoraCount = imgGenParams.LoraCount
-
-	if imgGenParams.ClipSkip == 0 {
-		imgGenParams.ClipSkip = DefaultClipSkip
-	}
-	sdImgGenParams.ClipSkip = imgGenParams.ClipSkip
-
-	sdImgGenParams.InitImage = generateImageFromPath(imgGenParams.InitImagePath)
-
-	// Process reference images - keep slice alive during C library call
-	refImagesSlice := generateImagesFromPaths(imgGenParams.RefImagesPath)
-	if len(refImagesSlice) > 0 {
-		sdImgGenParams.RefImages = &refImagesSlice[0]
-	} else {
-		sdImgGenParams.RefImages = nil
+	cfg := float32(imgGenParams.CfgScale)
+	if cfg == 0 {
+		cfg = float32(DefaultCfgScale)
 	}
 
-	// Set reference images count, use actual loaded count if user didn't provide
-	sdImgGenParams.RefImagesCount = int32(len(imgGenParams.RefImagesPath))
-	if imgGenParams.RefImagesCount > 0 {
-		sdImgGenParams.RefImagesCount = imgGenParams.RefImagesCount
-	}
-	sdImgGenParams.AutoResizeRefImage = imgGenParams.AutoResizeRefImage
-	sdImgGenParams.IncreaseRefIndex = imgGenParams.IncreaseRefIndex
-	sdImgGenParams.MaskImage = generateImageFromPath(imgGenParams.MaskImagePath)
-
-	// For img2img, use requested dimensions if explicitly provided.
-	// Otherwise fallback to initial image dimensions.
-	if imgGenParams.InitImagePath != "" {
-		if imgGenParams.Width > 0 && imgGenParams.Height > 0 {
-			sdImgGenParams.Width = imgGenParams.Width
-			sdImgGenParams.Height = imgGenParams.Height
-		} else {
-			sdImgGenParams.Width = int32(sdImgGenParams.InitImage.Width)
-			sdImgGenParams.Height = int32(sdImgGenParams.InitImage.Height)
-		}
-	} else {
-		// Otherwise use default dimensions
-		if imgGenParams.Width == 0 {
-			imgGenParams.Width = DefaultWidth
-		}
-		if imgGenParams.Height == 0 {
-			imgGenParams.Height = DefaultHeight
-		}
-		sdImgGenParams.Width = imgGenParams.Width
-		sdImgGenParams.Height = imgGenParams.Height
+	seed := imgGenParams.Seed
+	if seed == 0 {
+		seed = DefaultSeed
 	}
 
-	if imgGenParams.CfgScale == 0 {
-		imgGenParams.CfgScale = DefaultCfgScale
-	}
-	if imgGenParams.ImageCfgScale == 0 {
-		imgGenParams.ImageCfgScale = DefaultImageCfgScale
+	strength := imgGenParams.Strength
+	if imgGenParams.InitImagePath != "" && strength == 0 {
+		strength = DefaultStrength
 	}
 
-	if imgGenParams.DistilledGuidance == 0 {
-		imgGenParams.DistilledGuidance = DefaultDistilledGuidance
+	negative := imgGenParams.NegativePrompt
+	if negative == "" {
+		negative = "blurry, low quality, distorted"
 	}
 
-	var skipLayersPtr *int32
-	if len(imgGenParams.SkipLayers) > 0 {
-		skipLayersPtr = &imgGenParams.SkipLayers[0]
-	} else {
-		skipLayersPtr = nil
+	enableParams := ""
+	if imgGenParams.MaskImagePath != "" {
+		enableParams = "mask:" + imgGenParams.MaskImagePath
 	}
 
-	if imgGenParams.SkipLayerStart == 0 {
-		imgGenParams.SkipLayerStart = DefaultSkipLayerStart
-	}
-	if imgGenParams.SkipLayerEnd == 0 {
-		imgGenParams.SkipLayerEnd = DefaultSkipLayerEnd
-	}
-
-	var defaultSampleMethod sd.SampleMethod
-	if imgGenParams.SampleMethod == "" || imgGenParams.SampleMethod == "default" {
-		defaultSampleMethod = lib.GetDefaultSampleMethod(sDiffusion.ctx)
-	} else {
-		if sampleMethod, ok := SampleMethodMap[imgGenParams.SampleMethod]; ok {
-			defaultSampleMethod = sampleMethod
-		} else {
-			return fmt.Errorf("invalid SampleMethod: %s", imgGenParams.SampleMethod)
-		}
-	}
-
-	var defaultScheduler sd.Scheduler
-	if imgGenParams.Scheduler == "" || imgGenParams.Scheduler == "default" {
-		defaultScheduler = lib.GetDefaultScheduler(sDiffusion.ctx, defaultSampleMethod)
-	} else {
-		if scheduler, ok := SchedulerMap[imgGenParams.Scheduler]; ok {
-			defaultScheduler = scheduler
-		} else {
-			return fmt.Errorf("invalid Scheduler: %s", imgGenParams.Scheduler)
-		}
-	}
-
-	if imgGenParams.SampleSteps == 0 {
-		imgGenParams.SampleSteps = DefaultSampleSteps
-	}
-
-	if imgGenParams.Eta == 0 {
-		imgGenParams.Eta = DefaultEta
-	}
-
-	var customSigmasPtr *float32
-	if len(imgGenParams.CustomSigmas) > 0 {
-		customSigmasPtr = &imgGenParams.CustomSigmas[0]
-	} else {
-		customSigmasPtr = nil
-	}
-
-	sdImgGenParams.SampleParams = sd.SDSampleParams{
-		Guidance: sd.SDGuidanceParams{
-			TxtCfg:            imgGenParams.CfgScale,
-			ImgCfg:            imgGenParams.ImageCfgScale,
-			DistilledGuidance: imgGenParams.DistilledGuidance,
-			SLG: sd.SDSLGParams{
-				Layers:     skipLayersPtr,
-				LayerCount: uintptr(len(imgGenParams.SkipLayers)),
-				LayerStart: imgGenParams.SkipLayerStart,
-				LayerEnd:   imgGenParams.SkipLayerEnd,
-				Scale:      imgGenParams.SlgScale,
-			},
-		},
-		SampleMethod:      defaultSampleMethod,
-		Scheduler:         defaultScheduler,
-		SampleSteps:       imgGenParams.SampleSteps,
-		Eta:               imgGenParams.Eta,
-		ShiftedTimestep:   imgGenParams.ShiftedTimestep,
-		CustomSigmas:      customSigmasPtr,
-		CustomSigmasCount: int32(len(imgGenParams.CustomSigmas)),
-	}
-
-	if imgGenParams.Strength == 0 {
-		imgGenParams.Strength = DefaultStrength
-	}
-	sdImgGenParams.Strength = imgGenParams.Strength
-
-	if imgGenParams.Seed == 0 {
-		imgGenParams.Seed = DefaultSeed
-	}
-	sdImgGenParams.Seed = imgGenParams.Seed
-
-	if imgGenParams.BatchCount == 0 {
-		imgGenParams.BatchCount = DefaultBatchCount
-	}
-	sdImgGenParams.BatchCount = imgGenParams.BatchCount
-
-	sdImgGenParams.ControlImage = generateImageFromPath(imgGenParams.ControlImagePath)
-
-	if imgGenParams.ControlStrength == 0 {
-		imgGenParams.ControlStrength = DefaultControlStrength
-	}
-	sdImgGenParams.ControlStrength = imgGenParams.ControlStrength
-
-	if imgGenParams.PMParams != nil {
-		sdImgGenParams.PMParams = sd.SDPMParams{
-			IDImages:      imgGenParams.PMParams.IDImages,
-			IDImagesCount: imgGenParams.PMParams.IDImagesCount,
-			IDEmbedPath:   sd.CString(imgGenParams.PMParams.IDEmbedPath),
-			StyleStrength: imgGenParams.PMParams.StyleStrength,
-		}
-	}
-
-	if imgGenParams.VAETilingParams != (sd.SDTilingParams{}) {
-		sdImgGenParams.VAETilingParams = imgGenParams.VAETilingParams
-	} else {
-		sdImgGenParams.VAETilingParams = sd.SDTilingParams{
-			Enabled:       false,
-			TileSizeX:     0,
-			TileSizeY:     0,
-			TargetOverlap: 0.5,
-			RelSizeX:      0,
-			RelSizeY:      0,
-		}
-	}
-
-	// Initialize cache parameters
-	var cacheParams sd.SDCacheParams
-	lib.CacheParamsInit(&cacheParams)
-
-	// If user provided cache parameters, use them
-	if imgGenParams.CacheParams != (sd.SDCacheParams{}) {
-		sdImgGenParams.Cache = imgGenParams.CacheParams
-	} else {
-		// Otherwise use default parameters
-		sdImgGenParams.Cache = cacheParams
-		// Set some reasonable default values
-		sdImgGenParams.Cache.Mode = sd.SDCacheDisabled
-		sdImgGenParams.Cache.ReuseThreshold = 0.2
-		sdImgGenParams.Cache.StartPercent = 0.15
-		sdImgGenParams.Cache.EndPercent = 0.95
-	}
-
-	// Generate image
-	img := sDiffusion.ctx.GenerateImage(&sdImgGenParams)
-	if img == nil {
-		return errors.New("failed to generate image: context returned nil image")
-	}
-
-	// Save image
-	if err := sd.SaveImage(img, newImagePath); err != nil {
-		return fmt.Errorf("failed to save image: %w", err)
-	}
-
-	return nil
+	return sDiffusion.engine.GenerateImage(gosd.GenerateImageOptions{
+		PositivePrompt:   imgGenParams.Prompt,
+		NegativePrompt:   negative,
+		Dst:              newImagePath,
+		Src:              imgGenParams.InitImagePath,
+		EnableParameters: enableParams,
+		RefImages:        imgGenParams.RefImagesPath,
+		Width:            width,
+		Height:           height,
+		Seed:             seed,
+		Step:             steps,
+		Strength:         strength,
+		CFGScale:         cfg,
+	})
 }
 
 // GenerateVideo generates a video from a text prompt or existing images.
@@ -929,302 +669,7 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 //	    VideoFrames: 33,
 //	}, "output.mp4")
 func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, newVideoPath string) error {
-	// Extract the directory part of newVideoPath and create it if it doesn't exist
-	dir := filepath.Dir(newVideoPath)
-	tmpDir := filepath.Join(dir, "tmp")
-	if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
-		err = os.MkdirAll(tmpDir, os.ModePerm)
-		if err != nil {
-			return errors.New("failed to create directory")
-		}
-	}
-
-	// Initialize video generation parameters
-	var sdVidGenParams sd.SDVidGenParams
-	lib := getInternalSD()
-	if lib == nil {
-		return errors.New("library not initialized")
-	}
-	lib.VidGenParamsInit(&sdVidGenParams)
-
-	// Set generation parameters
-	sdVidGenParams.Prompt = sd.CString(vidGenParams.Prompt)
-	sdVidGenParams.NegativePrompt = sd.CString(vidGenParams.NegativePrompt)
-
-	if vidGenParams.Loras == nil {
-		sdVidGenParams.Loras = &sd.SDLora{
-			IsHighNoise: false,
-			Multiplier:  0,
-			Path:        sd.CString(""),
-		}
-	} else {
-		sdVidGenParams.Loras = &sd.SDLora{
-			IsHighNoise: vidGenParams.Loras.IsHighNoise,
-			Multiplier:  vidGenParams.Loras.Multiplier,
-			Path:        sd.CString(vidGenParams.Loras.Path),
-		}
-	}
-
-	sdVidGenParams.LoraCount = vidGenParams.LoraCount
-
-	if vidGenParams.ClipSkip == 0 {
-		vidGenParams.ClipSkip = DefaultClipSkip
-	}
-	sdVidGenParams.ClipSkip = vidGenParams.ClipSkip
-
-	sdVidGenParams.InitImage = generateImageFromPath(vidGenParams.InitImagePath)
-	sdVidGenParams.EndImage = generateImageFromPath(vidGenParams.EndImagePath)
-
-	// Process control frames
-	var controlFrames []sd.SDImage
-	if len(vidGenParams.ControlFramesPath) > 0 {
-		controlFrames = make([]sd.SDImage, len(vidGenParams.ControlFramesPath))
-		for i, path := range vidGenParams.ControlFramesPath {
-			controlFrames[i] = generateImageFromPath(path)
-		}
-	}
-	if len(controlFrames) > 0 {
-		sdVidGenParams.ControlFrames = &controlFrames[0]
-		sdVidGenParams.ControlFramesSize = int32(len(controlFrames))
-	}
-
-	if vidGenParams.Width == 0 {
-		vidGenParams.Width = DefaultWidth
-	}
-	if vidGenParams.Height == 0 {
-		vidGenParams.Height = DefaultHeight
-	}
-	sdVidGenParams.Width = vidGenParams.Width
-	sdVidGenParams.Height = vidGenParams.Height
-
-	if vidGenParams.CfgScale == 0 {
-		vidGenParams.CfgScale = DefaultCfgScale
-	}
-	if vidGenParams.ImageCfgScale == 0 {
-		vidGenParams.ImageCfgScale = DefaultImageCfgScale
-	}
-
-	if vidGenParams.DistilledGuidance == 0 {
-		vidGenParams.DistilledGuidance = DefaultDistilledGuidance
-	}
-
-	var skipLayersPtr *int32
-	if len(vidGenParams.SkipLayers) > 0 {
-		skipLayersPtr = &vidGenParams.SkipLayers[0]
-	} else {
-		skipLayersPtr = nil
-	}
-
-	if vidGenParams.SkipLayerStart == 0 {
-		vidGenParams.SkipLayerStart = DefaultSkipLayerStart
-	}
-	if vidGenParams.SkipLayerEnd == 0 {
-		vidGenParams.SkipLayerEnd = DefaultSkipLayerEnd
-	}
-
-	var defaultSampleMethod sd.SampleMethod
-	if vidGenParams.SampleMethod == "" || vidGenParams.SampleMethod == "default" {
-		defaultSampleMethod = lib.GetDefaultSampleMethod(sDiffusion.ctx)
-	} else {
-		if sampleMethod, ok := SampleMethodMap[vidGenParams.SampleMethod]; ok {
-			defaultSampleMethod = sampleMethod
-		} else {
-			return fmt.Errorf("invalid SampleMethod: %s", vidGenParams.SampleMethod)
-		}
-	}
-
-	var defaultScheduler sd.Scheduler
-	if vidGenParams.Scheduler == "" || vidGenParams.Scheduler == "default" {
-		defaultScheduler = lib.GetDefaultScheduler(sDiffusion.ctx, defaultSampleMethod)
-	} else {
-		if scheduler, ok := SchedulerMap[vidGenParams.Scheduler]; ok {
-			defaultScheduler = scheduler
-		} else {
-			return fmt.Errorf("invalid Scheduler: %s", vidGenParams.Scheduler)
-		}
-	}
-
-	if vidGenParams.SampleSteps == 0 {
-		vidGenParams.SampleSteps = DefaultSampleSteps
-	}
-
-	if vidGenParams.Eta == 0 {
-		vidGenParams.Eta = DefaultEta
-	}
-
-	var customSigmasPtr *float32
-	if len(vidGenParams.CustomSigmas) > 0 {
-		customSigmasPtr = &vidGenParams.CustomSigmas[0]
-	} else {
-		customSigmasPtr = nil
-	}
-
-	sdVidGenParams.SampleParams = sd.SDSampleParams{
-		Guidance: sd.SDGuidanceParams{
-			TxtCfg:            vidGenParams.CfgScale,
-			ImgCfg:            vidGenParams.ImageCfgScale,
-			DistilledGuidance: vidGenParams.DistilledGuidance,
-			SLG: sd.SDSLGParams{
-				Layers:     skipLayersPtr,
-				LayerCount: uintptr(len(vidGenParams.SkipLayers)),
-				LayerStart: vidGenParams.SkipLayerStart,
-				LayerEnd:   vidGenParams.SkipLayerEnd,
-				Scale:      vidGenParams.SlgScale,
-			},
-		},
-		SampleMethod:      defaultSampleMethod,
-		Scheduler:         defaultScheduler,
-		SampleSteps:       vidGenParams.SampleSteps,
-		Eta:               vidGenParams.Eta,
-		ShiftedTimestep:   vidGenParams.ShiftedTimestep,
-		CustomSigmas:      customSigmasPtr,
-		CustomSigmasCount: int32(len(vidGenParams.CustomSigmas)),
-	}
-
-	if vidGenParams.HighNoiseCfgScale == 0 {
-		vidGenParams.HighNoiseCfgScale = DefaultHighNoiseCfgScale
-	}
-	if vidGenParams.HighNoiseImageCfgScale == 0 {
-		vidGenParams.HighNoiseImageCfgScale = DefaultImageCfgScale
-	}
-
-	if vidGenParams.HighNoiseDistilledGuidance == 0 {
-		vidGenParams.HighNoiseDistilledGuidance = DefaultDistilledGuidance
-	}
-
-	var highNoiseSkipLayersPtr *int32
-	if len(vidGenParams.HighNoiseSkipLayers) > 0 {
-		highNoiseSkipLayersPtr = &vidGenParams.HighNoiseSkipLayers[0]
-	} else {
-		highNoiseSkipLayersPtr = nil
-	}
-
-	if vidGenParams.HighNoiseSkipLayerStart == 0 {
-		vidGenParams.HighNoiseSkipLayerStart = DefaultSkipLayerStart
-	}
-	if vidGenParams.HighNoiseSkipLayerEnd == 0 {
-		vidGenParams.HighNoiseSkipLayerEnd = DefaultSkipLayerEnd
-	}
-
-	var defaultHighNoiseSampleMethod sd.SampleMethod
-	if vidGenParams.HighNoiseSampleMethod == "" || vidGenParams.HighNoiseSampleMethod == "default" {
-		defaultHighNoiseSampleMethod = lib.GetDefaultSampleMethod(sDiffusion.ctx)
-	} else {
-		if sampleMethod, ok := SampleMethodMap[vidGenParams.HighNoiseSampleMethod]; ok {
-			defaultHighNoiseSampleMethod = sampleMethod
-		} else {
-			return fmt.Errorf("invalid SampleMethod: %s", vidGenParams.HighNoiseSampleMethod)
-		}
-	}
-
-	var defaultHighNoiseScheduler sd.Scheduler
-	if vidGenParams.HighNoiseScheduler == "" || vidGenParams.HighNoiseScheduler == "default" {
-		defaultHighNoiseScheduler = lib.GetDefaultScheduler(sDiffusion.ctx, defaultHighNoiseSampleMethod)
-	} else {
-		if scheduler, ok := SchedulerMap[vidGenParams.Scheduler]; ok {
-			defaultHighNoiseScheduler = scheduler
-		} else {
-			return fmt.Errorf("invalid Scheduler: %s", vidGenParams.HighNoiseScheduler)
-		}
-	}
-
-	if vidGenParams.HighNoiseSampleSteps == 0 {
-		vidGenParams.HighNoiseSampleSteps = DefaultHighNoiseSampleSteps
-	}
-
-	if vidGenParams.HighNoiseEta == 0 {
-		vidGenParams.HighNoiseEta = DefaultEta
-	}
-
-	var highNoiseCustomSigmasPtr *float32
-	if len(vidGenParams.HighNoiseCustomSigmas) > 0 {
-		highNoiseCustomSigmasPtr = &vidGenParams.HighNoiseCustomSigmas[0]
-	} else {
-		highNoiseCustomSigmasPtr = nil
-	}
-
-	sdVidGenParams.HighNoiseSampleParams = sd.SDSampleParams{
-		Guidance: sd.SDGuidanceParams{
-			TxtCfg:            vidGenParams.HighNoiseCfgScale,
-			ImgCfg:            vidGenParams.HighNoiseImageCfgScale,
-			DistilledGuidance: vidGenParams.HighNoiseDistilledGuidance,
-			SLG: sd.SDSLGParams{
-				Layers:     highNoiseSkipLayersPtr,
-				LayerCount: uintptr(len(vidGenParams.HighNoiseSkipLayers)),
-				LayerStart: vidGenParams.HighNoiseSkipLayerStart,
-				LayerEnd:   vidGenParams.HighNoiseSkipLayerEnd,
-				Scale:      vidGenParams.HighNoiseSlgScale,
-			},
-		},
-		SampleMethod:      defaultHighNoiseSampleMethod,
-		Scheduler:         defaultHighNoiseScheduler,
-		SampleSteps:       vidGenParams.HighNoiseSampleSteps,
-		Eta:               vidGenParams.HighNoiseEta,
-		ShiftedTimestep:   vidGenParams.HighNoiseShiftedTimestep,
-		CustomSigmas:      highNoiseCustomSigmasPtr,
-		CustomSigmasCount: int32(len(vidGenParams.HighNoiseCustomSigmas)),
-	}
-
-	if vidGenParams.MOEBoundary == 0 {
-		vidGenParams.MOEBoundary = DefaultMOEBoundary
-	}
-	sdVidGenParams.MOEBoundary = vidGenParams.MOEBoundary
-
-	if vidGenParams.Strength == 0 {
-		vidGenParams.Strength = DefaultStrength
-	}
-	sdVidGenParams.Strength = vidGenParams.Strength
-
-	if vidGenParams.Seed == 0 {
-		vidGenParams.Seed = DefaultSeed
-	}
-	sdVidGenParams.Seed = vidGenParams.Seed
-
-	if vidGenParams.VideoFrames == 0 {
-		vidGenParams.VideoFrames = DefaultVideoFrames
-	}
-	sdVidGenParams.VideoFrames = vidGenParams.VideoFrames
-
-	if vidGenParams.VaceStrength == 0 {
-		vidGenParams.VaceStrength = DefaultVaceStrength
-	}
-	sdVidGenParams.VaceStrength = vidGenParams.VaceStrength
-
-	// Initialize cache parameters
-	var cacheParams sd.SDCacheParams
-	lib.CacheParamsInit(&cacheParams)
-
-	// If user provided cache parameters, use them
-	if vidGenParams.CacheParams != (sd.SDCacheParams{}) {
-		sdVidGenParams.Cache = vidGenParams.CacheParams
-	} else {
-		// Otherwise use default parameters
-		sdVidGenParams.Cache = cacheParams
-		// Set some reasonable default values
-		sdVidGenParams.Cache.Mode = sd.SDCacheDisabled
-		sdVidGenParams.Cache.ReuseThreshold = 0.2
-		sdVidGenParams.Cache.StartPercent = 0.15
-		sdVidGenParams.Cache.EndPercent = 0.95
-	}
-
-	// Generate video
-	frames, numFrames := sDiffusion.ctx.GenerateVideo(&sdVidGenParams)
-	if frames == nil || numFrames == 0 {
-		return errors.New("failed to generate video: context returned no frames")
-	}
-
-	// Save video frames
-	if err := sd.SaveFrames(frames, tmpDir); err != nil {
-		return fmt.Errorf("failed to save video frames: %w", err)
-	}
-	if err := sd.EncodeVideo(tmpDir, newVideoPath, 30); err != nil {
-		return fmt.Errorf("failed to encode video: %w", err)
-	}
-	if err := os.RemoveAll(tmpDir); err != nil {
-		return fmt.Errorf("failed to cleanup temp directory: %w", err)
-	}
-
-	return nil
+	return errors.New("GenerateVideo is not supported by the current backend")
 }
 
 type UpscalerParams struct {
@@ -1236,54 +681,40 @@ type UpscalerParams struct {
 }
 
 type Upscaler struct {
-	ctx *sd.UpscalerContext
+}
+
+var errUnsupportedFeature = errors.New("feature not supported by the current backend")
+
+func commonBaseDir(paths []string) string {
+	if len(paths) == 0 {
+		return "."
+	}
+	base := filepath.Clean(filepath.Dir(paths[0]))
+	for i := 1; i < len(paths); i++ {
+		dir := filepath.Clean(filepath.Dir(paths[i]))
+		for {
+			rel, err := filepath.Rel(base, dir)
+			if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				break
+			}
+			parent := filepath.Dir(base)
+			if parent == base {
+				return filepath.Clean(filepath.Dir(paths[0]))
+			}
+			base = parent
+		}
+	}
+	return base
 }
 
 // NewUpscaler creates a new upscaler context
 func NewUpscaler(params *UpscalerParams) (*Upscaler, error) {
-	if params.NThreads == 0 {
-		params.NThreads = -1
-	}
-
-	if params.TileSize == 0 {
-		params.TileSize = 128
-	}
-
-	lib := getInternalSD()
-	if lib == nil {
-		return nil, errors.New("library not initialized")
-	}
-
-	ctx, err := lib.NewUpscalerContext(
-		params.EsrganPath,
-		params.OffloadParamsToCPU,
-		params.Direct,
-		int32(params.NThreads),
-		int32(params.TileSize),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create upscaler context: %w", err)
-	}
-	return &Upscaler{ctx: ctx}, nil
+	return nil, errUnsupportedFeature
 }
 
 // Upscale upscaling function
 func (us *Upscaler) Upscale(inputImagePath string, upscaleFactor uint32, outputImagePath string) error {
-	// Directly use LoadImage function to avoid dangling pointer issues
-	inputSDImage := generateImageFromPath(inputImagePath)
-	fmt.Printf("inputSDImage: %+v", inputSDImage)
-	outputSDImage := us.ctx.Upscale(inputSDImage, upscaleFactor)
-	fmt.Printf("outputSDImage: %+v", outputSDImage)
-
-	defer us.ctx.Free()
-
-	// Save image
-	err := sd.SaveImage(&outputSDImage, outputImagePath)
-	if err != nil {
-		return fmt.Errorf("failed to save image: %v", err)
-	}
-
-	return nil
+	return errUnsupportedFeature
 }
 
 // Convert model conversion function, convert a model to gguf format.
@@ -1293,29 +724,7 @@ func (us *Upscaler) Upscale(inputImagePath string, upscaleFactor uint32, outputI
 // outputType: The weight type (default: auto).
 // tensorTypeRules: Weight type per tensor pattern (example: "^vae\\\\.=f16,model\\\\.=q8_0")
 func Convert(inputPath, vaePath, outputPath, outputType, tensorTypeRules string, convertName bool) error {
-	if outputPath == "" {
-		outputPath = "output.gguf"
-	}
-
-	if outputType == "" {
-		outputType = "default"
-	}
-
-	var outputSDType sd.SDType
-	if value, ok := SDTypeMap[outputType]; ok {
-		outputSDType = value
-	} else {
-		return fmt.Errorf("invalid SDType: %s", outputType)
-	}
-
-	res, err := sd.Convert(inputPath, vaePath, outputPath, outputSDType, tensorTypeRules, convertName)
-	if err != nil {
-		return fmt.Errorf("failed to convert model: %w", err)
-	}
-	if !res {
-		return errors.New("failed to convert model: conversion returned false")
-	}
-	return nil
+	return errUnsupportedFeature
 }
 
 // Re-export utility functions from external package for convenience
@@ -1334,11 +743,7 @@ var EncodeVideo = sd.EncodeVideo
 
 // PreprocessCanny preprocesses image with Canny edge detection
 func PreprocessCanny(image sd.SDImage, highThreshold, lowThreshold, weak, strong float32, inverse bool) bool {
-	lib := getInternalSD()
-	if lib == nil {
-		return false
-	}
-	return lib.PreprocessCanny(image, highThreshold, lowThreshold, weak, strong, inverse)
+	return false
 }
 
 // generateImageFromPath generates SDImage from path (internal helper)
@@ -1388,10 +793,8 @@ func generateImagesFromPaths(paths []string) []sd.SDImage {
 
 // SetProgressCallback sets the progress callback for the internal SD instance
 func SetProgressCallback(cb func(step int, steps int, time float32, data interface{}), data interface{}) {
-	lib := getInternalSD()
-	if lib != nil {
-		lib.SetProgressCallback(cb, data)
-	}
+	_ = cb
+	_ = data
 }
 
 // CleanupTempDir cleans up temporary directory

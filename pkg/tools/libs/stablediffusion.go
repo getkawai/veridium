@@ -3,7 +3,6 @@ package libs
 import (
 	"context"
 
-	"github.com/kawai-network/stablediffusion"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/download"
 	sddownload "github.com/kawai-network/veridium/pkg/stablediffusion/download"
 )
@@ -36,5 +35,5 @@ func (d *sdDownloader) Download(ctx context.Context, arch, os, processor, versio
 }
 
 func (d *sdDownloader) LibraryName(os string) string {
-	return stablediffusion.LibraryName()
+	return sddownload.LibraryName()
 }

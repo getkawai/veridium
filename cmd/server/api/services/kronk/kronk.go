@@ -571,8 +571,9 @@ type stableDiffusionModelBundle struct {
 func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardware.HardwareSpecs) (*sd.StableDiffusion, *sd.StableDiffusion, error) {
 	log.Info(ctx, "startup", "status", "initializing stable diffusion")
 
+	libPath := sd.GetLibraryPath()
 	if !sd.IsLibraryInstalled() {
-		return nil, nil, fmt.Errorf("stable diffusion library not found. "+SetupRequiredMsg, "install SD library")
+		return nil, nil, fmt.Errorf("stable diffusion backend library not found at %s. "+SetupRequiredMsg, libPath, "install SD library")
 	}
 
 	modelsPath := paths.Models()
@@ -592,9 +593,8 @@ func initStableDiffusion(ctx context.Context, log *logger.Logger, hwSpecs *hardw
 		FlowShift:          3.0,
 	}
 
-	libPath := sd.GetLibraryPath()
 	if err := sd.InitLibrary(libPath); err != nil {
-		return nil, nil, fmt.Errorf("failed to initialize stable diffusion library at %s: %w", libPath, err)
+		return nil, nil, fmt.Errorf("failed to initialize stable diffusion backend library at %s: %w", libPath, err)
 	}
 
 	generationEngine, err := sd.NewStableDiffusion(ctxParams)
