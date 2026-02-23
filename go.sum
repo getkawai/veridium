@@ -380,8 +380,6 @@ github.com/kawai-network/contracts v0.1.2 h1:lEErCAmaqcM+awaA3NvXbi6g9EaUUcS2pzK
 github.com/kawai-network/contracts v0.1.2/go.mod h1:5IlXMg8uQ7GOqM+hu33T51/xbnZEmQ0xknl4UZu0rUI=
 github.com/kawai-network/grab v0.1.0 h1:fqL+IK+AjvyB0F3Rab0xFOw0+jTZawiqQnumgmIWmNs=
 github.com/kawai-network/grab v0.1.0/go.mod h1:yZ+7Bf10u8Dgr3GtAHgLv37wOSXewtU3GlxD/kNhqks=
-github.com/kawai-network/stablediffusion v0.1.1 h1:hXc74w8VBB34TVJLRjwgYFAGXJ+3wk3s788rm4cd44Q=
-github.com/kawai-network/stablediffusion v0.1.1/go.mod h1:+4JGw9AnxfuI6g6PMI1b5Z3j0P/WYmsxnt4kL8SZ37w=
 github.com/kawai-network/whisper v0.4.0 h1:HcypCIoG9QPON0XmXnLkI2d+VlEENBxUa8TwkybMUek=
 github.com/kawai-network/whisper v0.4.0/go.mod h1:cq5yqj3mTh2SPp7MnlkLN7MwNiI+ljGEoQ0lk20tFzY=
 github.com/kawai-network/x v1.0.15 h1:C+Ge4In1EsxIDWxB5EPeEvYuxR+os8Cs1OGa7JqRyP0=

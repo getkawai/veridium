@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	gosd "github.com/getkawai/stablediffusion"
-	sd "github.com/kawai-network/stablediffusion"
 )
 
 // internalSDMu protects initialization state
@@ -185,48 +184,48 @@ type Lora struct {
 
 // PMParams PhotoMaker parameters structure for defining PhotoMaker related parameters
 type PMParams struct {
-	IDImages      *sd.SDImage // ID images pointer
-	IDImagesCount int32       // Number of ID images
-	IDEmbedPath   string      // PhotoMaker v2 ID embedding path
-	StyleStrength float32     // Strength to keep PhotoMaker input identity
+	IDImages      *SDImage // ID images pointer
+	IDImagesCount int32    // Number of ID images
+	IDEmbedPath   string   // PhotoMaker v2 ID embedding path
+	StyleStrength float32  // Strength to keep PhotoMaker input identity
 }
 
 // ImgGenParams image generation parameters structure for defining image generation related parameters
 type ImgGenParams struct {
-	Loras              *Lora             // LoRA parameters
-	LoraCount          uint32            // Number of LoRAs
-	Prompt             string            // Prompt to render
-	NegativePrompt     string            // Negative prompt
-	ClipSkip           int32             // Skip last layers of CLIP network (1 = no skip, 2 = skip one layer, <=0 = not specified)
-	InitImagePath      string            // Initial image path for guidance
-	RefImagesPath      []string          // Array of reference image paths for Flux Kontext models
-	RefImagesCount     int32             // Number of reference images
-	AutoResizeRefImage bool              // Whether to auto-resize reference images
-	IncreaseRefIndex   bool              // Whether to auto-increase index based on reference image list order (starting from 1)
-	MaskImagePath      string            // Inpainting mask image path
-	Width              int32             // Image width (pixels)
-	Height             int32             // Image height (pixels)
-	CfgScale           float32           // Unconditional guidance scale.
-	ImageCfgScale      float32           // Image guidance scale for inpaint or instruct-pix2pix models (default: same as `CfgScale`).
-	DistilledGuidance  float32           // Distilled guidance scale for models with guidance input.
-	SkipLayers         []int32           // Layers to skip for SLG steps (SLG will be enabled at step int([STEPS]x[START]) and disabled at int([STEPS]x[END])).
-	SkipLayerStart     float32           // SLG enabling point.
-	SkipLayerEnd       float32           // SLG disabling point.
-	SlgScale           float32           // Skip layer guidance (SLG) scale, only for DiT models.
-	Scheduler          string            // Denoiser sigma scheduler (default: discrete).
-	SampleMethod       string            // Sampling method (default: euler for Flux/SD3/Wan, euler_a otherwise).
-	SampleSteps        int32             // Number of sample steps.
-	Eta                float32           // Eta in DDIM, only for DDIM and TCD.
-	ShiftedTimestep    int32             // Shift timestep for NitroFusion models, default: 0, recommended N for NitroSD-Realism around 250 and 500 for NitroSD-Vibrant.
-	CustomSigmas       []float32         // Custom sigma values for the sampler, comma-separated (e.g. "14.61,7.8,3.5,0.0").
-	Strength           float32           // Noise/denoise strength (range [0.0, 1.0])
-	Seed               int64             // RNG seed (< 0 for random seed)
-	BatchCount         int32             // Number of images to generate
-	ControlImagePath   string            // Control condition image path for ControlNet
-	ControlStrength    float32           // Strength to apply ControlNet
-	PMParams           *PMParams         // PhotoMaker parameters
-	VAETilingParams    sd.SDTilingParams // VAE tiling parameters for reducing memory usage
-	CacheParams        sd.SDCacheParams  // Cache parameters for DiT models
+	Loras              *Lora          // LoRA parameters
+	LoraCount          uint32         // Number of LoRAs
+	Prompt             string         // Prompt to render
+	NegativePrompt     string         // Negative prompt
+	ClipSkip           int32          // Skip last layers of CLIP network (1 = no skip, 2 = skip one layer, <=0 = not specified)
+	InitImagePath      string         // Initial image path for guidance
+	RefImagesPath      []string       // Array of reference image paths for Flux Kontext models
+	RefImagesCount     int32          // Number of reference images
+	AutoResizeRefImage bool           // Whether to auto-resize reference images
+	IncreaseRefIndex   bool           // Whether to auto-increase index based on reference image list order (starting from 1)
+	MaskImagePath      string         // Inpainting mask image path
+	Width              int32          // Image width (pixels)
+	Height             int32          // Image height (pixels)
+	CfgScale           float32        // Unconditional guidance scale.
+	ImageCfgScale      float32        // Image guidance scale for inpaint or instruct-pix2pix models (default: same as `CfgScale`).
+	DistilledGuidance  float32        // Distilled guidance scale for models with guidance input.
+	SkipLayers         []int32        // Layers to skip for SLG steps (SLG will be enabled at step int([STEPS]x[START]) and disabled at int([STEPS]x[END])).
+	SkipLayerStart     float32        // SLG enabling point.
+	SkipLayerEnd       float32        // SLG disabling point.
+	SlgScale           float32        // Skip layer guidance (SLG) scale, only for DiT models.
+	Scheduler          string         // Denoiser sigma scheduler (default: discrete).
+	SampleMethod       string         // Sampling method (default: euler for Flux/SD3/Wan, euler_a otherwise).
+	SampleSteps        int32          // Number of sample steps.
+	Eta                float32        // Eta in DDIM, only for DDIM and TCD.
+	ShiftedTimestep    int32          // Shift timestep for NitroFusion models, default: 0, recommended N for NitroSD-Realism around 250 and 500 for NitroSD-Vibrant.
+	CustomSigmas       []float32      // Custom sigma values for the sampler, comma-separated (e.g. "14.61,7.8,3.5,0.0").
+	Strength           float32        // Noise/denoise strength (range [0.0, 1.0])
+	Seed               int64          // RNG seed (< 0 for random seed)
+	BatchCount         int32          // Number of images to generate
+	ControlImagePath   string         // Control condition image path for ControlNet
+	ControlStrength    float32        // Strength to apply ControlNet
+	PMParams           *PMParams      // PhotoMaker parameters
+	VAETilingParams    SDTilingParams // VAE tiling parameters for reducing memory usage
+	CacheParams        SDCacheParams  // Cache parameters for DiT models
 }
 
 // VidGenParams video generation parameters structure for defining video generation related parameters
@@ -271,12 +270,12 @@ type VidGenParams struct {
 	HighNoiseShiftedTimestep   int32     // Shift timestep for NitroFusion models, default: 0, recommended N for NitroSD-Realism around 250 and 500 for NitroSD-Vibrant.
 	HighNoiseCustomSigmas      []float32 // Custom sigma values for the sampler, comma-separated (e.g. "14.61,7.8,3.5,0.0").
 
-	MOEBoundary  float32          // Timestep boundary for Wan2.2 MoE models
-	Strength     float32          // Noise/denoise strength (range [0.0, 1.0])
-	Seed         int64            // RNG seed (< 0 for random seed)
-	VideoFrames  int32            // Number of video frames to generate
-	VaceStrength float32          // Wan VACE strength
-	CacheParams  sd.SDCacheParams // Cache parameters for DiT models
+	MOEBoundary  float32       // Timestep boundary for Wan2.2 MoE models
+	Strength     float32       // Noise/denoise strength (range [0.0, 1.0])
+	Seed         int64         // RNG seed (< 0 for random seed)
+	VideoFrames  int32         // Number of video frames to generate
+	VaceStrength float32       // Wan VACE strength
+	CacheParams  SDCacheParams // Cache parameters for DiT models
 }
 
 // StableDiffusion is the main structure for interacting with the Stable Diffusion library.
@@ -618,48 +617,34 @@ func Convert(inputPath, vaePath, outputPath, outputType, tensorTypeRules string,
 	return errUnsupportedFeature
 }
 
-// Re-export utility functions from external package for convenience
-
-// LoadImage loads an image from file and converts to SDImage format
-var LoadImage = sd.LoadImage
-
-// SaveImage saves SDImage as PNG file
-var SaveImage = sd.SaveImage
-
-// SaveFrames saves all video frames as PNG files
-var SaveFrames = sd.SaveFrames
-
-// EncodeVideo encodes PNG frame sequence to video using FFmpeg
-var EncodeVideo = sd.EncodeVideo
-
 // PreprocessCanny preprocesses image with Canny edge detection
-func PreprocessCanny(image sd.SDImage, highThreshold, lowThreshold, weak, strong float32, inverse bool) bool {
+func PreprocessCanny(image SDImage, highThreshold, lowThreshold, weak, strong float32, inverse bool) bool {
 	return false
 }
 
 // generateImageFromPath generates SDImage from path (internal helper)
-func generateImageFromPath(imagePath string) sd.SDImage {
+func generateImageFromPath(imagePath string) SDImage {
 	if imagePath == "" {
-		return sd.SDImage{}
+		return SDImage{}
 	}
 
-	img, err := sd.LoadImage(imagePath)
+	img, err := LoadImage(imagePath)
 	if err != nil {
 		fmt.Println("Error loading image:", err)
-		return sd.SDImage{}
+		return SDImage{}
 	}
 	return img
 }
 
 // generateImagesFromPaths generates multiple SDImages from paths (internal helper)
 // Returns the slice of images to ensure the underlying array stays alive during C library calls
-func generateImagesFromPaths(paths []string) []sd.SDImage {
+func generateImagesFromPaths(paths []string) []SDImage {
 	if len(paths) == 0 {
 		return nil
 	}
 
 	// Create SDImage slice
-	images := make([]sd.SDImage, 0, len(paths))
+	images := make([]SDImage, 0, len(paths))
 
 	// Iterate through all paths, generate SDImage
 	for _, p := range paths {

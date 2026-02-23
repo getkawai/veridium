@@ -29,7 +29,6 @@ require (
 	github.com/kawai-network/TTS.cpp/bindings/go v0.1.4
 	github.com/kawai-network/contracts v0.1.2
 	github.com/kawai-network/grab v0.1.0
-	github.com/kawai-network/stablediffusion v0.1.1
 	github.com/kawai-network/whisper v0.4.0
 	github.com/kawai-network/x v1.0.15
 	github.com/kawai-network/y v0.1.2

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kawai-network/stablediffusion"
+	"github.com/kawai-network/veridium/pkg/stablediffusion"
 )
 
 func main() {
@@ -13,30 +13,17 @@ func main() {
 
 	// Initialize library
 	fmt.Println("\n1. Loading library...")
-	sd, err := stablediffusion.New(stablediffusion.LibraryConfig{LibPath: "./lib"})
-	if err != nil {
+	libPath := stablediffusion.GetLibraryPath()
+	if err := stablediffusion.InitLibrary(libPath); err != nil {
 		fmt.Printf("❌ Failed to load library: %v\n", err)
-		fmt.Println("   Make sure the stable-diffusion library is available in ./lib")
+		fmt.Printf("   Make sure the stable-diffusion library is available at %s\n", libPath)
 		os.Exit(1)
 	}
-	defer sd.Close()
 	fmt.Println("✅ Library loaded successfully!")
 
-	// Test basic context params initialization
-	fmt.Println("\n2. Testing context params initialization...")
-	var ctxParams stablediffusion.SDContextParams
-	sd.ContextParamsInit(&ctxParams)
-	fmt.Println("✅ Context params initialized!")
-
-	// Get system info
-	fmt.Println("\n3. Getting system info...")
-	sysInfo := sd.GetSystemInfo()
-	fmt.Printf("System Info: %s\n", sysInfo)
-
-	// Get version
-	fmt.Println("\n4. Getting version info...")
-	version := sd.Version()
-	commit := sd.Commit()
+	fmt.Println("\n2. Getting version info...")
+	version := stablediffusion.GetLibraryVersion()
+	commit := "n/a"
 	fmt.Printf("Version: %s\n", version)
 	fmt.Printf("Commit: %s\n", commit)
 
