@@ -39,6 +39,11 @@ var assets embed.FS
 func main() {
 	// Production-only build
 
+	// Force local data directory in development mode.
+	if os.Getenv("VERIDIUM_DEV") == "1" {
+		paths.SetDataDir("data")
+	}
+
 	// Initialize environment configuration
 	if err := config.Initialize(); err != nil {
 		log.Fatalf("Failed to initialize config: %v", err)

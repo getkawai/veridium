@@ -6,9 +6,17 @@ import (
 	"os"
 
 	"github.com/kawai-network/veridium/cmd/server/api/services/kronk"
+	"github.com/kawai-network/veridium/internal/paths"
 )
 
 func main() {
+	// Use local data directory in development, user path in production.
+	if os.Getenv("VERIDIUM_DEV") == "1" {
+		paths.SetDataDir("data")
+	} else {
+		paths.SetDataDir(paths.UserDataDir())
+	}
+
 	// Check for subcommands first
 	if len(os.Args) > 1 {
 		switch os.Args[1] {

@@ -36,3 +36,4 @@ internal/go-whisper/
 
 # Python virtual environment for docs
 venv/
+contributor-dev.log

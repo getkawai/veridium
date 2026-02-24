@@ -310,9 +310,9 @@ contributor-dev:
 	@echo "🔥 Starting contributor node (dev mode)..."
 	@if ! command -v air >/dev/null 2>&1; then \
 		echo "Installing air..."; \
-		go install github.com/cosmtrek/air@latest; \
+		go install github.com/air-verse/air@latest; \
 	fi
-	@air -c .air.toml 2>&1 | tee contributor-dev.log || go run ./$(CONTRIBUTOR_SRC)
+	@VERIDIUM_DEV=1 air -c .air.toml 2>&1 | tee contributor-dev.log || VERIDIUM_DEV=1 go run ./$(CONTRIBUTOR_SRC)
 
 # Fresh dev mode (reset data)
 contributor-dev-fresh:

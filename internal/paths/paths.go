@@ -42,34 +42,7 @@ func ensureInit() {
 	if dataDir == "" {
 		if IsPackaged() {
 			// Running from packaged app - use platform-specific user data directory
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				dataDir = "data" // Fallback
-			} else {
-				switch runtime.GOOS {
-				case "darwin":
-					dataDir = filepath.Join(homeDir, "Library", "Application Support", "Kawai")
-				case "windows":
-					// Prefer APPDATA, fallback to LOCALAPPDATA
-					if appData := os.Getenv("APPDATA"); appData != "" {
-						dataDir = filepath.Join(appData, "Kawai")
-					} else if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-						dataDir = filepath.Join(localAppData, "Kawai")
-					} else {
-						dataDir = filepath.Join(homeDir, "AppData", "Roaming", "Kawai")
-					}
-				case "linux":
-					// Follow XDG Base Directory specification
-					if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
-						dataDir = filepath.Join(xdgConfig, "Kawai")
-					} else {
-						dataDir = filepath.Join(homeDir, ".config", "Kawai")
-					}
-				default:
-					// Other Unix-like systems
-					dataDir = filepath.Join(homeDir, ".config", "Kawai")
-				}
-			}
+			dataDir = UserDataDir()
 		} else {
 			// Running from terminal or development - use relative path
 			dataDir = "data"
@@ -83,6 +56,37 @@ func ensureInit() {
 func Base() string {
 	ensureInit()
 	return dataDir
+}
+
+// UserDataDir returns the platform-specific user data directory.
+// macOS:   ~/Library/Application Support/Kawai
+// Windows: %APPDATA%\Kawai (fallback: %LOCALAPPDATA%\Kawai)
+// Linux:   $XDG_CONFIG_HOME/Kawai (fallback: ~/.config/Kawai)
+func UserDataDir() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "data"
+	}
+
+	switch runtime.GOOS {
+	case "darwin":
+		return filepath.Join(homeDir, "Library", "Application Support", "Kawai")
+	case "windows":
+		if appData := os.Getenv("APPDATA"); appData != "" {
+			return filepath.Join(appData, "Kawai")
+		}
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			return filepath.Join(localAppData, "Kawai")
+		}
+		return filepath.Join(homeDir, "AppData", "Roaming", "Kawai")
+	case "linux":
+		if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
+			return filepath.Join(xdgConfig, "Kawai")
+		}
+		return filepath.Join(homeDir, ".config", "Kawai")
+	default:
+		return filepath.Join(homeDir, ".config", "Kawai")
+	}
 }
 
 // IsPackaged returns true if running from a packaged app bundle
