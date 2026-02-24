@@ -190,8 +190,6 @@ github.com/gabriel-vasile/mimetype v1.4.13 h1:46nXokslUBsAJE/wMsp5gtO500a4F3Nkz9
 github.com/gabriel-vasile/mimetype v1.4.13/go.mod h1:d+9Oxyo1wTzWdyVUPMmXFvp4F9tea18J8ufA774AB3s=
 github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff h1:tY80oXqGNY4FhTFhk+o9oFHGINQ/+vhlm8HFzi6znCI=
 github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff/go.mod h1:x7DCsMOv1taUwEWCzT4cmDeAkigA5/QCwUodaVOe8Ww=
-github.com/getkawai/stablediffusion v0.0.0-20260223082942-6d24f864311a h1:HnxOz3BP9BhV/o2xhRijA82/Q4i7zhCHlGfjee1LAYc=
-github.com/getkawai/stablediffusion v0.0.0-20260223082942-6d24f864311a/go.mod h1:1dc/3dGpVZidb+qc2KaAgui0wkwsg/VG8PRGV5U/K+U=
 github.com/getkawai/stablediffusion v0.1.4 h1:xKxdR1UzfAHV7d69d5N2DatjTw9LzeESDVBzY64UKt0=
 github.com/getkawai/stablediffusion v0.1.4/go.mod h1:1dc/3dGpVZidb+qc2KaAgui0wkwsg/VG8PRGV5U/K+U=
 github.com/getsentry/sentry-go v0.40.0 h1:VTJMN9zbTvqDqPwheRVLcp0qcUcM+8eFivvGocAaSbo=

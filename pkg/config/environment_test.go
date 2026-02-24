@@ -32,6 +32,13 @@ func TestConfigFromRPCURL(t *testing.T) {
 			wantIsTestnet: false,
 		},
 		{
+			name:          "default monad rpc url",
+			rpcURL:        "https://rpc.monad.xyz",
+			wantEnv:       EnvironmentMainnet,
+			wantChainID:   143,
+			wantIsTestnet: false,
+		},
+		{
 			name:    "invalid url",
 			rpcURL:  "https://rpc.local",
 			wantErr: true,

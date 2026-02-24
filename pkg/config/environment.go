@@ -28,8 +28,9 @@ var currentConfig *Config
 
 func configFromRPCURL(rpcURL string) (*Config, error) {
 	cfg := &Config{}
+	normalizedRPCURL := strings.ToLower(rpcURL)
 
-	if strings.Contains(rpcURL, "testnet") {
+	if strings.Contains(normalizedRPCURL, "testnet") {
 		cfg.Environment = EnvironmentTestnet
 		cfg.IsTestnet = true
 		cfg.IsMainnet = false
@@ -38,7 +39,8 @@ func configFromRPCURL(rpcURL string) (*Config, error) {
 		return cfg, nil
 	}
 
-	if strings.Contains(rpcURL, "mainnet") {
+	// Default Monad public RPC host maps to mainnet.
+	if strings.Contains(normalizedRPCURL, "mainnet") || strings.Contains(normalizedRPCURL, "rpc.monad.xyz") {
 		cfg.Environment = EnvironmentMainnet
 		cfg.IsTestnet = false
 		cfg.IsMainnet = true
