@@ -172,7 +172,7 @@ func startHealthMonitor() {
 
 func checkHealth() error {
     // Check RPC connection
-    client, err := ethclient.Dial(constant.MonadRpcUrl)
+    client, err := ethclient.Dial(contracts.MonadRpcUrl)
     if err != nil {
         return fmt.Errorf("RPC connection failed: %w", err)
     }
@@ -234,7 +234,7 @@ func MonitorContractBalances() {
             
             // Check cashback distributor
             if err := checkDistributorBalance(ctx, 
-                constant.CashbackDistributorAddress, 
+                contracts.CashbackDistributorAddress, 
                 "Cashback", 
                 big.NewInt(5000), // Alert if <5k KAWAI
                 alerter); err != nil {
@@ -246,13 +246,13 @@ func MonitorContractBalances() {
 }
 
 func checkDistributorBalance(ctx context.Context, distributorAddr, name string, threshold *big.Int, alerter *alert.TelegramAlert) error {
-    client, err := ethclient.Dial(constant.MonadRpcUrl)
+    client, err := ethclient.Dial(contracts.MonadRpcUrl)
     if err != nil {
         return err
     }
     defer client.Close()
     
-    tokenAddr := common.HexToAddress(constant.KawaiTokenAddress)
+    tokenAddr := common.HexToAddress(contracts.KawaiTokenAddress)
     token, err := kawaitoken.NewKawaiToken(tokenAddr, client)
     if err != nil {
         return err
@@ -304,7 +304,7 @@ func MonitorGasPrice() {
     go func() {
         for range ticker.C {
             ctx := context.Background()
-            client, err := ethclient.Dial(constant.MonadRpcUrl)
+            client, err := ethclient.Dial(contracts.MonadRpcUrl)
             if err != nil {
                 continue
             }

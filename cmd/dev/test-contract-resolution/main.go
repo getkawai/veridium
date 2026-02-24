@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
+	"github.com/kawai-network/veridium/pkg/jarvis/binding"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 
 	for _, name := range testNames {
 		fmt.Printf("Testing: %s\n", name)
-		addr, err := contracts.ResolveAddress(name)
+		addr, err := binding.ResolveAddress(name)
 		if err != nil {
 			fmt.Printf("  ❌ Error: %v\n", err)
 		} else {

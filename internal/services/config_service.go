@@ -3,7 +3,7 @@ package services
 import (
 	"strings"
 
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 // NetworkEnvironment represents a blockchain network
@@ -55,7 +55,7 @@ func (s *ConfigService) GetConfig() BackendConfig {
 	var isTestnet bool
 
 	// Try to determine from RPC URL as fallback
-	isTestnetRpc := strings.Contains(constant.MonadRpcUrl, "testnet")
+	isTestnetRpc := strings.Contains(contracts.MonadRpcUrl, "testnet")
 
 	if isTestnetRpc {
 		env = "testnet"
@@ -78,22 +78,22 @@ func (s *ConfigService) GetConfig() BackendConfig {
 		},
 		Contracts: ContractAddresses{
 			// Token Addresses
-			Usdt:  constant.StablecoinAddress,
-			Kawai: constant.KawaiTokenAddress,
+			Usdt:  contracts.StablecoinAddress,
+			Kawai: contracts.KawaiTokenAddress,
 
 			// Payment & Vault
-			PaymentVault: constant.PaymentVaultAddress,
+			PaymentVault: contracts.PaymentVaultAddress,
 
 			// OTC Market
-			OtcMarket: constant.OTCMarketAddress,
+			OtcMarket: contracts.OTCMarketAddress,
 
 			// Reward Distributors
-			MiningDistributor:   constant.MiningRewardDistributorAddress,
-			CashbackDistributor: constant.CashbackDistributorAddress,
-			ReferralDistributor: constant.ReferralDistributorAddress,
+			MiningDistributor:   contracts.MiningRewardDistributorAddress,
+			CashbackDistributor: contracts.CashbackDistributorAddress,
+			ReferralDistributor: contracts.ReferralDistributorAddress,
 
 			// Revenue Sharing
-			UsdtDistributor: constant.RevenueDistributorAddress,
+			UsdtDistributor: contracts.RevenueDistributorAddress,
 		},
 	}
 }

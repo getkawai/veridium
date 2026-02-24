@@ -13,6 +13,7 @@ import (
 	"github.com/kawai-network/contracts/vault"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 // DepositSyncService handles manual deposit synchronization from user client
@@ -26,13 +27,13 @@ type DepositSyncService struct {
 // NewDepositSyncService creates a new deposit sync service
 func NewDepositSyncService(kvStore *store.KVStore) (*DepositSyncService, error) {
 	// Connect to blockchain
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to blockchain: %w", err)
 	}
 
 	// Load PaymentVault contract
-	vaultAddr := common.HexToAddress(constant.PaymentVaultAddress)
+	vaultAddr := common.HexToAddress(contracts.PaymentVaultAddress)
 	vaultContract, err := vault.NewPaymentVault(vaultAddr, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load PaymentVault contract: %w", err)

@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/contracts/cashbackdistributor"
 	"github.com/kawai-network/veridium/pkg/store"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 // CashbackSettlement handles weekly cashback settlement
@@ -28,12 +28,12 @@ type CashbackSettlement struct {
 
 // NewCashbackSettlement creates a new cashback settlement service
 func NewCashbackSettlement(kvStore *store.KVStore, privateKey string) (*CashbackSettlement, error) {
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to blockchain: %w", err)
 	}
 
-	distributorAddr := common.HexToAddress(constant.CashbackDistributorAddress)
+	distributorAddr := common.HexToAddress(contracts.CashbackDistributorAddress)
 	distributor, err := cashbackdistributor.NewDepositCashbackDistributor(distributorAddr, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load distributor contract: %w", err)

@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/contracts/kawaitoken"
 	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 func main() {
@@ -23,15 +24,15 @@ func main() {
 	fmt.Println()
 
 	// Connect to Monad
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		log.Fatalf("Failed to connect to Monad: %v", err)
 	}
 	fmt.Printf("✓ Connected to Monad RPC\n")
-	fmt.Printf("  %s\n\n", constant.MonadRpcUrl)
+	fmt.Printf("  %s\n\n", contracts.MonadRpcUrl)
 
 	// Load KawaiToken contract
-	tokenAddr := common.HexToAddress(constant.KawaiTokenAddress)
+	tokenAddr := common.HexToAddress(contracts.KawaiTokenAddress)
 	token, err := kawaitoken.NewKawaiToken(tokenAddr, client)
 	if err != nil {
 		log.Fatalf("Failed to load KawaiToken: %v", err)

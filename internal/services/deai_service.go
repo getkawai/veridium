@@ -13,12 +13,13 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/kawai-network/x/alert"
 	"github.com/kawai-network/veridium/pkg/config"
-	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
+	"github.com/kawai-network/veridium/pkg/jarvis/binding"
 	"github.com/kawai-network/veridium/pkg/jarvis/networks"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/y/types"
 	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 // isUserError checks if an error is a user-caused error (not system error)
@@ -163,7 +164,7 @@ func (s *DeAIService) GetVaultBalance() (string, error) {
 
 	// 2. Load stablecoin contract (MockStablecoin on testnet, USDC on mainnet)
 	// Use Jarvis wrapper for cleaner code
-	stablecoin, err := contracts.Stablecoin(constant.StablecoinAddress, s.reader)
+	stablecoin, err := binding.Stablecoin(contracts.StablecoinAddress, s.reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to load stablecoin contract: %w", err)
 	}
@@ -192,11 +193,11 @@ func (s *DeAIService) GetKawaiBalance() (string, error) {
 	userAddr := s.wallet.GetCurrentAccountAddress()
 
 	// 2. Load KAWAI Token
-	kawaiAddr, err := contracts.ResolveAddress("KawaiToken")
+	kawaiAddr, err := binding.ResolveAddress("KawaiToken")
 	if err != nil {
 		return "", fmt.Errorf("KAWAI address not found: %w", err)
 	}
-	kawai, err := contracts.KawaiToken(kawaiAddr.Hex(), s.reader)
+	kawai, err := binding.KawaiToken(kawaiAddr.Hex(), s.reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to load KAWAI: %w", err)
 	}
@@ -231,11 +232,11 @@ func (s *DeAIService) GetKawaiBalanceFormatted() (string, error) {
 // GetKawaiTotalSupply returns the total supply of KAWAI tokens
 func (s *DeAIService) GetKawaiTotalSupply() (string, error) {
 	// Load KAWAI Token
-	kawaiAddr, err := contracts.ResolveAddress("KawaiToken")
+	kawaiAddr, err := binding.ResolveAddress("KawaiToken")
 	if err != nil {
 		return "", fmt.Errorf("KAWAI address not found: %w", err)
 	}
-	kawai, err := contracts.KawaiToken(kawaiAddr.Hex(), s.reader)
+	kawai, err := binding.KawaiToken(kawaiAddr.Hex(), s.reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to load KAWAI: %w", err)
 	}
@@ -313,8 +314,8 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 
 	// 2. Resolve Addresses
 	// Use constant which automatically switches based on environment
-	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
-	vaultAddr, err := contracts.ResolveAddress("PaymentVault")
+	stablecoinAddr := common.HexToAddress(contracts.StablecoinAddress)
+	vaultAddr, err := binding.ResolveAddress("PaymentVault")
 	if err != nil {
 		return "", fmt.Errorf("PaymentVault address not found: %w", err)
 	}
@@ -338,7 +339,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 			return "", fmt.Errorf("failed to get opts: %w", err)
 		}
 
-		stablecoin, err := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader)
+		stablecoin, err := binding.KawaiToken(stablecoinAddr.Hex(), s.reader)
 		if err != nil {
 			return "", fmt.Errorf("failed to load stablecoin contract: %w", err)
 		}
@@ -368,7 +369,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 		return "", fmt.Errorf("failed to get transaction opts: %w", err)
 	}
 
-	vault, err := contracts.Vault("PaymentVault", s.reader)
+	vault, err := binding.Vault("PaymentVault", s.reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to load vault: %w", err)
 	}
@@ -385,15 +386,15 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 // Note: Function name kept for backward compatibility, but works with any stablecoin
 func (s *DeAIService) GetUSDTAllowance(ownerStr string, spenderStr string) (string, error) {
 	owner := common.HexToAddress(ownerStr)
-	spender, err := contracts.ResolveAddress(spenderStr)
+	spender, err := binding.ResolveAddress(spenderStr)
 	if err != nil {
 		return "0", fmt.Errorf("invalid spender: %w", err)
 	}
 
 	// Use constant which automatically switches based on environment
-	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
+	stablecoinAddr := common.HexToAddress(contracts.StablecoinAddress)
 
-	stablecoin, err := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader)
+	stablecoin, err := binding.KawaiToken(stablecoinAddr.Hex(), s.reader)
 	if err != nil {
 		return "0", err
 	}
@@ -410,7 +411,7 @@ func (s *DeAIService) GetUSDTAllowance(ownerStr string, spenderStr string) (stri
 // Note: Function name kept for backward compatibility
 func (s *DeAIService) ApproveUSDT(spenderStr string, amountStr string) (string, error) {
 	// 1. Parse inputs
-	spender, err := contracts.ResolveAddress(spenderStr)
+	spender, err := binding.ResolveAddress(spenderStr)
 	if err != nil {
 		return "", fmt.Errorf("invalid spender address: %w", err)
 	}
@@ -429,9 +430,9 @@ func (s *DeAIService) ApproveUSDT(spenderStr string, amountStr string) (string, 
 
 	// 3. Load stablecoin contract
 	// Use constant which automatically switches based on environment
-	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
+	stablecoinAddr := common.HexToAddress(contracts.StablecoinAddress)
 
-	stablecoin, err := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader)
+	stablecoin, err := binding.KawaiToken(stablecoinAddr.Hex(), s.reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to load stablecoin contract: %w", err)
 	}
@@ -448,11 +449,11 @@ func (s *DeAIService) ApproveUSDT(spenderStr string, amountStr string) (string, 
 // ApproveToken approves a spender to spend a specific token
 func (s *DeAIService) ApproveToken(tokenName string, spenderStr string, amountStr string) (string, error) {
 	// 1. Resolve Addresses
-	tokenAddr, err := contracts.ResolveAddress(tokenName)
+	tokenAddr, err := binding.ResolveAddress(tokenName)
 	if err != nil {
 		return "", fmt.Errorf("token address not found: %w", err)
 	}
-	spender, err := contracts.ResolveAddress(spenderStr)
+	spender, err := binding.ResolveAddress(spenderStr)
 	if err != nil {
 		return "", fmt.Errorf("invalid spender address: %w", err)
 	}
@@ -472,7 +473,7 @@ func (s *DeAIService) ApproveToken(tokenName string, spenderStr string, amountSt
 	}
 
 	// 4. Load Token
-	token, err := contracts.KawaiToken(tokenAddr.Hex(), s.reader)
+	token, err := binding.KawaiToken(tokenAddr.Hex(), s.reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to load token: %w", err)
 	}
@@ -505,12 +506,12 @@ func (s *DeAIService) CreateSellOrder(tokenAmountStr string, priceStr string) (s
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
 
-	escrowAddr, err := contracts.ResolveAddress("OTCMarket")
+	escrowAddr, err := binding.ResolveAddress("OTCMarket")
 	if err != nil {
 		return "", fmt.Errorf("OTCMarket address not found: %w", err)
 	}
 
-	escrow, err := contracts.OTCMarket(escrowAddr.Hex(), s.reader)
+	escrow, err := binding.OTCMarket(escrowAddr.Hex(), s.reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to load OTCMarket: %w", err)
 	}
@@ -537,12 +538,12 @@ func (s *DeAIService) BuyOrder(orderIdStr string) (string, error) {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
 
-	escrowAddr, err := contracts.ResolveAddress("OTCMarket")
+	escrowAddr, err := binding.ResolveAddress("OTCMarket")
 	if err != nil {
 		return "", fmt.Errorf("OTCMarket address not found: %w", err)
 	}
 
-	escrow, err := contracts.OTCMarket(escrowAddr.Hex(), s.reader)
+	escrow, err := binding.OTCMarket(escrowAddr.Hex(), s.reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to load OTCMarket: %w", err)
 	}
@@ -573,8 +574,8 @@ func (s *DeAIService) MintTestTokens() (string, error) {
 
 	// 1. Mint stablecoin (MockStablecoin on testnet only)
 	// Use constant which automatically switches based on environment
-	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
-	stablecoin, _ := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader) // Using KawaiToken wrapper for mint
+	stablecoinAddr := common.HexToAddress(contracts.StablecoinAddress)
+	stablecoin, _ := binding.KawaiToken(stablecoinAddr.Hex(), s.reader) // Using KawaiToken wrapper for mint
 
 	// Mint 1000 stablecoin (6 decimals)
 	amount := new(big.Int).Mul(big.NewInt(1000), big.NewInt(1000000)) // 1000 * 10^6
@@ -591,7 +592,7 @@ func (s *DeAIService) MintTestTokens() (string, error) {
 func (s *DeAIService) TransferUSDT(to string, amountStr string) (string, error) {
 	// 1. Resolve Addresses
 	// Use constant which automatically switches based on environment
-	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
+	stablecoinAddr := common.HexToAddress(contracts.StablecoinAddress)
 	recipient := common.HexToAddress(to)
 
 	// 2. Parse Amount
@@ -609,7 +610,7 @@ func (s *DeAIService) TransferUSDT(to string, amountStr string) (string, error) 
 	}
 
 	// 4. Load Contract
-	stablecoin, err := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader)
+	stablecoin, err := binding.KawaiToken(stablecoinAddr.Hex(), s.reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to load stablecoin contract: %w", err)
 	}
@@ -707,7 +708,7 @@ func (s *DeAIService) TransferToken(tokenAddress string, to string, amountStr st
 
 	// 4. Load Contract Generic
 	// We use KawaiToken wrapper because it satisfies standard ERC20 interface
-	token, err := contracts.KawaiToken(tokenAddress, s.reader)
+	token, err := binding.KawaiToken(tokenAddress, s.reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to load token contract: %w", err)
 	}
@@ -875,7 +876,7 @@ func (s *DeAIService) ClaimUSDTReward(periodID int64, index uint64, amountStr st
 	}
 
 	// Load RevenueDistributor contract for revenue sharing
-	distributor, err := contracts.RevenueDistributor("RevenueDistributor", s.reader)
+	distributor, err := binding.RevenueDistributor("RevenueDistributor", s.reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load revenue distributor: %w", err)
 	}
@@ -966,7 +967,7 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 	}
 
 	// 2. Load DepositCashbackDistributor contract
-	distributor, err := contracts.CashbackDistributor("CashbackDistributor", s.reader)
+	distributor, err := binding.CashbackDistributor("CashbackDistributor", s.reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load cashback distributor: %w", err)
 	}
@@ -1110,7 +1111,7 @@ func (s *DeAIService) ClaimMiningReward(
 	fmt.Printf("🔄 Claiming mining reward: period %d (timestamp-based)\n", period)
 
 	// Load MiningRewardDistributor contract
-	distributor, err := contracts.MiningRewardDistributor("MiningRewardDistributor", s.reader)
+	distributor, err := binding.MiningRewardDistributor("MiningRewardDistributor", s.reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load mining distributor: %w", err)
 	}

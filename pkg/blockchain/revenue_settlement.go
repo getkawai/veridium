@@ -13,8 +13,9 @@ import (
 	"github.com/kawai-network/contracts/mockstablecoin"
 	"github.com/kawai-network/contracts/revenuedistributor"
 	"github.com/kawai-network/contracts/vault"
-	"github.com/kawai-network/veridium/pkg/merkle"
+	"github.com/kawai-network/y/merkle"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/contracts"
 	"github.com/kawai-network/x/constant"
 )
 
@@ -29,24 +30,24 @@ type RevenueSettlement struct {
 
 // NewRevenueSettlement creates a new revenue settlement instance
 func NewRevenueSettlement(kvStore *store.KVStore) (*RevenueSettlement, error) {
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Monad: %w", err)
 	}
 
-	vaultAddr := common.HexToAddress(constant.PaymentVaultAddress)
+	vaultAddr := common.HexToAddress(contracts.PaymentVaultAddress)
 	paymentVault, err := vault.NewPaymentVault(vaultAddr, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load PaymentVault: %w", err)
 	}
 
 	// Validate stablecoin address is configured
-	if constant.StablecoinAddress == "" {
+	if contracts.StablecoinAddress == "" {
 		return nil, fmt.Errorf("stablecoin address not configured")
 	}
 
 	// Load stablecoin token contract (USDC on mainnet, MockStablecoin on testnet)
-	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
+	stablecoinAddr := common.HexToAddress(contracts.StablecoinAddress)
 	if stablecoinAddr == (common.Address{}) {
 		return nil, fmt.Errorf("invalid stablecoin address: zero address")
 	}
@@ -389,7 +390,7 @@ func (rs *RevenueSettlement) WithdrawToDistributor(ctx context.Context, amount *
 	auth.Context = ctx
 
 	// Call PaymentVault.withdraw(RevenueDistributor, amount)
-	distributorAddr := common.HexToAddress(constant.RevenueDistributorAddress)
+	distributorAddr := common.HexToAddress(contracts.RevenueDistributorAddress)
 	tx, err := rs.paymentVault.Withdraw(auth, distributorAddr, amount)
 	if err != nil {
 		return fmt.Errorf("failed to withdraw to distributor: %w", err)
@@ -444,7 +445,7 @@ func (rs *RevenueSettlement) UploadMerkleRoot(ctx context.Context, merkleRoot [3
 	auth.Context = ctx
 
 	// Load Revenue Distributor contract
-	distributorAddr := common.HexToAddress(constant.RevenueDistributorAddress)
+	distributorAddr := common.HexToAddress(contracts.RevenueDistributorAddress)
 	distributor, err := revenuedistributor.NewRevenueDistributor(distributorAddr, rs.client)
 	if err != nil {
 		return fmt.Errorf("failed to load Revenue Distributor: %w", err)

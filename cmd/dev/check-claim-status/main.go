@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
+	"github.com/kawai-network/veridium/pkg/jarvis/binding"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 	}
 
 	// Connect to Monad RPC
-	nodes := map[string]string{"monad": constant.MonadRpcUrl}
+	nodes := map[string]string{"monad": contracts.MonadRpcUrl}
 	ethReader := reader.NewEthReaderGeneric(nodes, nil)
 
 	addr := common.HexToAddress(address)
@@ -46,7 +46,7 @@ func main() {
 
 	switch contractType {
 	case "mining":
-		distributor, err := contracts.MiningRewardDistributor("MiningRewardDistributor", ethReader)
+		distributor, err := binding.MiningRewardDistributor("MiningRewardDistributor", ethReader)
 		if err != nil {
 			log.Fatalf("Failed to load mining distributor: %v", err)
 		}
@@ -56,7 +56,7 @@ func main() {
 		}
 
 	case "cashback":
-		distributor, err := contracts.CashbackDistributor("CashbackDistributor", ethReader)
+		distributor, err := binding.CashbackDistributor("CashbackDistributor", ethReader)
 		if err != nil {
 			log.Fatalf("Failed to load cashback distributor: %v", err)
 		}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 // Environment represents the deployment environment
@@ -55,7 +55,7 @@ func configFromRPCURL(rpcURL string) (*Config, error) {
 // Initialize sets up the configuration based on environment variables
 // This should be called once at application startup
 func Initialize() error {
-	rpcURL := constant.MonadRpcUrl
+	rpcURL := contracts.MonadRpcUrl
 	cfg, err := configFromRPCURL(rpcURL)
 	if err != nil {
 		return err
@@ -105,17 +105,17 @@ func ValidateForProduction() error {
 
 	if cfg.IsMainnet {
 		// Mainnet-specific validations
-		if constant.StablecoinAddress == "0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc" {
+		if contracts.StablecoinAddress == "0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc" {
 			return fmt.Errorf("CRITICAL: Still using MockStablecoin address on mainnet! Update STABLECOIN_ADDRESS in .env.mainnet")
 		}
 
 		// Verify USDC address format
-		if !strings.HasPrefix(constant.StablecoinAddress, "0x") {
-			return fmt.Errorf("invalid stablecoin address format: %s", constant.StablecoinAddress)
+		if !strings.HasPrefix(contracts.StablecoinAddress, "0x") {
+			return fmt.Errorf("invalid stablecoin address format: %s", contracts.StablecoinAddress)
 		}
 
 		// Check that we're not using testnet RPC
-		if strings.Contains(constant.MonadRpcUrl, "testnet") {
+		if strings.Contains(contracts.MonadRpcUrl, "testnet") {
 			return fmt.Errorf("CRITICAL: Using testnet RPC URL on mainnet configuration")
 		}
 	}

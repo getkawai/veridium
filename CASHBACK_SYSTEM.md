@@ -287,7 +287,7 @@ func (s *DeAIService) ClaimCashbackReward(
     proof []string,
 ) (*ClaimResult, error) {
     // 1. Load CashbackDistributor contract
-    distributor, err := contracts.CashbackDistributor("CashbackDistributor", s.reader)
+    distributor, err := binding.CashbackDistributor("CashbackDistributor", s.reader)
     
     // 2. Parse amount
     amount := new(big.Int)

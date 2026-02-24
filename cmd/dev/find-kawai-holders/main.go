@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/pkg/blockchain"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 func main() {
@@ -21,7 +21,7 @@ func main() {
 	}
 
 	fmt.Println("🔍 Scanning for KAWAI holders...")
-	fmt.Printf("Token Address: %s\n", constant.KawaiTokenAddress)
+	fmt.Printf("Token Address: %s\n", contracts.KawaiTokenAddress)
 	fmt.Println()
 
 	// Get total supply
@@ -32,7 +32,7 @@ func main() {
 	fmt.Printf("📊 Total KAWAI Supply: %s\n\n", totalSupply.String())
 
 	// Get current block
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		log.Fatalf("Failed to connect to RPC: %v", err)
 	}

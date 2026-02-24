@@ -275,7 +275,7 @@ func Templates() string { return filepath.Join(Base(), "templates") }
 // =============================================================================
 
 // StableDiffusionOutputs returns path to SD generated images output directory
-func StableDiffusionOutputs() string { return filepath.Join(Base(), "outputs", "stable-diffusion") }
+func StableDiffusionOutputs() string { return filepath.Join(Base(), "files", "stable-diffusion") }
 
 // StableDiffusionLib returns path to SD library directory
 // Used by github.com/kawai-network/stablediffusion for library storage

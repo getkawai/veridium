@@ -23,6 +23,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/y/types"
 	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 var autoConfirm bool // Global flag for auto-confirmation
@@ -321,7 +322,7 @@ func uploadMiningRoot(ctx context.Context, kv store.Store) error {
 		fmt.Sprintf("📤 Uploading mining merkle root...\nPeriod: %d", latest.PeriodID))
 
 	// Connect to Monad RPC
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		alerter.SendAlert("ERROR", "Settlement",
 			fmt.Sprintf("❌ Failed to connect to RPC!\nError: %v", err))
@@ -330,7 +331,7 @@ func uploadMiningRoot(ctx context.Context, kv store.Store) error {
 	defer client.Close()
 
 	// Load MiningRewardDistributor contract
-	distributorAddr := common.HexToAddress(constant.MiningRewardDistributorAddress)
+	distributorAddr := common.HexToAddress(contracts.MiningRewardDistributorAddress)
 	distributor, err := miningdistributor.NewMiningRewardDistributor(distributorAddr, client)
 	if err != nil {
 		return fmt.Errorf("failed to load MiningRewardDistributor: %w", err)
@@ -490,7 +491,7 @@ func uploadCashbackRoot(ctx context.Context, kv *store.KVStore) error {
 		fmt.Sprintf("📤 Uploading cashback merkle root...\nPeriod: %d", latest.PeriodID))
 
 	// 2. Connect to Monad RPC
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		alerter.SendAlert("ERROR", "Settlement",
 			fmt.Sprintf("❌ Failed to connect to RPC!\nError: %v", err))
@@ -500,7 +501,7 @@ func uploadCashbackRoot(ctx context.Context, kv *store.KVStore) error {
 
 	// 3. Load DepositCashbackDistributor contract
 	// We use the generated binding
-	distributorAddr := common.HexToAddress(constant.CashbackDistributorAddress)
+	distributorAddr := common.HexToAddress(contracts.CashbackDistributorAddress)
 	distributor, err := cashbackdistributor.NewDepositCashbackDistributor(distributorAddr, client)
 	if err != nil {
 		return fmt.Errorf("failed to load DepositCashbackDistributor: %w", err)
@@ -647,7 +648,7 @@ func uploadReferralRoot(ctx context.Context, kv *store.KVStore) error {
 		fmt.Sprintf("📤 Uploading referral merkle root...\nPeriod: %d", periodID))
 
 	// 3. Connect to Monad RPC
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		alerter.SendAlert("ERROR", "Settlement",
 			fmt.Sprintf("❌ Failed to connect to RPC!\nError: %v", err))
@@ -656,7 +657,7 @@ func uploadReferralRoot(ctx context.Context, kv *store.KVStore) error {
 	defer client.Close()
 
 	// 4. Load ReferralRewardDistributor contract
-	distributorAddr := common.HexToAddress(constant.ReferralDistributorAddress)
+	distributorAddr := common.HexToAddress(contracts.ReferralDistributorAddress)
 	distributor, err := referraldistributor.NewReferralRewardDistributor(distributorAddr, client)
 	if err != nil {
 		return fmt.Errorf("failed to load ReferralRewardDistributor: %w", err)

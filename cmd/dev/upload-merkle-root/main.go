@@ -11,9 +11,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
+	"github.com/kawai-network/veridium/pkg/jarvis/binding"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
 	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 func main() {
@@ -52,14 +53,14 @@ func main() {
 	}
 
 	// Connect to Monad RPC
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		log.Fatalf("Failed to connect to Monad RPC: %v", err)
 	}
 	defer client.Close()
 
 	// Create reader for contracts
-	nodes := map[string]string{"monad": constant.MonadRpcUrl}
+	nodes := map[string]string{"monad": contracts.MonadRpcUrl}
 	ethReader := reader.NewEthReaderGeneric(nodes, nil)
 
 	// Get chain ID
@@ -92,7 +93,7 @@ func main() {
 
 	switch contractType {
 	case "mining":
-		distributor, err := contracts.MiningRewardDistributor("MiningRewardDistributor", ethReader)
+		distributor, err := binding.MiningRewardDistributor("MiningRewardDistributor", ethReader)
 		if err != nil {
 			log.Fatalf("Failed to load mining distributor: %v", err)
 		}
@@ -103,7 +104,7 @@ func main() {
 		txHash = tx.Hash().Hex()
 
 	case "cashback":
-		distributor, err := contracts.CashbackDistributor("CashbackDistributor", ethReader)
+		distributor, err := binding.CashbackDistributor("CashbackDistributor", ethReader)
 		if err != nil {
 			log.Fatalf("Failed to load cashback distributor: %v", err)
 		}
@@ -114,7 +115,7 @@ func main() {
 		txHash = tx.Hash().Hex()
 
 	case "referral":
-		distributor, err := contracts.ReferralRewardDistributor("ReferralRewardDistributor", ethReader)
+		distributor, err := binding.ReferralRewardDistributor("ReferralRewardDistributor", ethReader)
 		if err != nil {
 			log.Fatalf("Failed to load referral distributor: %v", err)
 		}

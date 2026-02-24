@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/contracts/kawaitoken"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 // Phase represents the current operational phase of the platform
@@ -37,12 +37,12 @@ type PhaseDetector struct {
 
 // NewPhaseDetector creates a new phase detector
 func NewPhaseDetector() (*PhaseDetector, error) {
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Monad: %w", err)
 	}
 
-	tokenAddr := common.HexToAddress(constant.KawaiTokenAddress)
+	tokenAddr := common.HexToAddress(contracts.KawaiTokenAddress)
 
 	return &PhaseDetector{
 		client:        client,

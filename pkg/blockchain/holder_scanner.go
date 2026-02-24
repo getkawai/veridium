@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/contracts/kawaitoken"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 // KawaiHolder represents a KAWAI token holder
@@ -28,12 +28,12 @@ type HolderScanner struct {
 
 // NewHolderScanner creates a new holder scanner
 func NewHolderScanner() (*HolderScanner, error) {
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Monad: %w", err)
 	}
 
-	tokenAddr := common.HexToAddress(constant.KawaiTokenAddress)
+	tokenAddr := common.HexToAddress(contracts.KawaiTokenAddress)
 	kawaiToken, err := kawaitoken.NewKawaiToken(tokenAddr, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load KawaiToken: %w", err)
@@ -142,10 +142,10 @@ func (hs *HolderScanner) ScanHoldersLatest(ctx context.Context) ([]*KawaiHolder,
 	}
 
 	// Use configured start block from constants
-	startBlock := big.NewInt(constant.HolderScanStartBlock)
+	startBlock := big.NewInt(contracts.HolderScanStartBlock)
 
-	if constant.HolderScanStartBlock > 0 {
-		log.Printf("📊 [HOLDER SCANNER] Using configured start block: %d", constant.HolderScanStartBlock)
+	if contracts.HolderScanStartBlock > 0 {
+		log.Printf("📊 [HOLDER SCANNER] Using configured start block: %d", contracts.HolderScanStartBlock)
 	}
 
 	// Scan from start block to latest

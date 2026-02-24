@@ -27,11 +27,11 @@ require (
 	github.com/jupiterrider/ffi v0.5.1
 	github.com/kaptinlin/jsonschema v0.6.2
 	github.com/kawai-network/TTS.cpp/bindings/go v0.1.4
-	github.com/kawai-network/contracts v0.1.2
+	github.com/kawai-network/contracts v0.1.3
 	github.com/kawai-network/grab v0.1.0
 	github.com/kawai-network/whisper v0.4.0
-	github.com/kawai-network/x v1.0.15
-	github.com/kawai-network/y v0.1.2
+	github.com/kawai-network/x v1.0.19
+	github.com/kawai-network/y v0.1.3
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/nikolalohinski/gonja/v2 v2.5.0
 	github.com/openai/openai-go/v2 v2.7.1

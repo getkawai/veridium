@@ -14,6 +14,7 @@ import (
 	"github.com/kawai-network/contracts/mockstablecoin"
 	"github.com/kawai-network/veridium/pkg/config"
 	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 func main() {
@@ -25,14 +26,14 @@ func main() {
 	ctx := context.Background()
 
 	// Connect to Monad testnet
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		log.Fatalf("Failed to connect to Monad: %v", err)
 	}
 	defer client.Close()
 
 	// Load stablecoin contract (MockStablecoin on testnet)
-	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
+	stablecoinAddr := common.HexToAddress(contracts.StablecoinAddress)
 	stablecoinContract, err := mockstablecoin.NewMockStablecoin(stablecoinAddr, client)
 	if err != nil {
 		log.Fatalf("Failed to load stablecoin contract: %v", err)
@@ -65,7 +66,7 @@ func main() {
 	amount := new(big.Int)
 	amount.SetString("1000000000", 10) // 1000 stablecoin (6 decimals)
 
-	paymentVault := common.HexToAddress(constant.PaymentVaultAddress)
+	paymentVault := common.HexToAddress(contracts.PaymentVaultAddress)
 
 	fmt.Println("═══════════════════════════════════════════════════════════")
 	fmt.Println("💵 Injecting Test Stablecoin to PaymentVault")

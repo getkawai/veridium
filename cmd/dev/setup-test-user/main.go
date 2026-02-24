@@ -16,7 +16,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/y/types"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 func main() {
@@ -76,7 +76,7 @@ func main() {
 
 func sendMON(toAddress common.Address) error {
 	// Connect to RPC
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		return fmt.Errorf("failed to connect to RPC: %w", err)
 	}

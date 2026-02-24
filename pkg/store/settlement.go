@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/y/types"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 // SettlementSnapshot represents a snapshot of contributor balances for settlement
@@ -567,7 +567,7 @@ func (s *KVStore) checkTxConfirmed(ctx context.Context, txHash string) bool {
 		return false
 	}
 
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		slog.Warn("Failed to connect to RPC for tx check", "error", err)
 		return false

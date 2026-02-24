@@ -110,7 +110,7 @@ if allowanceBig.Cmp(amount) < 0 {
     // Allowance insufficient, need approval
     
     // Load USDC contract
-    stablecoin, _ := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader)
+    stablecoin, _ := binding.KawaiToken(stablecoinAddr.Hex(), s.reader)
     
     // Approve PaymentVault to spend amount
     tx, _ := stablecoin.Approve(opts, vaultAddr, amount)
@@ -138,7 +138,7 @@ Gas: ~50,000
 
 ```go
 // Load PaymentVault contract
-vault, _ := contracts.Vault("PaymentVault", s.reader)
+vault, _ := binding.Vault("PaymentVault", s.reader)
 
 // Call deposit function
 tx, _ := vault.Deposit(opts, amount)

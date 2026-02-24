@@ -19,6 +19,7 @@ import (
 	"github.com/kawai-network/contracts/miningdistributor"
 	"github.com/kawai-network/contracts/referraldistributor"
 	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 var (
@@ -42,7 +43,7 @@ func main() {
 	}
 
 	// Connect to RPC
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		log.Fatalf("Failed to connect to RPC: %v", err)
 	}
@@ -90,7 +91,7 @@ func main() {
 	auth.GasLimit = 100000
 
 	fmt.Printf("🔐 Admin Address: %s\n", fromAddress.Hex())
-	fmt.Printf("🌐 RPC: %s\n", constant.MonadRpcUrl)
+	fmt.Printf("🌐 RPC: %s\n", contracts.MonadRpcUrl)
 	fmt.Printf("⛓️  Chain ID: %s\n\n", chainID.String())
 
 	// Execute action
@@ -116,7 +117,7 @@ func checkStatus(ctx context.Context, client *ethclient.Client) {
 	fmt.Println("📊 Checking pause status...\n")
 
 	// Mining Distributor
-	miningAddr := common.HexToAddress(constant.MiningRewardDistributorAddress)
+	miningAddr := common.HexToAddress(contracts.MiningRewardDistributorAddress)
 	mining, err := miningdistributor.NewMiningRewardDistributor(miningAddr, client)
 	if err != nil {
 		log.Printf("❌ Failed to connect to Mining Distributor: %v", err)
@@ -129,12 +130,12 @@ func checkStatus(ctx context.Context, client *ethclient.Client) {
 			if paused {
 				status = "🚨 PAUSED"
 			}
-			fmt.Printf("Mining Distributor (%s): %s\n", constant.MiningRewardDistributorAddress, status)
+			fmt.Printf("Mining Distributor (%s): %s\n", contracts.MiningRewardDistributorAddress, status)
 		}
 	}
 
 	// Cashback Distributor
-	cashbackAddr := common.HexToAddress(constant.CashbackDistributorAddress)
+	cashbackAddr := common.HexToAddress(contracts.CashbackDistributorAddress)
 	cashback, err := cashbackdistributor.NewDepositCashbackDistributor(cashbackAddr, client)
 	if err != nil {
 		log.Printf("❌ Failed to connect to Cashback Distributor: %v", err)
@@ -147,13 +148,13 @@ func checkStatus(ctx context.Context, client *ethclient.Client) {
 			if paused {
 				status = "🚨 PAUSED"
 			}
-			fmt.Printf("Cashback Distributor (%s): %s\n", constant.CashbackDistributorAddress, status)
+			fmt.Printf("Cashback Distributor (%s): %s\n", contracts.CashbackDistributorAddress, status)
 		}
 	}
 
 	// Referral Distributor (if deployed)
-	if constant.ReferralDistributorAddress != "" {
-		referralAddr := common.HexToAddress(constant.ReferralDistributorAddress)
+	if contracts.ReferralDistributorAddress != "" {
+		referralAddr := common.HexToAddress(contracts.ReferralDistributorAddress)
 		referral, err := referraldistributor.NewReferralRewardDistributor(referralAddr, client)
 		if err != nil {
 			log.Printf("❌ Failed to connect to Referral Distributor: %v", err)
@@ -166,7 +167,7 @@ func checkStatus(ctx context.Context, client *ethclient.Client) {
 				if paused {
 					status = "🚨 PAUSED"
 				}
-				fmt.Printf("Referral Distributor (%s): %s\n", constant.ReferralDistributorAddress, status)
+				fmt.Printf("Referral Distributor (%s): %s\n", contracts.ReferralDistributorAddress, status)
 			}
 		}
 	}
@@ -217,7 +218,7 @@ func unpauseContracts(ctx context.Context, client *ethclient.Client, auth *bind.
 }
 
 func pauseMining(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, dryRun bool) {
-	addr := common.HexToAddress(constant.MiningRewardDistributorAddress)
+	addr := common.HexToAddress(contracts.MiningRewardDistributorAddress)
 	mining, err := miningdistributor.NewMiningRewardDistributor(addr, client)
 	if err != nil {
 		log.Printf("❌ Mining Distributor: Failed to connect: %v", err)
@@ -252,7 +253,7 @@ func pauseMining(ctx context.Context, client *ethclient.Client, auth *bind.Trans
 }
 
 func unpauseMining(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, dryRun bool) {
-	addr := common.HexToAddress(constant.MiningRewardDistributorAddress)
+	addr := common.HexToAddress(contracts.MiningRewardDistributorAddress)
 	mining, err := miningdistributor.NewMiningRewardDistributor(addr, client)
 	if err != nil {
 		log.Printf("❌ Mining Distributor: Failed to connect: %v", err)
@@ -287,7 +288,7 @@ func unpauseMining(ctx context.Context, client *ethclient.Client, auth *bind.Tra
 }
 
 func pauseCashback(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, dryRun bool) {
-	addr := common.HexToAddress(constant.CashbackDistributorAddress)
+	addr := common.HexToAddress(contracts.CashbackDistributorAddress)
 	cashback, err := cashbackdistributor.NewDepositCashbackDistributor(addr, client)
 	if err != nil {
 		log.Printf("❌ Cashback Distributor: Failed to connect: %v", err)
@@ -321,7 +322,7 @@ func pauseCashback(ctx context.Context, client *ethclient.Client, auth *bind.Tra
 }
 
 func unpauseCashback(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, dryRun bool) {
-	addr := common.HexToAddress(constant.CashbackDistributorAddress)
+	addr := common.HexToAddress(contracts.CashbackDistributorAddress)
 	cashback, err := cashbackdistributor.NewDepositCashbackDistributor(addr, client)
 	if err != nil {
 		log.Printf("❌ Cashback Distributor: Failed to connect: %v", err)
@@ -355,12 +356,12 @@ func unpauseCashback(ctx context.Context, client *ethclient.Client, auth *bind.T
 }
 
 func pauseReferral(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, dryRun bool) {
-	if constant.ReferralDistributorAddress == "" {
+	if contracts.ReferralDistributorAddress == "" {
 		fmt.Printf("⚠️  Referral Distributor: Not deployed\n")
 		return
 	}
 
-	addr := common.HexToAddress(constant.ReferralDistributorAddress)
+	addr := common.HexToAddress(contracts.ReferralDistributorAddress)
 	referral, err := referraldistributor.NewReferralRewardDistributor(addr, client)
 	if err != nil {
 		log.Printf("❌ Referral Distributor: Failed to connect: %v", err)
@@ -394,12 +395,12 @@ func pauseReferral(ctx context.Context, client *ethclient.Client, auth *bind.Tra
 }
 
 func unpauseReferral(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, dryRun bool) {
-	if constant.ReferralDistributorAddress == "" {
+	if contracts.ReferralDistributorAddress == "" {
 		fmt.Printf("⚠️  Referral Distributor: Not deployed\n")
 		return
 	}
 
-	addr := common.HexToAddress(constant.ReferralDistributorAddress)
+	addr := common.HexToAddress(contracts.ReferralDistributorAddress)
 	referral, err := referraldistributor.NewReferralRewardDistributor(addr, client)
 	if err != nil {
 		log.Printf("❌ Referral Distributor: Failed to connect: %v", err)

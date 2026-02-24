@@ -43,7 +43,7 @@ See [store/README.md](store/README.md) for detailed documentation.
 **Purpose:** Generate Merkle trees for gas-efficient reward distribution.
 
 ```go
-import "github.com/kawai-network/veridium/pkg/merkle"
+import "github.com/kawai-network/y/merkle"
 
 // Create Merkle tree from rewards
 leaves := []merkle.Leaf{

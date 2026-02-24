@@ -42,6 +42,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/tools/templates"
 	"github.com/kawai-network/x/constant"
 	"github.com/kawai-network/x/tunnelkit"
+	"github.com/kawai-network/contracts"
 )
 
 //go:embed static
@@ -478,16 +479,16 @@ func initContributorFeatures(ctx context.Context, log *logger.Logger, shutdownTi
 	log.Info(ctx, "startup", "status", "connected to Cloudflare KV")
 
 	blockchainClient, err := blockchain.NewClient(blockchain.Config{
-		RPCUrl:           constant.MonadRpcUrl,
-		TokenAddress:     constant.KawaiTokenAddress,
-		OTCMarketAddress: constant.OTCMarketAddress,
-		USDTAddress:      constant.StablecoinAddress,
+		RPCUrl:           contracts.MonadRpcUrl,
+		TokenAddress:     contracts.KawaiTokenAddress,
+		OTCMarketAddress: contracts.OTCMarketAddress,
+		USDTAddress:      contracts.StablecoinAddress,
 	})
 	if err != nil {
 		log.Warn(ctx, "blockchain", "status", "failed to initialize, using default rates", "error", err)
 	} else {
 		kv.SetSupplyQuerier(blockchainClient)
-		log.Info(ctx, "startup", "status", "blockchain client initialized", "rpc", constant.MonadRpcUrl)
+		log.Info(ctx, "startup", "status", "blockchain client initialized", "rpc", contracts.MonadRpcUrl)
 	}
 
 	wallet := services.NewWalletService("", kv)

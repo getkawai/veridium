@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
+	"github.com/kawai-network/veridium/pkg/jarvis/binding"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 func main() {
@@ -22,11 +22,11 @@ func main() {
 	address := os.Args[1]
 
 	// Connect to Monad RPC
-	nodes := map[string]string{"monad": constant.MonadRpcUrl}
+	nodes := map[string]string{"monad": contracts.MonadRpcUrl}
 	ethReader := reader.NewEthReaderGeneric(nodes, nil)
 
 	// Load KAWAI token contract
-	kawaiToken, err := contracts.KawaiToken("KawaiToken", ethReader)
+	kawaiToken, err := binding.KawaiToken("KawaiToken", ethReader)
 	if err != nil {
 		log.Fatalf("Failed to load KAWAI token contract: %v", err)
 	}

@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
+	"github.com/kawai-network/veridium/pkg/jarvis/binding"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 // MINTER_ROLE = keccak256("MINTER_ROLE")
@@ -16,20 +16,20 @@ var MINTER_ROLE = common.HexToHash("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8
 
 func main() {
 	// Connect to Monad RPC
-	nodes := map[string]string{"monad": constant.MonadRpcUrl}
+	nodes := map[string]string{"monad": contracts.MonadRpcUrl}
 	ethReader := reader.NewEthReaderGeneric(nodes, nil)
 
 	// Load KAWAI token contract
-	kawaiToken, err := contracts.KawaiToken("KawaiToken", ethReader)
+	kawaiToken, err := binding.KawaiToken("KawaiToken", ethReader)
 	if err != nil {
 		log.Fatalf("Failed to load KAWAI token contract: %v", err)
 	}
 
 	// Define distributors to check (updated 2026-01-22)
 	distributors := map[string]string{
-		"MiningRewardDistributor":    constant.MiningRewardDistributorAddress,
-		"DepositCashbackDistributor": constant.CashbackDistributorAddress,
-		"ReferralRewardDistributor":  constant.ReferralDistributorAddress,
+		"MiningRewardDistributor":    contracts.MiningRewardDistributorAddress,
+		"DepositCashbackDistributor": contracts.CashbackDistributorAddress,
+		"ReferralRewardDistributor":  contracts.ReferralDistributorAddress,
 	}
 
 	fmt.Println("═══════════════════════════════════════════════════════════")

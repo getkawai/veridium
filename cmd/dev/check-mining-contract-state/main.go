@@ -11,7 +11,7 @@ import (
 	"github.com/kawai-network/contracts/miningdistributor"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/y/types"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 func main() {
@@ -28,20 +28,20 @@ func checkMiningContractState() error {
 	fmt.Println()
 
 	// Connect to Monad RPC
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Monad: %w", err)
 	}
 	defer client.Close()
 
 	// Load MiningRewardDistributor contract
-	distributorAddr := common.HexToAddress(constant.MiningRewardDistributorAddress)
+	distributorAddr := common.HexToAddress(contracts.MiningRewardDistributorAddress)
 	distributor, err := miningdistributor.NewMiningRewardDistributor(distributorAddr, client)
 	if err != nil {
 		return fmt.Errorf("failed to load MiningRewardDistributor: %w", err)
 	}
 
-	fmt.Printf("Contract Address: %s\n", constant.MiningRewardDistributorAddress)
+	fmt.Printf("Contract Address: %s\n", contracts.MiningRewardDistributorAddress)
 	fmt.Println()
 
 	// 1. Check current period

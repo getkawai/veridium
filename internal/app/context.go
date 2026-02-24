@@ -34,6 +34,7 @@ import (
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
 	"github.com/kawai-network/veridium/pkg/logger"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/contracts"
 	"github.com/kawai-network/x/constant"
 )
 
@@ -331,10 +332,10 @@ func (ctx *Context) InitJarvisService() {
 
 func (ctx *Context) InitBlockchainClient() {
 	// Monad configuration from constants for desktop app
-	rpcURL := constant.MonadRpcUrl
-	tokenAddress := constant.KawaiTokenAddress
-	otcMarketAddress := constant.OTCMarketAddress
-	usdtAddress := constant.StablecoinAddress
+	rpcURL := contracts.MonadRpcUrl
+	tokenAddress := contracts.KawaiTokenAddress
+	otcMarketAddress := contracts.OTCMarketAddress
+	usdtAddress := contracts.StablecoinAddress
 
 	// Initialize blockchain client
 	config := blockchain.Config{

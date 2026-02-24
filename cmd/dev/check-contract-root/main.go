@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/contracts/miningdistributor"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 func main() {
@@ -23,14 +23,14 @@ func checkContractRoot() error {
 	fmt.Println()
 
 	// Connect to Monad RPC
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Monad: %w", err)
 	}
 	defer client.Close()
 
 	// Load MiningRewardDistributor contract
-	distributorAddr := common.HexToAddress(constant.MiningRewardDistributorAddress)
+	distributorAddr := common.HexToAddress(contracts.MiningRewardDistributorAddress)
 	distributor, err := miningdistributor.NewMiningRewardDistributor(distributorAddr, client)
 	if err != nil {
 		return fmt.Errorf("failed to load MiningRewardDistributor: %w", err)

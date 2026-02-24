@@ -219,7 +219,7 @@ paths.ModelPath(huggingfaceURL)  // Extract author/repo from URL
 paths.Libraries()                // {Base}/libraries/
 
 // Stable Diffusion specific paths
-paths.StableDiffusionOutputs()   // {Base}/outputs/stable-diffusion/
+paths.StableDiffusionOutputs()   // {Base}/files/stable-diffusion/
 paths.StableDiffusionBin()       // {Base}/libraries/stable-diffusion/bin/
 paths.StableDiffusionChecksums() // {Base}/libraries/stable-diffusion/checksums/
 paths.StableDiffusionMetadata()  // {Base}/libraries/stable-diffusion/metadata/

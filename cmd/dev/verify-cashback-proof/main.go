@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/contracts/cashbackdistributor"
 	"github.com/kawai-network/veridium/pkg/store"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 func main() {
@@ -78,13 +78,13 @@ func main() {
 	fmt.Println()
 
 	// 3. Get merkle root from contract
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		log.Fatalf("Failed to connect to blockchain: %v", err)
 	}
 	defer client.Close()
 
-	distributorAddr := common.HexToAddress(constant.CashbackDistributorAddress)
+	distributorAddr := common.HexToAddress(contracts.CashbackDistributorAddress)
 	distributor, err := cashbackdistributor.NewDepositCashbackDistributor(distributorAddr, client)
 	if err != nil {
 		log.Fatalf("Failed to load distributor contract: %v", err)

@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 func main() {
@@ -41,7 +42,7 @@ func sendMON(recipientAddr, amountStr string) error {
 	log.Println("═══════════════════════════════════════════════════════════")
 
 	// Connect to Monad RPC
-	rpcURL := constant.MonadRpcUrl
+	rpcURL := contracts.MonadRpcUrl
 	client, err := ethclient.Dial(rpcURL)
 	if err != nil {
 		return fmt.Errorf("failed to connect to RPC: %w", err)

@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/contracts/cashbackdistributor"
 	"github.com/kawai-network/y/types"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/contracts"
 )
 
 // CashbackCache stores claimable records in memory for faster subsequent loads
@@ -406,7 +406,7 @@ func (s *KVStore) GetClaimableCashbackRecords(ctx context.Context, userAddress s
 	log.Printf("🔍 [Cashback] Checking %d settled periods for user %s", len(settledPeriods), userAddress)
 
 	// Connect to blockchain to check on-chain claimed status
-	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	client, err := ethclient.Dial(contracts.MonadRpcUrl)
 	if err != nil {
 		log.Printf("⚠️  [Cashback] Failed to connect to blockchain: %v", err)
 		// Continue without on-chain check (will use KV data only)
@@ -420,7 +420,7 @@ func (s *KVStore) GetClaimableCashbackRecords(ctx context.Context, userAddress s
 
 	var distributor *cashbackdistributor.DepositCashbackDistributor
 	if client != nil {
-		distributorAddr := common.HexToAddress(constant.CashbackDistributorAddress)
+		distributorAddr := common.HexToAddress(contracts.CashbackDistributorAddress)
 		distributor, err = cashbackdistributor.NewDepositCashbackDistributor(distributorAddr, client)
 		if err != nil {
 			log.Printf("⚠️  [Cashback] Failed to load distributor contract: %v", err)
