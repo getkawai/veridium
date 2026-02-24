@@ -34,7 +34,7 @@ import (
 	sd "github.com/kawai-network/veridium/pkg/stablediffusion"
 	"github.com/kawai-network/veridium/pkg/stablediffusion/modeldownloader"
 	sdmodels "github.com/kawai-network/veridium/pkg/stablediffusion/models"
-	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/store"
 	"github.com/kawai-network/veridium/pkg/tools/catalog"
 	"github.com/kawai-network/veridium/pkg/tools/defaults"
 	"github.com/kawai-network/veridium/pkg/tools/libs"

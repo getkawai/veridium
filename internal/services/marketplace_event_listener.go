@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/kawai-network/contracts/otcmarket"
 	"github.com/kawai-network/veridium/pkg/blockchain"
-	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/store"
 )
 
 // MarketplaceEventListener handles contract event listening and processing

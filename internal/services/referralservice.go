@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 
-	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/store"
 )
 
 // ReferralService provides referral system functionality for the Wails desktop app

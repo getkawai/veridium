@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/store"
 )
 
 func main() {

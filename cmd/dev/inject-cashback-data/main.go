@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/store"
 )
 
 func main() {

@@ -33,7 +33,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/fantasy/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
 	"github.com/kawai-network/veridium/pkg/logger"
-	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/store"
 	"github.com/kawai-network/contracts"
 	"github.com/kawai-network/x/constant"
 )

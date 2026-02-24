@@ -16,7 +16,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/jarvis/binding"
 	"github.com/kawai-network/veridium/pkg/jarvis/networks"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
-	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/store"
 	"github.com/kawai-network/y/types"
 	"github.com/kawai-network/x/constant"
 	"github.com/kawai-network/contracts"

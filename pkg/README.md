@@ -11,7 +11,7 @@ These packages are specific to the Veridium DePIN network:
 **Purpose:** Cloudflare Workers KV storage for contributors, rewards, and Merkle proofs.
 
 ```go
-import "github.com/kawai-network/veridium/pkg/store"
+import "github.com/kawai-network/x/store"
 
 // Initialize store
 s := store.NewStore(accountID, namespaceID, apiToken)

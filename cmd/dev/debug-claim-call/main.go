@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/contracts/miningdistributor"
-	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/store"
 	"github.com/kawai-network/y/types"
 	"github.com/kawai-network/contracts"
 )

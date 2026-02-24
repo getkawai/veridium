@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/pkg/fantasy"
-	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/store"
 	"github.com/kawai-network/veridium/types"
 	"github.com/kawai-network/x/constant"
 )

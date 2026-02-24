@@ -25,7 +25,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/jarvis/accounts"
 	"github.com/kawai-network/veridium/pkg/jarvis/accounts/types"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/account"
-	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/store"
 )
 
 // WalletInfo represents a wallet in the list

@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/store"
 )
 
 // ContributorSelector handles selection of best contributor for inference requests

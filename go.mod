@@ -12,7 +12,7 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/x/exp/slice v0.0.0-20260122224438-b01af16209d9
 	github.com/charmbracelet/x/json v0.2.0
-	github.com/cloudflare/cloudflare-go/v6 v6.6.0
+	github.com/cloudflare/cloudflare-go/v6 v6.7.0
 	github.com/dslipak/pdf v0.0.2
 	github.com/duckdb/duckdb-go/v2 v2.5.4
 	github.com/ebitengine/purego v0.9.1
@@ -30,7 +30,7 @@ require (
 	github.com/kawai-network/contracts v0.1.3
 	github.com/kawai-network/grab v0.1.0
 	github.com/kawai-network/whisper v0.4.0
-	github.com/kawai-network/x v1.0.19
+	github.com/kawai-network/x v1.0.20
 	github.com/kawai-network/y v0.1.5
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/nikolalohinski/gonja/v2 v2.5.0

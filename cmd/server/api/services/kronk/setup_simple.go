@@ -14,7 +14,7 @@ import (
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/pkg/hardware"
 	sdmodels "github.com/kawai-network/veridium/pkg/stablediffusion/models"
-	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/store"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/term"
 )
