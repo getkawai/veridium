@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/config"
+	"github.com/kawai-network/y/config"
 )
 
 // UserBalance represents a user's USDT + KAWAI balance and trial status

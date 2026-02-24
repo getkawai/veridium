@@ -92,7 +92,7 @@ events, err := contract.FilterLogs(fromBlock, toBlock, "Claimed")
 **Purpose:** Centralized configuration for all services.
 
 ```go
-import "github.com/kawai-network/veridium/pkg/config"
+import "github.com/kawai-network/y/config"
 
 // Load configuration
 cfg := config.Load()

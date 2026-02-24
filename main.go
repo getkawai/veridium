@@ -17,7 +17,7 @@ import (
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/topic"
-	"github.com/kawai-network/veridium/pkg/config"
+	"github.com/kawai-network/y/config"
 	"github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
 	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/wailsapp/wails/v3/pkg/application"

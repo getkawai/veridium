@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/config"
+	"github.com/kawai-network/y/config"
 	"github.com/kawai-network/y/types"
 	"github.com/kawai-network/x/constant"
 )
