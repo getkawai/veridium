@@ -90,7 +90,13 @@ All smart contracts are deployed on **Monad Blockchain** (Testnet).
 -   **Frontend:** React 19, Vite, @lobehub/ui, Zustand.
 -   **Contributor Node:** Go (Golang), `llama.cpp` (via llamalib).
 -   **Blockchain:** Monad (EVM-compatible).
--   **Network Toolkit:** `pkg/jarvis` (Multi-chain support incl. Monad).
+-   **Network Toolkit:** `github.com/kawai-network/y/jarvis` (Multi-chain support incl. Monad).
+
+## Jarvis Migration Notice
+
+-   `github.com/kawai-network/veridium/pkg/jarvis` is deprecated.
+-   Use `github.com/kawai-network/y/jarvis` (released in `github.com/kawai-network/y` `v0.1.6` and newer).
+-   New development should not add imports to the legacy `veridium/pkg/jarvis` path.
 
 ---
 

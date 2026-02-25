@@ -33,7 +33,22 @@ permissions:
   packages: write
 
 jobs:
+  guard-jarvis-import-path:
+    name: Guard Legacy Jarvis Import Path
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Reject legacy jarvis imports outside legacy package
+        run: |
+          if rg -n "github.com/kawai-network/veridium/pkg/jarvis" --glob '**/*.go' --glob '!pkg/jarvis/**' .; then
+            echo "Found legacy imports. Use github.com/kawai-network/y/jarvis instead."
+            exit 1
+          fi
+
   build-macos:
+    needs: guard-jarvis-import-path
     if: github.event_name != 'workflow_dispatch'
     name: Build macOS
     runs-on: macos-latest
@@ -98,6 +113,7 @@ jobs:
             bin/checksums-macos-*.txt
 
   build-linux:
+    needs: guard-jarvis-import-path
     if: github.event_name != 'workflow_dispatch'
     name: Build Linux
     runs-on: ubuntu-latest
@@ -162,6 +178,7 @@ jobs:
             bin/checksums-linux-amd64.txt
 
   build-windows:
+    needs: guard-jarvis-import-path
     if: github.event_name != 'workflow_dispatch'
     name: Build Windows
     runs-on: windows-latest

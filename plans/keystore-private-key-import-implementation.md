@@ -372,7 +372,7 @@ The TUI already has error handling in place:
    - Used by [`WalletService`](internal/services/wallet_service.go:47)
 
 2. **jarvis/accounts** - Internal account management
-   - `github.com/kawai-network/veridium/pkg/jarvis/accounts`
+   - `github.com/kawai-network/y/jarvis/accounts`
    - Used by [`WalletService`](internal/services/wallet_service.go:47)
 
 3. **bubbletea** - TUI framework
