@@ -92,12 +92,6 @@ All smart contracts are deployed on **Monad Blockchain** (Testnet).
 -   **Blockchain:** Monad (EVM-compatible).
 -   **Network Toolkit:** `github.com/kawai-network/y/jarvis` (Multi-chain support incl. Monad).
 
-## Jarvis Migration Notice
-
--   `github.com/kawai-network/veridium/pkg/jarvis` has been removed from this repository.
--   Use `github.com/kawai-network/y/jarvis` (released in `github.com/kawai-network/y` `v0.1.6` and newer).
--   Do not add imports to the legacy `veridium/pkg/jarvis` path.
-
 ---
 
 ## 🎨 AI Image Generation (NEW)
