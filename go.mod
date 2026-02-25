@@ -30,7 +30,7 @@ require (
 	github.com/kawai-network/grab v0.1.0
 	github.com/kawai-network/whisper v0.4.0
 	github.com/kawai-network/x v1.0.21
-	github.com/kawai-network/y v0.1.7
+	github.com/kawai-network/y v0.1.8
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/nikolalohinski/gonja/v2 v2.5.0
 	github.com/openai/openai-go/v2 v2.7.1
