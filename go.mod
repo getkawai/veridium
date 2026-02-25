@@ -29,7 +29,7 @@ require (
 	github.com/kawai-network/contracts v0.1.3
 	github.com/kawai-network/grab v0.1.0
 	github.com/kawai-network/whisper v0.4.0
-	github.com/kawai-network/x v1.0.20
+	github.com/kawai-network/x v1.0.21
 	github.com/kawai-network/y v0.1.6
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/nikolalohinski/gonja/v2 v2.5.0
@@ -52,7 +52,6 @@ require (
 	golang.org/x/sys v0.41.0
 	golang.org/x/term v0.39.0
 	golang.org/x/text v0.33.0
-	golang.org/x/time v0.14.0
 	google.golang.org/genai v1.40.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -232,6 +231,7 @@ require (
 	golang.org/x/mod v0.32.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260116145544-c6413dc483f5 // indirect
+	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.41.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260122232226-8e98ce8d340d // indirect

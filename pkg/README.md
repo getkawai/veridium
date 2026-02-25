@@ -67,7 +67,7 @@ proof := tree.GetProof("0x123...")
 **Purpose:** Interact with Monad blockchain and smart contracts.
 
 ```go
-import "github.com/kawai-network/veridium/pkg/blockchain"
+import "github.com/kawai-network/x/blockchain"
 
 // Connect to Monad
 client, err := blockchain.NewClient(rpcURL)

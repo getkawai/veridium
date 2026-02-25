@@ -21,7 +21,7 @@ import (
 
 	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/paths"
-	"github.com/kawai-network/veridium/pkg/blockchain"
+	"github.com/kawai-network/x/blockchain"
 	"github.com/kawai-network/y/jarvis/accounts"
 	"github.com/kawai-network/y/jarvis/accounts/types"
 	"github.com/kawai-network/y/jarvis/util/account"

@@ -21,7 +21,7 @@ import (
 	"github.com/kawai-network/veridium/internal/services/cache"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
-	"github.com/kawai-network/veridium/pkg/blockchain"
+	"github.com/kawai-network/x/blockchain"
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	googleprovider "github.com/kawai-network/veridium/pkg/fantasy/providers/google"

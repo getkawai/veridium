@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/kawai-network/veridium/pkg/blockchain"
+	"github.com/kawai-network/x/blockchain"
 	"github.com/kawai-network/x/store"
 )
 
