@@ -22,7 +22,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	llamavl "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-vl"
-	"github.com/kawai-network/veridium/pkg/hardware"
+	"github.com/kawai-network/y/hardware"
 	"github.com/kawai-network/veridium/types"
 	"github.com/kawai-network/x/constant"
 )

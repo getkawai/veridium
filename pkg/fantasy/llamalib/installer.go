@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/download"
-	"github.com/kawai-network/veridium/pkg/hardware"
+	"github.com/kawai-network/y/hardware"
 )
 
 // Release represents a GitHub release

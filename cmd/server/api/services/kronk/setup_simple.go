@@ -12,7 +12,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/services"
-	"github.com/kawai-network/veridium/pkg/hardware"
+	"github.com/kawai-network/y/hardware"
 	sdmodels "github.com/kawai-network/veridium/pkg/stablediffusion/models"
 	"github.com/kawai-network/x/store"
 	"github.com/schollz/progressbar/v3"

@@ -15,7 +15,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/message"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/mtmd"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/template"
-	"github.com/kawai-network/veridium/pkg/hardware"
+	"github.com/kawai-network/y/hardware"
 )
 
 // Service provides LLM inference using llama.cpp as a library (via yzma)

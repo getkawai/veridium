@@ -28,7 +28,7 @@ import (
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/x/blockchain"
-	"github.com/kawai-network/veridium/pkg/hardware"
+	"github.com/kawai-network/y/hardware"
 	"github.com/kawai-network/veridium/pkg/kronk"
 	pkglogger "github.com/kawai-network/veridium/pkg/logger"
 	sd "github.com/kawai-network/veridium/pkg/stablediffusion"

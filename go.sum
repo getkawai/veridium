@@ -376,8 +376,8 @@ github.com/kawai-network/whisper v0.4.0 h1:HcypCIoG9QPON0XmXnLkI2d+VlEENBxUa8Twk
 github.com/kawai-network/whisper v0.4.0/go.mod h1:cq5yqj3mTh2SPp7MnlkLN7MwNiI+ljGEoQ0lk20tFzY=
 github.com/kawai-network/x v1.0.21 h1:+viENf8kCB1TgxkmImgoQEOQSHwobCYhqWA8M8jCfgY=
 github.com/kawai-network/x v1.0.21/go.mod h1:XrSFkk5lYS8/1mfnAm2/E5caUTMn1fxDslAJKNLG3dw=
-github.com/kawai-network/y v0.1.6 h1:OiAzByHLyKw6Ylw30aJIASQ7uF6BDqqLgruJPBzFmkA=
-github.com/kawai-network/y v0.1.6/go.mod h1:XdhBr9xqZcDiACwLORVW7lyy+XiiF+OidSutChKVrGY=
+github.com/kawai-network/y v0.1.7 h1:0FTeFDdEWoWvCv8qcmK5zu/0RaQERHHQ2VCuHbHNYcs=
+github.com/kawai-network/y v0.1.7/go.mod h1:XdhBr9xqZcDiACwLORVW7lyy+XiiF+OidSutChKVrGY=
 github.com/kevinburke/ssh_config v1.4.0 h1:6xxtP5bZ2E4NF5tuQulISpTO2z8XbtH8cg1PWkxoFkQ=
 github.com/kevinburke/ssh_config v1.4.0/go.mod h1:q2RIzfka+BXARoNexmF9gkxEX7DmvbW9P4hIVx2Kg4M=
 github.com/klauspost/asmfmt v1.3.2 h1:4Ri7ox3EwapiOjCki+hw14RyKk201CN4rzyCJRFLpK4=
