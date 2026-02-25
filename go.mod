@@ -31,7 +31,7 @@ require (
 	github.com/kawai-network/grab v0.1.0
 	github.com/kawai-network/whisper v0.4.0
 	github.com/kawai-network/x v1.0.20
-	github.com/kawai-network/y v0.1.5
+	github.com/kawai-network/y v0.1.6
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/nikolalohinski/gonja/v2 v2.5.0
 	github.com/openai/openai-go/v2 v2.7.1
@@ -264,6 +264,3 @@ replace github.com/quic-go/quic-go => github.com/chungthuang/quic-go v0.45.1-0.2
 
 // Use Docker's community registry fork (same as mcp-gateway)
 replace github.com/modelcontextprotocol/registry => github.com/docker/mcp-community-registry v0.0.0-20251024214917-21000e320421
-
-// During migration to y/jarvis, resolve y from local workspace.
-replace github.com/kawai-network/y => ../y
