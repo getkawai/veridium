@@ -94,9 +94,9 @@ All smart contracts are deployed on **Monad Blockchain** (Testnet).
 
 ## Jarvis Migration Notice
 
--   `github.com/kawai-network/veridium/pkg/jarvis` is deprecated.
+-   `github.com/kawai-network/veridium/pkg/jarvis` has been removed from this repository.
 -   Use `github.com/kawai-network/y/jarvis` (released in `github.com/kawai-network/y` `v0.1.6` and newer).
--   New development should not add imports to the legacy `veridium/pkg/jarvis` path.
+-   Do not add imports to the legacy `veridium/pkg/jarvis` path.
 
 ---
 

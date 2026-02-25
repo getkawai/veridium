@@ -42,7 +42,7 @@ jobs:
 
       - name: Reject legacy jarvis imports outside legacy package
         run: |
-          if rg -n "github.com/kawai-network/veridium/pkg/jarvis" --glob '**/*.go' --glob '!pkg/jarvis/**' .; then
+          if rg -n "github.com/kawai-network/veridium/pkg/jarvis" --glob '**/*.go' .; then
             echo "Found legacy imports. Use github.com/kawai-network/y/jarvis instead."
             exit 1
           fi
