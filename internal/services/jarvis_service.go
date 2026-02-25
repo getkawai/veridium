@@ -7,12 +7,12 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-	jarviscommon "github.com/kawai-network/veridium/pkg/jarvis/common"
-	"github.com/kawai-network/veridium/pkg/jarvis/db"
-	"github.com/kawai-network/veridium/pkg/jarvis/networks"
-	"github.com/kawai-network/veridium/pkg/jarvis/txanalyzer"
-	"github.com/kawai-network/veridium/pkg/jarvis/util"
-	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
+	jarviscommon "github.com/kawai-network/y/jarvis/common"
+	"github.com/kawai-network/y/jarvis/db"
+	"github.com/kawai-network/y/jarvis/networks"
+	"github.com/kawai-network/y/jarvis/txanalyzer"
+	"github.com/kawai-network/y/jarvis/util"
+	"github.com/kawai-network/y/jarvis/util/reader"
 	"github.com/kawai-network/x/constant"
 )
 

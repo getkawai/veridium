@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/kawai-network/veridium/pkg/jarvis/binding"
+	"github.com/kawai-network/y/jarvis/binding"
 )
 
 func main() {

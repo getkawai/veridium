@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/jarvis/util/account"
+	"github.com/kawai-network/y/jarvis/util/account"
 	"github.com/stretchr/testify/assert"
 )
 
