@@ -36,7 +36,6 @@ require (
 	github.com/nikolalohinski/gonja/v2 v2.5.0
 	github.com/openai/openai-go/v2 v2.7.1
 	github.com/pemistahl/lingua-go v1.4.0
-	github.com/sahilm/fuzzy v0.1.1
 	github.com/schollz/progressbar/v3 v3.19.0
 	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/gjson v1.14.4
@@ -201,6 +200,7 @@ require (
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/samber/lo v1.52.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
