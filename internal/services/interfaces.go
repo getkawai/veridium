@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/contracts/otcmarket"
+	"github.com/kawai-network/x/jarvis"
 )
 
 // BlockchainProvider defines the interface for blockchain operations.
@@ -114,3 +115,6 @@ type WalletProvider interface {
 	// GetCurrentAccountAddress returns the current account address if unlocked
 	GetCurrentAccountAddress() string
 }
+
+type WalletInfo = jarvis.WalletInfo
+type WalletStatus = jarvis.WalletStatus

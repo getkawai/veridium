@@ -1,4 +1,4 @@
-import { MoveLocalFilesParams } from '@@/github.com/kawai-network/veridium/pkg/localfs';
+import { MoveLocalFilesParams } from '@@/github.com/getkawai/tools/localfs';
 import { ChatMessagePluginError } from '@/types';
 import { Icon } from '@lobehub/ui';
 import { createStyles } from 'antd-style';

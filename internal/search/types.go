@@ -1,7 +1,7 @@
 package search
 
 import (
-	"github.com/kawai-network/veridium/pkg/htmltomarkdown"
+	"github.com/getkawai/tools/htmltomarkdown"
 )
 
 // SearchParams represents optional search parameters

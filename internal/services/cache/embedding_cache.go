@@ -25,7 +25,7 @@ import (
 
 	"log/slog"
 
-	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
+	llamaembed "github.com/getkawai/unillm/providers/llama-embed"
 )
 
 // EmbeddingCacheEntry represents a cached embedding with metadata

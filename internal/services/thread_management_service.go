@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/kawai-network/veridium/internal/database"
-	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/getkawai/database"
+	db "github.com/getkawai/database/db"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

@@ -11,15 +11,15 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/kawai-network/x/alert"
-	"github.com/kawai-network/y/config"
-	"github.com/kawai-network/y/jarvis/binding"
-	"github.com/kawai-network/y/jarvis/networks"
-	"github.com/kawai-network/y/jarvis/util/reader"
-	"github.com/kawai-network/x/store"
-	"github.com/kawai-network/y/types"
-	"github.com/kawai-network/x/constant"
 	"github.com/kawai-network/contracts"
+	"github.com/kawai-network/x/alert"
+	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/x/jarvis/binding"
+	"github.com/kawai-network/x/jarvis/networks"
+	"github.com/kawai-network/x/jarvis/util/reader"
+	"github.com/kawai-network/x/store"
+	"github.com/kawai-network/y/config"
+	"github.com/kawai-network/y/types"
 )
 
 // isUserError checks if an error is a user-caused error (not system error)

@@ -1,4 +1,4 @@
-import { RenameLocalFileParams } from '@@/github.com/kawai-network/veridium/pkg/localfs';
+import { RenameLocalFileParams } from '@@/github.com/getkawai/tools/localfs';
 import { ChatMessagePluginError } from '@/types';
 import { Icon } from '@lobehub/ui';
 import { createStyles } from 'antd-style';
@@ -8,7 +8,7 @@ import { memo } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
 import { LocalFile } from '@/features/LocalFile';
-import { LocalReadFileState } from '@@/github.com/kawai-network/veridium/pkg/yzma/tools/builtin';
+import { LocalReadFileState } from '@@/github.com/getkawai/tools/builtin';
 
 const useStyles = createStyles(({ css, token }) => ({
   container: css`

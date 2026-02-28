@@ -1,9 +1,11 @@
 import { Modal, QRCode, App, Button, Form, Input, Tooltip } from 'antd';
 import { memo, useEffect, useState, useCallback } from 'react';
-import { DeAIService, WalletService, DepositSyncService, JarvisService } from '@@/github.com/kawai-network/veridium/internal/services';
-import type { NetworkInfo, BackendConfig, GasEstimate, UserBalanceInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
-import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
-import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
+import { DeAIService, DepositSyncService, JarvisService } from '@@/github.com/kawai-network/veridium/internal/services';
+import * as WalletService from '@@/github.com/kawai-network/x/jarvis/walletservice';
+import type { NetworkInfo, BackendConfig, GasEstimate } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import type { UserBalanceInfo } from '@@/github.com/kawai-network/x/jarvis/models';
+import { ListWalletTransactions } from '@@/github.com/getkawai/database/db/queries';
+import type { WalletTransaction } from '@@/github.com/getkawai/database/db/models';
 import { useUserStore } from '@/store/user';
 import { Repeat2 } from 'lucide-react';
 import { Flexbox } from 'react-layout-kit';

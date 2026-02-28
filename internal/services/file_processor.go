@@ -10,34 +10,33 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
-	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/internal/whisper"
-	"github.com/kawai-network/veridium/pkg/fantasy"
-	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
-	llamavl "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-vl"
-	"github.com/kawai-network/y/hardware"
+	db "github.com/getkawai/database/db"
+	unillm "github.com/getkawai/unillm"
 	"github.com/kawai-network/veridium/types"
 	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/y/hardware"
 )
+
+// VLProvider defines the minimal Vision-Language capability needed by file processor.
+type VLProvider interface {
+	ProcessImage(ctx context.Context, imagePath, prompt string, maxTokens int32) (string, error)
+}
 
 // FileProcessorService orchestrates file processing pipeline
 type FileProcessorService struct {
-	db             *sql.DB
-	queries        *db.Queries
-	fileLoader     *FileLoader
-	ragProcessor   *RAGProcessor
-	libraryService *llamalib.Service
-	vlProvider     llamavl.Provider // For VL (Vision-Language) processing
-	whisperService *whisper.Service
-	languageModel  fantasy.LanguageModel // For OCR/transcript cleanup
-	FileBaseDir    string                // Base directory for file storage (injected)
+	db            *sql.DB
+	queries       *db.Queries
+	fileLoader    *FileLoader
+	ragProcessor  *RAGProcessor
+	vlProvider    VLProvider           // For VL (Vision-Language) processing
+	languageModel unillm.LanguageModel // For OCR/transcript cleanup
+	FileBaseDir   string               // Base directory for file storage (injected)
 }
 
 // NewFileProcessorService creates a new file processor service
@@ -45,28 +44,24 @@ func NewFileProcessorService(
 	database *sql.DB,
 	fileLoader *FileLoader,
 	ragProcessor *RAGProcessor,
-	libraryService *llamalib.Service,
-	whisperService *whisper.Service,
 	fileBaseDir string,
 ) *FileProcessorService {
 	return &FileProcessorService{
-		db:             database,
-		queries:        db.New(database),
-		fileLoader:     fileLoader,
-		ragProcessor:   ragProcessor,
-		libraryService: libraryService,
-		whisperService: whisperService,
-		FileBaseDir:    fileBaseDir,
+		db:           database,
+		queries:      db.New(database),
+		fileLoader:   fileLoader,
+		ragProcessor: ragProcessor,
+		FileBaseDir:  fileBaseDir,
 	}
 }
 
 // SetLanguageModel sets the language model for OCR/transcript cleanup
-func (s *FileProcessorService) SetLanguageModel(model fantasy.LanguageModel) {
+func (s *FileProcessorService) SetLanguageModel(model unillm.LanguageModel) {
 	s.languageModel = model
 }
 
 // SetVLProvider sets the VL provider for Vision-Language processing
-func (s *FileProcessorService) SetVLProvider(provider llamavl.Provider) {
+func (s *FileProcessorService) SetVLProvider(provider VLProvider) {
 	s.vlProvider = provider
 }
 
@@ -367,7 +362,7 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 		// Slow path: use VL model for image description
 		log.Printf("[INFO] Async: Minimal text from OCR, using VL model: ocr_length=%d filename=%s", len(cleanedText), filename)
 
-		// Use vlProvider for VL processing (preferred), fallback to libraryService
+		// Use vlProvider for VL processing.
 		if s.vlProvider != nil {
 			// Use provider's ProcessImage which handles model loading automatically
 			prompt := "Describe this image in detail. Include all visible text, objects, people, colors, and layout."
@@ -390,44 +385,8 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 					finalContent = fmt.Sprintf("%s\n\n**Extracted Text (OCR):**\n%s", description, cleanedText)
 				}
 			}
-		} else if s.libraryService != nil {
-			// Fallback to libraryService for backward compatibility
-			if !s.libraryService.IsVLModelLoaded() {
-				if err := s.libraryService.LoadVLModel(""); err != nil {
-					log.Printf("[ERROR] Async: Failed to load VL model: error=%v", err)
-					// If VL fails but we have some OCR text, use that
-					if len(cleanedText) > 0 {
-						finalContent = cleanedText
-						contentType = "OCR Text (Tesseract - partial)"
-					} else {
-						return
-					}
-				}
-			}
-
-			if s.libraryService.IsVLModelLoaded() && finalContent == "" {
-				prompt := "Describe this image in detail. Include all visible text, objects, people, colors, and layout."
-				description, err := s.libraryService.ProcessImageWithText(filePath, prompt, 2048)
-				if err != nil {
-					log.Printf("[ERROR] Async: VL model processing failed: error=%v filename=%s", err, filename)
-					// Fallback to OCR text if available
-					if len(cleanedText) > 0 {
-						finalContent = cleanedText
-						contentType = "OCR Text (Tesseract - VL fallback failed)"
-					} else {
-						return
-					}
-				} else {
-					finalContent = description
-					contentType = "Image Description (VL Model)"
-
-					// If we also have OCR text, append it
-					if len(cleanedText) > 0 {
-						finalContent = fmt.Sprintf("%s\n\n**Extracted Text (OCR):**\n%s", description, cleanedText)
-					}
-				}
-			}
 		} else if len(cleanedText) > 0 {
+			// TODO: Add non-vlProvider fallback flow (if still needed) after libraryService removal.
 			// No VL service but have some OCR text
 			finalContent = cleanedText
 			contentType = "OCR Text (Tesseract - no VL available)"
@@ -548,10 +507,10 @@ Cleaned markdown:`, docHint, rawText)
 	timeoutCtx, cancel := context.WithTimeout(ctx, constant.LLMCleanupTimeout)
 	defer cancel()
 
-	resp, err := s.languageModel.Generate(timeoutCtx, fantasy.Call{
-		Prompt: []fantasy.Message{
-			fantasy.NewSystemMessage(systemPrompt),
-			fantasy.NewUserMessage(userPrompt),
+	resp, err := s.languageModel.Generate(timeoutCtx, unillm.Call{
+		Prompt: []unillm.Message{
+			unillm.NewSystemMessage(systemPrompt),
+			unillm.NewUserMessage(userPrompt),
 		},
 	})
 	if err != nil {
@@ -613,10 +572,10 @@ Output ONLY the corrected text without explanations.`
 	timeoutCtx, cancel := context.WithTimeout(ctx, constant.LLMGenerateTimeout)
 	defer cancel()
 
-	resp, err := s.languageModel.Generate(timeoutCtx, fantasy.Call{
-		Prompt: []fantasy.Message{
-			fantasy.NewSystemMessage(systemPrompt),
-			fantasy.NewUserMessage(userPrompt),
+	resp, err := s.languageModel.Generate(timeoutCtx, unillm.Call{
+		Prompt: []unillm.Message{
+			unillm.NewSystemMessage(systemPrompt),
+			unillm.NewUserMessage(userPrompt),
 		},
 	})
 	if err != nil {
@@ -643,237 +602,25 @@ Output ONLY the corrected text without explanations.`
 func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, documentID, fileID string, enableRAG bool) {
 	ctx := context.Background()
 
-	log.Printf("[INFO] Async: Starting video transcription (parallel): filename=%s", filename)
-
-	// Check if whisper service is available
-	if s.whisperService == nil {
-		log.Printf("[ERROR] Async: Whisper service not available: filename=%s", filename)
-		return
-	}
-
-	// Check if whisper is installed
-	if !s.whisperService.IsWhisperInstalled() {
-		log.Printf("[ERROR] Async: Whisper CLI not installed: filename=%s", filename)
-		return
-	}
-
-	// Check if we have a model - prefer tiny for speed in parallel mode
-	models, err := s.whisperService.ListModels()
-	if err != nil || len(models) == 0 {
-		log.Printf("[ERROR] Async: No whisper models available: error=%v filename=%s", err, filename)
-		return
-	}
-
-	// Select Whisper model based on available RAM
-	// Model sizes: tiny (~75MB), base (~150MB), small (~500MB), medium (~1.5GB), large (~3GB)
-	// RAM requirements: tiny=1GB, base=2GB, small=4GB, medium=8GB, large=16GB
-	modelName := selectWhisperModelByHardware(models)
-	log.Printf("[INFO] Async: Selected Whisper model based on hardware: model=%s", modelName)
-
-	// Get video duration
-	duration, err := s.getVideoDuration(filePath)
-	if err != nil {
-		log.Printf("[WARN] Async: Could not get video duration, using sequential mode: error=%v", err)
-		duration = 0
-	}
-
-	log.Printf("[INFO] Async: Video info: duration_sec=%.0f model=%s filename=%s", duration, modelName, filename)
-
-	// Initialize transcription header in document
-	err = s.appendContentToDocument(ctx, fileID, "\n\n### Video Transcription (AI Generated via Whisper)\n\n*Transcribing...*\n")
-	if err != nil {
-		log.Printf("[WARN] Async: Failed to initialize transcription header: error=%v", err)
-	}
-
-	var fullTranscription string
-
-	// Use parallel chunked transcription for videos > 2 minutes
-	if duration > 120 {
-		// Calculate number of chunks (each chunk ~5 minutes = 300 seconds)
-		chunkDuration := 300.0
-		numChunks := int(duration/chunkDuration) + 1
-		if numChunks > 8 {
-			numChunks = 8 // Cap at 8 parallel workers
-		}
-		if numChunks < 2 {
-			numChunks = 2
-		}
-
-		log.Printf("[INFO] Async: Using parallel transcription: chunks=%d chunk_duration=%f", numChunks, chunkDuration)
-
-		fullTranscription, err = s.transcribeVideoParallel(ctx, filePath, modelName, numChunks, chunkDuration, documentID)
-		if err != nil {
-			log.Printf("[WARN] Async: Parallel transcription failed: error=%v filename=%s", err, filename)
-			return
-		}
-	} else {
-		// Short video - use sequential transcription
-		log.Printf("[INFO] Async: Using sequential transcription (short video)")
-
-		audioPath, err := s.extractAudioFromVideo(filePath, 0, 0) // Full video
-		if err != nil {
-			log.Printf("[WARN] Async: Failed to extract audio: error=%v", err)
-			return
-		}
-		defer func() { _ = os.Remove(audioPath) }()
-
-		fullTranscription, err = s.whisperService.Transcribe(ctx, modelName, audioPath)
-		if err != nil {
-			log.Printf("[WARN] Async: Transcription failed: error=%v", err)
-			return
-		}
-	}
-
-	if fullTranscription == "" {
-		fullTranscription = "(No speech detected in video)"
-	}
-
-	log.Printf("[INFO] Async: Video transcription completed: length=%d filename=%s", len(fullTranscription), filename)
-
-	// Post-process transcription with LLM to fix common Whisper errors
-	if s.languageModel != nil && len(fullTranscription) > 50 {
-		log.Printf("[INFO] Async: Cleaning up transcription with LLM: filename=%s", filename)
-		cleanedTranscription, err := s.cleanupTranscription(ctx, fullTranscription)
-		if err == nil && len(cleanedTranscription) > 0 {
-			fullTranscription = cleanedTranscription
-			log.Printf("[INFO] Async: Transcription cleanup completed: length=%d", len(fullTranscription))
-		}
-	}
-
-	// Update document with final complete transcription
-	finalMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper + LLM Cleanup)\n\n%s", fullTranscription)
-	err = s.replaceTranscriptionInDocument(ctx, documentID, finalMarkdown)
-	if err != nil {
-		log.Printf("[WARN] Async: Failed to update document with final transcription: error=%v", err)
-	}
-
-	log.Printf("[INFO] Async: Document updated with complete transcription: document_id=%s", documentID)
-
-	// Process for RAG if enabled
-	if enableRAG {
-		chunkIDs, err := s.ragProcessor.ProcessFile(ctx, RAGProcessRequest{
-			FilePath:   filePath,
-			FileID:     fileID,
-			DocumentID: documentID,
-			Filename:   filename,
-		})
-		if err != nil {
-			log.Printf("[WARN] Async: Failed to process video for RAG: error=%v file_id=%s", err, fileID)
-		} else {
-			log.Printf("[INFO] Async: RAG processing completed for video: file_id=%s chunks=%d", fileID, len(chunkIDs))
-		}
-	}
+	_ = ctx
+	_ = filePath
+	_ = filename
+	_ = documentID
+	_ = fileID
+	_ = enableRAG
+	// TODO: Re-implement async video transcription flow after whisperService removal.
 }
 
 // transcribeVideoParallel splits audio into chunks and transcribes them in parallel
 func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, videoPath, modelName string, numChunks int, chunkDuration float64, documentID string) (string, error) {
-	// Create temp dir for chunks
-	tempDir, err := os.MkdirTemp("", "whisper_chunks_*")
-	if err != nil {
-		return "", fmt.Errorf("failed to create temp dir: %w", err)
-	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
-
-	// Extract audio chunks in parallel
-	type chunkResult struct {
-		index int
-		path  string
-		err   error
-	}
-
-	extractChan := make(chan chunkResult, numChunks)
-
-	log.Printf("[INFO] Async: Extracting audio chunks: count=%d", numChunks)
-
-	for i := 0; i < numChunks; i++ {
-		go func(idx int) {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("❌ [PANIC] Audio chunk extraction panic recovered for index %d: %v", idx, r)
-					extractChan <- chunkResult{index: idx, path: "", err: fmt.Errorf("panic: %v", r)}
-				}
-			}()
-
-			startTime := float64(idx) * chunkDuration
-			chunkPath := filepath.Join(tempDir, fmt.Sprintf("chunk_%d.wav", idx))
-
-			err := s.extractAudioChunk(videoPath, chunkPath, startTime, chunkDuration)
-			extractChan <- chunkResult{index: idx, path: chunkPath, err: err}
-		}(i)
-	}
-
-	// Collect extracted chunks
-	chunkPaths := make([]string, numChunks)
-	for i := 0; i < numChunks; i++ {
-		result := <-extractChan
-		if result.err != nil {
-			log.Printf("[WARN] Async: Failed to extract chunk: index=%d error=%v", result.index, result.err)
-			continue
-		}
-		chunkPaths[result.index] = result.path
-	}
-
-	// Transcribe chunks in parallel with progressive updates
-	type transcribeResult struct {
-		index         int
-		transcription string
-		err           error
-	}
-
-	transcribeChan := make(chan transcribeResult, numChunks)
-	transcriptions := make([]string, numChunks)
-	completedChunks := 0
-
-	log.Printf("[INFO] Async: Starting parallel transcription: chunks=%d", numChunks)
-
-	for i := 0; i < numChunks; i++ {
-		if chunkPaths[i] == "" {
-			transcribeChan <- transcribeResult{index: i, transcription: "", err: nil}
-			continue
-		}
-
-		go func(idx int, audioPath string) {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("❌ [PANIC] Transcription panic recovered for index %d: %v", idx, r)
-					transcribeChan <- transcribeResult{index: idx, transcription: "", err: fmt.Errorf("panic: %v", r)}
-				}
-			}()
-
-			text, err := s.whisperService.Transcribe(ctx, modelName, audioPath)
-			transcribeChan <- transcribeResult{index: idx, transcription: text, err: err}
-		}(i, chunkPaths[i])
-	}
-
-	// Collect transcriptions with progressive updates
-	for i := 0; i < numChunks; i++ {
-		result := <-transcribeChan
-		if result.err != nil {
-			log.Printf("[WARN] Async: Chunk transcription failed: index=%d error=%v", result.index, result.err)
-			continue
-		}
-
-		transcriptions[result.index] = result.transcription
-		completedChunks++
-
-		// Progressive update:
-		// Update document slightly to show progress
-		progressMd := fmt.Sprintf("\n\n*Transcribing segment %d/%d...*\n", result.index+1, numChunks)
-		if err := s.appendContentToDocument(ctx, documentID, progressMd); err != nil {
-			slog.Warn("Failed to append progress to document", "document_id", documentID, "error", err)
-		}
-
-		partialTranscription := s.combineTranscriptions(transcriptions)
-		progressMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper)\n\n%s%s", progressMd, partialTranscription)
-
-		if err := s.replaceTranscriptionInDocument(ctx, documentID, progressMarkdown); err != nil {
-			log.Printf("[WARN] Async: Failed to update progress: error=%v", err)
-		} else {
-			log.Printf("[INFO] Async: Progress updated: completed=%d total=%d", completedChunks, numChunks)
-		}
-	}
-
-	return s.combineTranscriptions(transcriptions), nil
+	_ = ctx
+	_ = videoPath
+	_ = modelName
+	_ = numChunks
+	_ = chunkDuration
+	_ = documentID
+	// TODO: Re-implement parallel video transcription flow after whisperService removal.
+	return "", errors.New("video transcription is not implemented")
 }
 
 // combineTranscriptions combines transcription segments in order

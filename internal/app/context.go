@@ -8,34 +8,29 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"time"
 
+	"github.com/getkawai/database"
+	db "github.com/getkawai/database/db"
+	"github.com/getkawai/tools"
+	yzmabuiltin "github.com/getkawai/tools/builtin"
+	"github.com/getkawai/tools/search"
+	unillm "github.com/getkawai/unillm"
+	googleprovider "github.com/getkawai/unillm/providers/google"
+	llamaembed "github.com/getkawai/unillm/providers/llama-embed"
+	"github.com/getkawai/unillm/providers/openaicompat"
+	"github.com/getkawai/unillm/providers/openrouter"
 	"github.com/getsentry/sentry-go"
+	"github.com/kawai-network/contracts"
 	"github.com/kawai-network/veridium/internal/audio_recorder"
-	"github.com/kawai-network/veridium/internal/database"
-	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/internal/paths"
-	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/services/cache"
 	"github.com/kawai-network/veridium/internal/tts"
-	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/x/blockchain"
-	"github.com/kawai-network/veridium/pkg/fantasy"
-	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
-	googleprovider "github.com/kawai-network/veridium/pkg/fantasy/providers/google"
-	llamaprovider "github.com/kawai-network/veridium/pkg/fantasy/providers/llama"
-	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
-	"github.com/kawai-network/veridium/pkg/fantasy/providers/openaicompat"
-	"github.com/kawai-network/veridium/pkg/fantasy/providers/openrouter"
-	"github.com/kawai-network/veridium/pkg/fantasy/providers/pooled"
-	"github.com/kawai-network/veridium/pkg/fantasy/tools"
-	yzmabuiltin "github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
-	"github.com/kawai-network/y/logger"
-	"github.com/kawai-network/x/store"
-	"github.com/kawai-network/contracts"
 	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/x/store"
+	"github.com/kawai-network/y/logger"
+	"github.com/kawai-network/y/paths"
 )
 
 // Configuration constants
@@ -51,7 +46,6 @@ type Context struct {
 	Queries *db.Queries
 
 	// AI/ML Services
-	LibService   *llamalib.Service
 	Embedder     llamaembed.Embedder
 	CacheManager *cache.CacheManager
 
@@ -61,27 +55,26 @@ type Context struct {
 	KVStore     *store.KVStore
 
 	// Feature Services
-	SearchService  *search.Service
-	TTSService     *tts.TTSService
-	WhisperService *whisper.Service
-	AudioRecorder  *audio_recorder.AudioRecorderService
-	VectorSearch   *services.VectorSearchService
-	KBService      *services.KnowledgeBaseService
-	RAGProcessor   *services.RAGProcessor
-	ToolRegistry   *tools.ToolRegistry
-	WalletService  *services.WalletService
-	DeAIService    *services.DeAIService
-	JarvisService  *services.JarvisService
+	SearchService *search.Service
+	TTSService    *tts.TTSService
+	AudioRecorder *audio_recorder.AudioRecorderService
+	VectorSearch  *services.VectorSearchService
+	KBService     *services.KnowledgeBaseService
+	RAGProcessor  *services.RAGProcessor
+	ToolRegistry  *tools.ToolRegistry
+	WalletService *services.WalletService
+	DeAIService   *services.DeAIService
+	JarvisService *services.JarvisService
 
 	// Blockchain Services
 	BlockchainClient   *blockchain.Client
 	DepositSyncService *services.DepositSyncService
 
 	// Language Models
-	ChatModel    fantasy.LanguageModel `json:"-"`
-	TitleModel   fantasy.LanguageModel `json:"-"`
-	SummaryModel fantasy.LanguageModel `json:"-"`
-	CleanupModel fantasy.LanguageModel `json:"-"`
+	ChatModel    unillm.LanguageModel `json:"-"`
+	TitleModel   unillm.LanguageModel `json:"-"`
+	SummaryModel unillm.LanguageModel `json:"-"`
+	CleanupModel unillm.LanguageModel `json:"-"`
 
 	// Memory Services (MemGPT-style)
 	MemoryService     *services.MemoryService
@@ -126,14 +119,6 @@ func (ctx *Context) InitBasicServices() {
 	} else {
 		ctx.TTSService = ttsService
 		log.Printf("TTS initialized")
-	}
-
-	if whisperService, err := whisper.NewService(); err != nil {
-		log.Printf("Warning: Whisper init failed: %v", err)
-	} else {
-		ctx.WhisperService = whisperService
-		ctx.AddCleanup(func() { _ = whisperService.Close() })
-		log.Printf("Whisper initialized")
 	}
 
 	ctx.AudioRecorder = audio_recorder.NewAudioRecorderService(nil)
@@ -198,10 +183,7 @@ func (ctx *Context) InitSentry() {
 }
 
 func (ctx *Context) InitLlamaService() {
-	// NewService() automatically starts background initialization
-	// which handles: installation check, library loading, and model downloads
-	ctx.LibService = llamalib.NewService()
-	log.Printf("LlamaService created (initializing in background)")
+	// TODO: Re-implement local llama service initialization after Context.LibService removal.
 }
 
 func (ctx *Context) InitVectorStore() {
@@ -217,47 +199,7 @@ func (ctx *Context) InitVectorStore() {
 }
 
 func (ctx *Context) InitEmbedder() {
-	// Ensure llama library is initialized before creating embedder
-	if ctx.LibService == nil {
-		log.Printf("Warning: LibService not available, skipping embedder initialization")
-		return
-	}
-
-	// Wait for library to be ready (with timeout)
-	bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := ctx.LibService.WaitForInitialization(bgCtx); err != nil {
-		log.Printf("Warning: Failed to wait for llama library initialization: %v", err)
-		log.Printf("Embedder will not be available")
-		return
-	}
-
-	modelName := llamalib.GetRecommendedEmbeddingModel()
-	model, exists := llamalib.GetEmbeddingModel(modelName)
-	if !exists {
-		log.Printf("Warning: Embedding model not found: %s", modelName)
-		return
-	}
-
-	installer := llamalib.NewLlamaCppInstaller()
-	modelPath := filepath.Join(installer.GetModelsDirectory(), model.Filename)
-
-	baseEmbedder, err := llamaembed.NewLlamaEmbedder(&llamaembed.LlamaConfig{
-		ModelPath:   modelPath,
-		ContextSize: 2048,
-	})
-	if err != nil {
-		log.Printf("Warning: Embedder init failed: %v", err)
-		return
-	}
-	ctx.AddCleanup(func() { _ = baseEmbedder.Close() })
-	log.Printf("Embedder initialized (model: %s, dims: %d)", model.Name, baseEmbedder.Dimensions())
-
-	// Production-only: always use cache layer
-	ctx.CacheManager = cache.NewCacheManager(baseEmbedder, nil)
-	ctx.Embedder = ctx.CacheManager.GetCachedEmbedder(baseEmbedder)
-	log.Printf("Cache layer initialized")
+	// TODO: Re-implement embedder initialization after Context.LibService removal.
 }
 
 func (ctx *Context) InitVectorSearch() {
@@ -392,74 +334,11 @@ func (ctx *Context) InitKVStore() {
 }
 
 func (ctx *Context) InitLanguageModels() {
-	if ctx.LibService == nil {
-		return
-	}
-
-	// Use a timeout context to prevent hanging on slow network calls
-	bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	llamaProvider, err := llamaprovider.New(
-		llamaprovider.WithService(ctx.LibService),
-		llamaprovider.WithToolRegistry(ctx.ToolRegistry),
-	)
-	if err != nil {
-		log.Printf("Warning: Llama provider failed: %v", err)
-		return
-	}
-
-	localModel, err := llamaProvider.LanguageModel(bgCtx, "")
-	if err != nil {
-		log.Printf("Warning: Local LLM failed: %v", err)
-		return
-	}
-
-	// Circuit breaker: skip rate-limited models until app restart (rate limit is daily, cache is in-memory)
-	circuitBreaker := fantasy.WithCircuitBreaker(1, 0)
-
-	// AUTO-DETECT: Use pooled providers if multiple keys available
-	// usePooled := len(constant.GetOpenRouterApiKeys()) > 1 || len(constant.GetZaiApiKeys()) > 1
-	usePooled := false
-
-	var buildChain func(context.Context, fantasy.LanguageModel, openrouter.ModelSelectionCriteria, string) []fantasy.LanguageModel
-	if usePooled {
-		buildChain = ctx.buildModelChainV2
-		log.Printf("✅ Using POOLED providers (multiple API keys detected)")
-	} else {
-		buildChain = ctx.buildModelChain
-		log.Printf("ℹ️  Using SIMPLE providers (single API key)")
-	}
-
-	ctx.ChatModel, err = fantasy.NewChain(buildChain(bgCtx, localModel, openrouter.ModelSelectionCriteria{
-		RequireReasoning: true, RequireAttachments: true, MinContextWindow: 100000,
-	}, "ChatModel"), circuitBreaker)
-	if err != nil {
-		log.Printf("Warning: ChatModel chain creation failed: %v", err)
-	}
-
-	ctx.TitleModel, err = fantasy.NewChain(buildChain(bgCtx, localModel, openrouter.ModelSelectionCriteria{}, "TitleModel"), circuitBreaker)
-	if err != nil {
-		log.Printf("Warning: TitleModel chain creation failed: %v", err)
-	}
-
-	ctx.SummaryModel, err = fantasy.NewChain(buildChain(bgCtx, localModel, openrouter.ModelSelectionCriteria{
-		MinContextWindow: 50000,
-	}, "SummaryModel"), circuitBreaker)
-	if err != nil {
-		log.Printf("Warning: SummaryModel chain creation failed: %v", err)
-	}
-
-	ctx.CleanupModel, err = fantasy.NewChain(buildChain(bgCtx, localModel, openrouter.ModelSelectionCriteria{}, "CleanupModel"), circuitBreaker)
-	if err != nil {
-		log.Printf("Warning: CleanupModel chain creation failed: %v", err)
-	}
-
-	log.Printf("Language models initialized with %s", map[bool]string{true: "POOLED providers", false: "SIMPLE providers"}[usePooled])
+	// TODO: Re-implement language model chain initialization after Context.LibService removal.
 }
 
-func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.LanguageModel, criteria openrouter.ModelSelectionCriteria, taskName string) []fantasy.LanguageModel {
-	var chain []fantasy.LanguageModel
+func (ctx *Context) buildModelChain(bgCtx context.Context, localModel unillm.LanguageModel, criteria openrouter.ModelSelectionCriteria, taskName string) []unillm.LanguageModel {
+	var chain []unillm.LanguageModel
 
 	// 1. Google Gemini 2.5 Flash-Lite (free tier with highest limits: 15 RPM, 1000 RPD)
 	if apiKey := constant.GetRandomGeminiApiKey(); apiKey != "" {
@@ -530,99 +409,6 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.La
 	return chain
 }
 
-// buildModelChainV2 creates a model chain with pooled providers and automatic rotation.
-// This version uses account pooling and smart error handling with metrics.
-func (ctx *Context) buildModelChainV2(bgCtx context.Context, localModel fantasy.LanguageModel, criteria openrouter.ModelSelectionCriteria, taskName string) []fantasy.LanguageModel {
-	var chain []fantasy.LanguageModel
-
-	// 1. OpenRouter with multiple API keys (pooled with metrics & rotation)
-	openRouterKeys := constant.GetOpenRouterApiKeys()
-	if len(openRouterKeys) > 0 {
-		pooledProvider, err := pooled.New(pooled.Config{
-			ProviderName:   "openrouter",
-			BaseURL:        "https://openrouter.ai/api/v1",
-			ModelName:      "auto", // Will be selected by criteria
-			APIKeys:        openRouterKeys,
-			EnableMetrics:  true, // Enable metrics tracking
-			EnableRotation: true, // Enable auto rotation
-			RotationStrategy: &pooled.HealthBasedStrategy{
-				MaxConsecutiveFailures: 3,
-			},
-			CreateClient: func(apiKey string) (fantasy.LanguageModel, error) {
-				provider, err := openrouter.New(
-					openrouter.WithAPIKey(apiKey),
-					openrouter.WithModelSelection(criteria),
-				)
-				if err != nil {
-					return nil, err
-				}
-				return provider.LanguageModel(bgCtx, "")
-			},
-		})
-
-		if err == nil {
-			chain = append(chain, pooledProvider)
-			catalog := openrouter.GetCatalog()
-			if selected := catalog.SelectFreeModel(criteria); selected != nil {
-				log.Printf("%s: OpenRouter Pooled (%s) with %d keys [Metrics: ON, Rotation: ON]", taskName, selected.ID, len(openRouterKeys))
-			}
-		} else {
-			log.Printf("Warning: Failed to create pooled OpenRouter: %v", err)
-		}
-	}
-
-	// 2. Pollinations AI (no pooling needed, free service)
-	if provider, err := openaicompat.New(
-		openaicompat.WithName("pollinations"),
-		openaicompat.WithBaseURL("https://text.pollinations.ai/openai"),
-		openaicompat.WithAPIKey("dummy"),
-	); err == nil {
-		if pollinationsModel, err := provider.LanguageModel(bgCtx, "openai"); err == nil {
-			chain = append(chain, pollinationsModel)
-			log.Printf("%s: Pollinations AI (openai)", taskName)
-		}
-	}
-
-	// 3. ZAI with multiple API keys (pooled with metrics & rotation)
-	zaiKeys := constant.GetZaiApiKeys()
-	if len(zaiKeys) > 0 {
-		pooledProvider, err := pooled.New(pooled.Config{
-			ProviderName:   "zai",
-			BaseURL:        "https://api.z.ai/api/coding/paas/v4",
-			ModelName:      "glm-4.7",
-			APIKeys:        zaiKeys,
-			EnableMetrics:  true,
-			EnableRotation: true,
-			RotationStrategy: &pooled.RoundRobinStrategy{
-				RotateAfterRequests: 100, // Rotate after 100 requests
-			},
-			CreateClient: func(apiKey string) (fantasy.LanguageModel, error) {
-				provider, err := openaicompat.New(
-					openaicompat.WithName("zai"),
-					openaicompat.WithBaseURL("https://api.z.ai/api/coding/paas/v4"),
-					openaicompat.WithAPIKey(apiKey),
-				)
-				if err != nil {
-					return nil, err
-				}
-				return provider.LanguageModel(bgCtx, "glm-4.7")
-			},
-		})
-
-		if err == nil {
-			chain = append(chain, pooledProvider)
-			log.Printf("%s: ZAI Pooled (glm-4.7) with %d keys [Metrics: ON, Rotation: ON]", taskName, len(zaiKeys))
-		} else {
-			log.Printf("Warning: Failed to create pooled ZAI: %v", err)
-		}
-	}
-
-	// 4. Local model (final fallback)
-	chain = append(chain, localModel)
-	log.Printf("%s: Chain created with %d models (fallback: %s/%s)", taskName, len(chain), localModel.Provider(), localModel.Model())
-	return chain
-}
-
 func (ctx *Context) InitMemoryServices() {
 	if ctx.DB == nil || ctx.DuckDBStore == nil || ctx.Embedder == nil {
 		log.Printf("Warning: Prerequisites not met for Memory services")
@@ -638,7 +424,7 @@ func (ctx *Context) InitMemoryServices() {
 	}
 	ctx.MemoryService = memService
 
-	var llm fantasy.LanguageModel
+	var llm unillm.LanguageModel
 	if ctx.ChatModel != nil {
 		llm = ctx.ChatModel
 		log.Printf("Memory enrichment: using LLM")

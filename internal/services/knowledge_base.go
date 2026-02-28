@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	db "github.com/kawai-network/veridium/internal/database/generated"
+	db "github.com/getkawai/database/db"
 	"github.com/kawai-network/veridium/types"
 )
 

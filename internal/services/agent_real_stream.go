@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
+	unillm "github.com/getkawai/unillm"
 	"github.com/google/uuid"
-	"github.com/kawai-network/veridium/pkg/fantasy"
-	"github.com/kawai-network/x/store"
 	"github.com/kawai-network/veridium/types"
 	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/x/store"
 )
 
 // ToolNameMapping maps Yzma tool names to frontend-compatible identifier/apiName pairs
@@ -118,9 +118,6 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	log.Printf("🚀 [REAL STREAM] Starting real LLM streaming for session: %s", req.SessionID)
 	startTime := time.Now()
 
-	// Auto-detect reasoning capability from loaded model
-	s.detectReasoningCapability()
-
 	// Helper to emit events with type safety using StreamEventPayload
 	emit := func(payload StreamEventPayload) {
 		if s.app == nil {
@@ -220,7 +217,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		}
 	}
 
-	// 5. Build system prompt and get history messages (optimized for fantasy.Agent)
+	// 5. Build system prompt and get history messages (optimized for unillm.Agent)
 	// Pass user message for language detection to respond in the same language
 	systemPrompt := s.buildSystemPrompt(session, memoryContext, req.Message)
 	historyMessages := s.getHistoryMessages(session)
@@ -251,8 +248,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// State for streaming
 	var finalContent strings.Builder
 	var reasoningContent strings.Builder
-	var toolCalls []fantasy.ToolCallContent
-	var toolMessages []fantasy.Message
+	var toolCalls []unillm.ToolCallContent
+	var toolMessages []unillm.Message
 	var usage *ModelUsage
 	var uiTools []ChatToolPayload
 	var toolResultsData []ToolResultData
@@ -264,7 +261,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// Get LanguageModel from chatModel (set via SetChatModel, can be ChainLanguageModel for fallback)
 	model := s.chatModel
 
-	// Use fantasy.Agent if we have a LanguageModel
+	// Use unillm.Agent if we have a LanguageModel
 	if model != nil {
 		// Pre-flight balance check before AI call
 		if s.kvStore != nil {
@@ -290,27 +287,27 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			log.Printf("[BALANCE] Balance check passed for user %s (estimated %d tokens)", req.UserID, estimatedTokens)
 		}
 
-		// Convert tools from ToolRegistry to fantasy.AgentTool
+		// Convert tools from ToolRegistry to unillm.AgentTool
 		agentTools := s.toolRegistry.ToAgentTools(session.ToolNames)
 
-		// 5. Create fantasy.Agent with tools, system prompt, and repair function
-		// fantasy.Agent handles: system prompt injection, history, and current prompt internally
-		agent := fantasy.NewAgent(model,
-			fantasy.WithTools(agentTools...),
-			fantasy.WithSystemPrompt(systemPrompt),
-			fantasy.WithStopConditions(fantasy.StepCountIs(10)), // Max 10 iterations
-			fantasy.WithRepairToolCall(RepairToolCall),          // Auto-repair malformed tool calls
+		// 5. Create unillm.Agent with tools, system prompt, and repair function
+		// unillm.Agent handles: system prompt injection, history, and current prompt internally
+		agent := unillm.NewAgent(model,
+			unillm.WithTools(agentTools...),
+			unillm.WithSystemPrompt(systemPrompt),
+			unillm.WithStopConditions(unillm.StepCountIs(10)), // Max 10 iterations
+			unillm.WithRepairToolCall(RepairToolCall),         // Auto-repair malformed tool calls
 		)
 
 		// Run agent with streaming callbacks
-		// fantasy.Agent.createPrompt will build: [system] + historyMessages + [user: userPrompt]
+		// unillm.Agent.createPrompt will build: [system] + historyMessages + [user: userPrompt]
 		// Disable agent-level retry when using Chain (Chain has its own fallback mechanism)
 		var maxRetries *int
-		if _, isChain := model.(*fantasy.ChainLanguageModel); isChain {
+		if _, isChain := model.(*unillm.ChainLanguageModel); isChain {
 			zero := 0
 			maxRetries = &zero
 		}
-		result, runErr := agent.Stream(ctx, fantasy.AgentStreamCall{
+		result, runErr := agent.Stream(ctx, unillm.AgentStreamCall{
 			Prompt:     userPrompt,
 			Messages:   historyMessages,
 			MaxRetries: maxRetries,
@@ -369,7 +366,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			},
 
 			// Reasoning callbacks - for models like DeepSeek R1, o1, etc.
-			OnReasoningStart: func(id string, content fantasy.ReasoningContent) error {
+			OnReasoningStart: func(id string, content unillm.ReasoningContent) error {
 				mu.Lock()
 				defer mu.Unlock()
 
@@ -396,7 +393,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 				return nil
 			},
 
-			OnReasoningEnd: func(id string, content fantasy.ReasoningContent) error {
+			OnReasoningEnd: func(id string, content unillm.ReasoningContent) error {
 				mu.Lock()
 				defer mu.Unlock()
 
@@ -410,7 +407,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			},
 
 			// Tool call callback - when tool call is detected
-			OnToolCall: func(tc fantasy.ToolCallContent) error {
+			OnToolCall: func(tc unillm.ToolCallContent) error {
 				mu.Lock()
 				defer mu.Unlock()
 
@@ -437,7 +434,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			},
 
 			// Tool result callback - when tool execution completes
-			OnToolResult: func(tr fantasy.ToolResultContent) error {
+			OnToolResult: func(tr unillm.ToolResultContent) error {
 				mu.Lock()
 				defer mu.Unlock()
 
@@ -446,9 +443,9 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 				// Get result content as string
 				resultContent := ""
 				switch r := tr.Result.(type) {
-				case fantasy.ToolResultOutputContentText:
+				case unillm.ToolResultOutputContentText:
 					resultContent = r.Text
-				case fantasy.ToolResultOutputContentError:
+				case unillm.ToolResultOutputContentError:
 					if r.Error != nil {
 						resultContent = r.Error.Error()
 					}
@@ -497,7 +494,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			},
 
 			// Step finish callback - build tool messages from step
-			OnStepFinish: func(step fantasy.StepResult) error {
+			OnStepFinish: func(step unillm.StepResult) error {
 				mu.Lock()
 				defer mu.Unlock()
 
@@ -559,11 +556,11 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 8. Add messages to session history
 	session.Messages = append(session.Messages, toolMessages...)
 	if len(toolCalls) > 0 {
-		session.Messages = append(session.Messages, fantasy.NewToolCallMessageFromContent(toolCalls))
+		session.Messages = append(session.Messages, unillm.NewToolCallMessageFromContent(toolCalls))
 	} else {
-		session.Messages = append(session.Messages, fantasy.Message{
-			Role:    fantasy.MessageRoleAssistant,
-			Content: []fantasy.MessagePart{fantasy.TextPart{Text: finalContentStr}},
+		session.Messages = append(session.Messages, unillm.Message{
+			Role:    unillm.MessageRoleAssistant,
+			Content: []unillm.MessagePart{unillm.TextPart{Text: finalContentStr}},
 		})
 	}
 
@@ -588,8 +585,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	}
 
 	// 11. Save assistant message to DB
+	// TODO: Reconnect accurate local model metadata after AgentChatService.libService removal.
 	fullMetadata := map[string]interface{}{
-		"model":       s.libService.GetLoadedChatModel(),
 		"usage":       usage,
 		"performance": performance,
 	}
@@ -653,7 +650,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// Count user messages to determine turn count (tool messages don't count as turns)
 	userMsgCount := 0
 	for _, msg := range session.Messages {
-		if msg.Role == fantasy.MessageRoleUser {
+		if msg.Role == unillm.MessageRoleUser {
 			userMsgCount++
 		}
 	}

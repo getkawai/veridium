@@ -13,7 +13,7 @@ import {
   RenameLocalFileParams,
   RunCommandParams,
   WriteLocalFileParams,
-} from '@@/github.com/kawai-network/veridium/pkg/localfs';
+} from '@@/github.com/getkawai/tools/localfs';
 import { StateCreator } from 'zustand/vanilla';
 
 import { localFileService } from '@/services/electron/localFileService';
@@ -31,7 +31,7 @@ import {
   LocalReadFilesState,
   LocalRenameFileState,
   RunCommandState,
-} from '@@/github.com/kawai-network/veridium/pkg/yzma/tools/builtin';
+} from '@@/github.com/getkawai/tools/builtin';
 
 /* eslint-disable typescript-sort-keys/interface */
 export interface LocalFileAction {

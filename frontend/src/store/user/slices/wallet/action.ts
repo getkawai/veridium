@@ -1,6 +1,6 @@
 import { StateCreator } from "zustand/vanilla";
-import * as WalletService from "@@/github.com/kawai-network/veridium/internal/services/walletservice";
-import type { WalletInfo } from "@@/github.com/kawai-network/veridium/internal/services/models";
+import * as WalletService from "@@/github.com/kawai-network/x/jarvis/walletservice";
+import type { WalletInfo } from "@@/github.com/kawai-network/x/jarvis/models";
 import type { UserStore } from "../../store";
 import { message } from "antd";
 

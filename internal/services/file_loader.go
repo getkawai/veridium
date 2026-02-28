@@ -7,10 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dslipak/pdf"
-	"github.com/kawai-network/veridium/pkg/gooxml/document"
-	"github.com/kawai-network/veridium/pkg/gooxml/presentation"
-	"github.com/kawai-network/veridium/pkg/gooxml/spreadsheet"
+	"github.com/getkawai/tools/gooxml/document"
+	"github.com/getkawai/tools/gooxml/presentation"
+	"github.com/getkawai/tools/gooxml/spreadsheet"
+	"github.com/kawai-network/x/pdf/extractor"
+	"github.com/kawai-network/x/pdf/model"
 	"github.com/kawai-network/veridium/types"
 )
 
@@ -282,7 +283,7 @@ func (l *FileLoader) loadTextFile(filePath string) ([]types.DocumentPage, string
 	return pages, aggregatedContent, "", nil
 }
 
-// loadPDFFile loads PDF files using github.com/dslipak/pdf
+// loadPDFFile loads PDF files using github.com/kawai-network/x/pdf
 func (l *FileLoader) loadPDFFile(filePath string) ([]types.DocumentPage, string, string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -290,12 +291,7 @@ func (l *FileLoader) loadPDFFile(filePath string) ([]types.DocumentPage, string,
 	}
 	defer func() { _ = file.Close() }()
 
-	stat, err := file.Stat()
-	if err != nil {
-		return nil, "", fmt.Sprintf("Failed to get file stat: %v", err), err
-	}
-
-	reader, err := pdf.NewReader(file, stat.Size())
+	reader, err := model.NewPdfReader(file)
 	if err != nil {
 		return nil, "", fmt.Sprintf("Failed to create PDF reader: %v", err), err
 	}
@@ -305,25 +301,27 @@ func (l *FileLoader) loadPDFFile(filePath string) ([]types.DocumentPage, string,
 
 	markdownContent.WriteString("# PDF Document\n\n")
 
-	numPages := reader.NumPage()
+	numPages, err := reader.GetNumPages()
+	if err != nil {
+		return nil, "", fmt.Sprintf("Failed to get number of pages: %v", err), err
+	}
 
 	for i := 1; i <= numPages; i++ {
-		page := reader.Page(i)
-		if page.V.IsNull() {
-			continue
+		page, err := reader.GetPage(i)
+		if err != nil {
+			return nil, "", fmt.Sprintf("Failed to get PDF page %d: %v", i, err), err
 		}
 
-		// Try to extract text from the page
-		var pageContent string
-		content := page.Content()
-		if len(content.Text) > 0 {
-			// Convert []pdf.Text to string
-			var textBuilder strings.Builder
-			for _, textItem := range content.Text {
-				textBuilder.WriteString(textItem.S)
-			}
-			pageContent = textBuilder.String()
-		} else {
+		ex, err := extractor.New(page)
+		if err != nil {
+			return nil, "", fmt.Sprintf("Failed to create extractor for page %d: %v", i, err), err
+		}
+
+		pageContent, err := ex.ExtractText()
+		if err != nil {
+			return nil, "", fmt.Sprintf("Failed to extract text from page %d: %v", i, err), err
+		}
+		if strings.TrimSpace(pageContent) == "" {
 			pageContent = "[Unable to extract text from this page]"
 		}
 

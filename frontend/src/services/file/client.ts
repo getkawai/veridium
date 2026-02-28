@@ -12,7 +12,7 @@ import {
   parseNullableJSON,
   File as DBFile,
 } from '@/types/database';
-import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
+import { Service as DBService } from '@@/github.com/getkawai/database';
 
 export class ClientService extends BaseClientService implements IFileService {
   createFile: IFileService['createFile'] = async (file) => {

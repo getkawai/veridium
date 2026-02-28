@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	db "github.com/kawai-network/veridium/internal/database/generated"
-	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
+	llamaembed "github.com/getkawai/unillm/providers/llama-embed"
+	db "github.com/getkawai/database/db"
 )
 
 // SearchResult represents a search result from vector database

@@ -19,91 +19,10 @@ import * as topic$0 from "../topic/models.js";
 import * as $models from "./models.js";
 
 /**
- * AutoDownloadRecommendedModel automatically downloads a recommended Stable Diffusion model
- * if no models are currently installed
- */
-export function AutoDownloadRecommendedModel(): $CancellablePromise<void> {
-    return $Call.ByID(3944917190);
-}
-
-/**
- * CheckInstalledModels checks what Stable Diffusion models are currently installed
- */
-export function CheckInstalledModels(): $CancellablePromise<string[]> {
-    return $Call.ByID(1705393001).then(($result: any) => {
-        return $$createType0($result);
-    });
-}
-
-/**
- * CheckInstalledModelsUnified uses the unified model management system
- * to check for installed Stable Diffusion models.
- * This is a wrapper that provides backward compatibility.
- */
-export function CheckInstalledModelsUnified(): $CancellablePromise<string[]> {
-    return $Call.ByID(2532409233).then(($result: any) => {
-        return $$createType0($result);
-    });
-}
-
-/**
- * Cleanup terminates all running Stable Diffusion processes
- */
-export function Cleanup(): $CancellablePromise<void> {
-    return $Call.ByID(2158366183);
-}
-
-/**
  * CreateImage handles frontend CreateImageRequest and generates images asynchronously
  */
 export function CreateImage(req: $models.CreateImageRequest): $CancellablePromise<void> {
     return $Call.ByID(3291079238, req);
-}
-
-/**
- * CreateImageWithOptions generates an image using GenerationOptions directly
- * Used by internal services like image_designer
- * This method now delegates to the appropriate generator (local or remote)
- */
-export function CreateImageWithOptions(opts: $models.GenerationOptions): $CancellablePromise<void> {
-    return $Call.ByID(1496933164, opts);
-}
-
-/**
- * GetFirstAvailableModel returns the first available SD model
- */
-export function GetFirstAvailableModel(): $CancellablePromise<string> {
-    return $Call.ByID(2125323043);
-}
-
-/**
- * GetModelPath returns the full path to a specific model file
- */
-export function GetModelPath(filename: string): $CancellablePromise<string> {
-    return $Call.ByID(784507063, filename);
-}
-
-/**
- * GetModelsPath returns the path where Stable Diffusion models are stored
- * Models are organized by {author}/{repo}/ structure from HuggingFace URLs
- */
-export function GetModelsPath(): $CancellablePromise<string> {
-    return $Call.ByID(2349867010);
-}
-
-/**
- * InitializeInBackground initializes Stable Diffusion in the background
- * This includes checking and installing the binary and downloading a recommended model
- */
-export function InitializeInBackground(): $CancellablePromise<void> {
-    return $Call.ByID(1125584952);
-}
-
-/**
- * IsStableDiffusionInstalled checks if Stable Diffusion binary exists and is valid
- */
-export function IsStableDiffusionInstalled(): $CancellablePromise<boolean> {
-    return $Call.ByID(3792215073);
 }
 
 /**
@@ -112,13 +31,3 @@ export function IsStableDiffusionInstalled(): $CancellablePromise<boolean> {
 export function SetTopicService(ts: topic$0.TopicService | null): $CancellablePromise<void> {
     return $Call.ByID(959137345, ts);
 }
-
-/**
- * VerifyChecksum verifies the downloaded file against the provided checksums
- */
-export function VerifyChecksum(filePath: string, checksumPath: string, binaryName: string): $CancellablePromise<void> {
-    return $Call.ByID(3836681611, filePath, checksumPath, binaryName);
-}
-
-// Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);

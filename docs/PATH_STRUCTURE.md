@@ -183,7 +183,7 @@ Veridium uses a centralized path management system through `internal/paths` to e
 ### Core Paths
 
 ```go
-import "github.com/kawai-network/veridium/internal/paths"
+import "github.com/kawai-network/y/paths"
 
 // Base directory (platform-specific)
 paths.Base()              // ./data/ or ~/Library/Application Support/Kawai/
@@ -344,8 +344,8 @@ paths.NodeTemplates()
 ### Setting up libraries
 ```go
 import (
-    "github.com/kawai-network/veridium/internal/paths"
-    "github.com/kawai-network/veridium/pkg/tools/libs"
+    "github.com/kawai-network/y/paths"
+    "github.com/getkawai/tools/libs"
 )
 
 libMgr, err := libs.New(
@@ -359,7 +359,7 @@ libMgr, err := libs.New(
 ### Setting up models
 ```go
 import (
-    "github.com/kawai-network/veridium/internal/paths"
+    "github.com/kawai-network/y/paths"
     "path/filepath"
 )
 
@@ -382,7 +382,7 @@ llmPath, _ := paths.ModelPath(llmURL)
 
 ### Stable Diffusion paths
 ```go
-import "github.com/kawai-network/veridium/internal/paths"
+import "github.com/kawai-network/y/paths"
 
 // Models (automatically organized by author/repo from URL)
 modelsPath := paths.Models()
@@ -399,7 +399,7 @@ metadataPath := paths.StableDiffusionMetadata()
 
 ### Custom data directory (development)
 ```go
-import "github.com/kawai-network/veridium/internal/paths"
+import "github.com/kawai-network/y/paths"
 
 func main() {
     // Set custom data directory before any path access
@@ -436,7 +436,7 @@ Detection logic:
 ```go
 import (
     "testing"
-    "github.com/kawai-network/veridium/internal/paths"
+    "github.com/kawai-network/y/paths"
 )
 
 func TestPaths(t *testing.T) {

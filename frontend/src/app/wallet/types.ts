@@ -1,5 +1,6 @@
 import type { NetworkInfo, ClaimableRewardsResponse, ClaimableReward } from '@@/github.com/kawai-network/veridium/internal/services/models';
-import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
+import type { WalletTransaction } from '@@/github.com/getkawai/database/db/models';
+import type { UserBalanceInfo } from '@@/github.com/kawai-network/x/jarvis/models';
 
 // Export NetworkInfo from the generated models to ensure consistency with Go backend
 export type { ClaimableRewardsResponse, ClaimableReward, NetworkInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
@@ -58,4 +59,3 @@ export interface SettingsContentProps {
   theme: any;
   currentNetwork: NetworkInfo | null;
 }
-

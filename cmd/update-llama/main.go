@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/download"
+	"github.com/getkawai/llamalib/download"
 )
 
 func main() {

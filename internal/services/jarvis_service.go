@@ -7,13 +7,13 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-	jarviscommon "github.com/kawai-network/y/jarvis/common"
-	"github.com/kawai-network/y/jarvis/db"
-	"github.com/kawai-network/y/jarvis/networks"
-	"github.com/kawai-network/y/jarvis/txanalyzer"
-	"github.com/kawai-network/y/jarvis/util"
-	"github.com/kawai-network/y/jarvis/util/reader"
 	"github.com/kawai-network/x/constant"
+	jarviscommon "github.com/kawai-network/x/jarvis/common"
+	"github.com/kawai-network/x/jarvis/db"
+	"github.com/kawai-network/x/jarvis/networks"
+	"github.com/kawai-network/x/jarvis/txanalyzer"
+	"github.com/kawai-network/x/jarvis/util"
+	"github.com/kawai-network/x/jarvis/util/reader"
 )
 
 // NetworkInfo represents a blockchain network for the frontend

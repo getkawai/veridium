@@ -20,9 +20,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/kawai-network/veridium/pkg/fantasy"
-	"github.com/kawai-network/veridium/pkg/fantasy/tools"
-	"github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
+	"github.com/getkawai/tools"
+	"github.com/getkawai/tools/builtin"
+	unillm "github.com/getkawai/unillm"
 )
 
 // MemoryIntegration provides integration between memory services and chat
@@ -115,7 +115,7 @@ func (m *MemoryIntegration) RegisterMemoryTool(registry *tools.ToolRegistry) err
 
 // ProcessSessionBuffer processes the session buffer for auto-archiving
 // Call this before processing new messages to ensure buffer doesn't overflow
-func (m *MemoryIntegration) ProcessSessionBuffer(ctx context.Context, messages []fantasy.Message) ([]fantasy.Message, error) {
+func (m *MemoryIntegration) ProcessSessionBuffer(ctx context.Context, messages []unillm.Message) ([]unillm.Message, error) {
 	if m.enrichmentService == nil {
 		return messages, nil
 	}
@@ -124,7 +124,7 @@ func (m *MemoryIntegration) ProcessSessionBuffer(ctx context.Context, messages [
 }
 
 // EnrichAndStoreMessages manually enriches messages and stores as memories
-func (m *MemoryIntegration) EnrichAndStoreMessages(ctx context.Context, messages []fantasy.Message) (*EnrichmentResult, error) {
+func (m *MemoryIntegration) EnrichAndStoreMessages(ctx context.Context, messages []unillm.Message) (*EnrichmentResult, error) {
 	if m.enrichmentService == nil {
 		return &EnrichmentResult{}, nil
 	}
@@ -148,7 +148,7 @@ func (m *MemoryIntegration) GetRelevantMemories(ctx context.Context, query strin
 
 // BuildHybridContext builds context combining short-term buffer and long-term memory
 // This implements the "RAM vs Hard Disk" analogy from MemGPT
-func (m *MemoryIntegration) BuildHybridContext(ctx context.Context, currentQuery string, shortTermMessages []fantasy.Message) (string, error) {
+func (m *MemoryIntegration) BuildHybridContext(ctx context.Context, currentQuery string, shortTermMessages []unillm.Message) (string, error) {
 	if m.memoryService == nil {
 		return "", nil
 	}
@@ -193,9 +193,9 @@ func (m *MemoryIntegration) StoreConversationMemory(ctx context.Context, userMes
 	}
 
 	// Create messages from the conversation
-	messages := []fantasy.Message{
-		{Role: fantasy.MessageRoleUser, Content: []fantasy.MessagePart{fantasy.TextPart{Text: userMessage}}},
-		{Role: fantasy.MessageRoleAssistant, Content: []fantasy.MessagePart{fantasy.TextPart{Text: assistantResponse}}},
+	messages := []unillm.Message{
+		{Role: unillm.MessageRoleUser, Content: []unillm.MessagePart{unillm.TextPart{Text: userMessage}}},
+		{Role: unillm.MessageRoleAssistant, Content: []unillm.MessagePart{unillm.TextPart{Text: assistantResponse}}},
 	}
 
 	// Enrich and store

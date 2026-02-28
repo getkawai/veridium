@@ -8,8 +8,8 @@ import { createStyles } from 'antd-style';
 import { Key, PlusCircle, Unlock, HardDrive, ArrowRight, Download, FileUp, Trash2, Wallet, AlertTriangle } from 'lucide-react';
 import { memo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { WalletInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
-import { Service as LocalFsService } from '@@/github.com/kawai-network/veridium/pkg/localfs';
+import type { WalletInfo } from '@@/github.com/kawai-network/x/jarvis/models';
+import { Service as LocalFsService } from '@@/github.com/getkawai/tools/localfs';
 import { Dialogs, Browser } from '@wailsio/runtime';
 
 import BrandWatermark from '@/components/BrandWatermark';

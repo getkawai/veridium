@@ -13,7 +13,6 @@ import * as MarketplaceService from "./marketplaceservice.js";
 import * as ReferralService from "./referralservice.js";
 import * as ThreadManagementService from "./threadmanagementservice.js";
 import * as VectorSearchService from "./vectorsearchservice.js";
-import * as WalletService from "./walletservice.js";
 export {
     AgentChatService,
     CashbackService,
@@ -26,8 +25,7 @@ export {
     MarketplaceService,
     ReferralService,
     ThreadManagementService,
-    VectorSearchService,
-    WalletService
+    VectorSearchService
 };
 
 export {
@@ -84,8 +82,5 @@ export {
     TradeHistoryEntry,
     TradeResult,
     TrialClaim,
-    TxAnalysis,
-    UserBalanceInfo,
-    WalletInfo,
-    WalletStatus
+    TxAnalysis
 } from "./models.js";

@@ -154,7 +154,7 @@ See [obfuscator/README.md](obfuscator/README.md) for detailed documentation.
 A comprehensive service for local file system operations, providing a modern, service-oriented interface.
 
 ```go
-import "github.com/kawai-network/veridium/pkg/localfs"
+import "github.com/getkawai/tools/localfs"
 
 // Create service
 service := localfs.NewService()

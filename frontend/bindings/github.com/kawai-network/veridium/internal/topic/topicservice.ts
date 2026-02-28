@@ -12,12 +12,12 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as fantasy$0 from "../../pkg/fantasy/models.js";
+import * as unillm$0 from "../../../../getkawai/unillm/models.js";
 
 /**
  * GenerateTitle generates a concise title for the conversation using titleModel
  */
-export function GenerateTitle(messages: fantasy$0.Message[], locale: string): $CancellablePromise<string> {
+export function GenerateTitle(messages: unillm$0.Message[], locale: string): $CancellablePromise<string> {
     return $Call.ByID(1235962455, messages, locale);
 }
 
@@ -32,7 +32,7 @@ export function GenerateTitleFromPrompt(prompt: string, locale: string): $Cancel
  * UpdateGenerationTopicTitle updates an existing generation topic with LLM-generated title
  * It runs in the background. It targets the 'generation_topics' table.
  */
-export function UpdateGenerationTopicTitle(topicID: string, messages: fantasy$0.Message[]): $CancellablePromise<void> {
+export function UpdateGenerationTopicTitle(topicID: string, messages: unillm$0.Message[]): $CancellablePromise<void> {
     return $Call.ByID(946508128, topicID, messages);
 }
 
@@ -47,7 +47,7 @@ export function UpdateGenerationTopicTitleFromPrompt(topicID: string, prompt: st
  * UpdateTopicTitle updates an existing topic with LLM-generated title
  * It runs in the background
  */
-export function UpdateTopicTitle(topicID: string, messages: fantasy$0.Message[]): $CancellablePromise<void> {
+export function UpdateTopicTitle(topicID: string, messages: unillm$0.Message[]): $CancellablePromise<void> {
     return $Call.ByID(1690130254, topicID, messages);
 }
 

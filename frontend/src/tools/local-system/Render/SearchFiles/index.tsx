@@ -1,9 +1,9 @@
-import { LocalSearchFilesParams } from '@@/github.com/kawai-network/veridium/pkg/localfs';
+import { LocalSearchFilesParams } from '@@/github.com/getkawai/tools/localfs';
 import { ChatMessagePluginError } from '@/types';
 import { memo } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
-import { LocalFileSearchState } from '@@/github.com/kawai-network/veridium/pkg/yzma/tools/builtin';
+import { LocalFileSearchState } from '@@/github.com/getkawai/tools/builtin';
 
 import SearchResult from './Result';
 import SearchQuery from './SearchQuery';

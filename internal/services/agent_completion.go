@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/kawai-network/veridium/pkg/fantasy"
+	unillm "github.com/getkawai/unillm"
 )
 
 // ChatCompletionRequest represents a stateless chat completion request
@@ -29,7 +29,7 @@ func (s *AgentChatService) ChatCompletion(ctx context.Context, req ChatCompletio
 	// Priority:
 	// 1. Use passed model/provider if available in LibService
 	// 2. Fallback to s.chatModel
-	var model fantasy.LanguageModel
+	var model unillm.LanguageModel
 
 	// TODO: Phase 2 - Look up model from LibService dynamically based on req.Model/req.Provider
 	// For now, we use the pre-configured chatModel or summaryModel
@@ -41,26 +41,26 @@ func (s *AgentChatService) ChatCompletion(ctx context.Context, req ChatCompletio
 		return "", fmt.Errorf("no language model available for completion")
 	}
 
-	// 2. Convert messages to fantasy format
-	msgs := make([]fantasy.Message, len(req.Messages))
+	// 2. Convert messages to unillm format
+	msgs := make([]unillm.Message, len(req.Messages))
 	for i, m := range req.Messages {
-		role := fantasy.MessageRoleUser
+		role := unillm.MessageRoleUser
 		switch m.Role {
 		case "system":
-			role = fantasy.MessageRoleSystem
+			role = unillm.MessageRoleSystem
 		case "assistant":
-			role = fantasy.MessageRoleAssistant
+			role = unillm.MessageRoleAssistant
 		}
 
-		msgs[i] = fantasy.Message{
+		msgs[i] = unillm.Message{
 			Role:    role,
-			Content: []fantasy.MessagePart{fantasy.TextPart{Text: m.Content}},
+			Content: []unillm.MessagePart{unillm.TextPart{Text: m.Content}},
 		}
 	}
 
 	// 3. Execute generation
 	// We use the model directly instead of Agent since we don't need tools/loop
-	resp, err := model.Generate(ctx, fantasy.Call{
+	resp, err := model.Generate(ctx, unillm.Call{
 		Prompt: msgs,
 	})
 	if err != nil {

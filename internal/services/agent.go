@@ -22,20 +22,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/getkawai/database"
+	db "github.com/getkawai/database/db"
+	"github.com/getkawai/tools"
+	yzmabuiltin "github.com/getkawai/tools/builtin"
+	unillm "github.com/getkawai/unillm"
 	"github.com/google/uuid"
-	"github.com/kawai-network/veridium/internal/database"
-	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/topic"
-	"github.com/kawai-network/veridium/pkg/fantasy"
-	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
-	"github.com/kawai-network/veridium/pkg/fantasy/tools"
-	yzmabuiltin "github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
 	"github.com/kawai-network/x/store"
 	"github.com/pemistahl/lingua-go"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -46,18 +44,17 @@ import (
 type AgentChatService struct {
 	app         *application.App
 	db          *database.Service
-	libService  *llamalib.Service
 	kbService   *KnowledgeBaseService
 	ragWorkflow *RAGWorkflow
 
 	// Vector search for file-based RAG (direct file attachments)
 	vectorSearch *VectorSearchService
 
-	// Language models for different tasks (all fantasy.LanguageModel interface)
+	// Language models for different tasks (all unillm.LanguageModel interface)
 	// These can be ChainLanguageModel for fallback support
-	chatModel    fantasy.LanguageModel // Main chat model (streaming + tools)
-	titleModel   fantasy.LanguageModel // Title generation model (lightweight)
-	summaryModel fantasy.LanguageModel // Summary generation model
+	chatModel    unillm.LanguageModel // Main chat model (streaming + tools)
+	titleModel   unillm.LanguageModel // Title generation model (lightweight)
+	summaryModel unillm.LanguageModel // Summary generation model
 
 	// Yzma tool registry (replaces Eino tools)
 	toolRegistry *tools.ToolRegistry
@@ -89,7 +86,7 @@ type AgentChatService struct {
 type AgentSession struct {
 	SessionID       string
 	UserID          string
-	Messages        []fantasy.Message // Native yzma messages
+	Messages        []unillm.Message // Native yzma messages
 	KnowledgeBaseID string
 	ToolNames       []string // Tool names to use for this session
 	Context         map[string]any
@@ -374,7 +371,6 @@ type UIChatMessage struct {
 func NewAgentChatService(
 	app *application.App,
 	db *database.Service,
-	libService *llamalib.Service,
 	kbService *KnowledgeBaseService,
 	vectorSearch *VectorSearchService,
 	threadService *ThreadManagementService,
@@ -424,7 +420,6 @@ func NewAgentChatService(
 	service := &AgentChatService{
 		app:              app,
 		db:               db,
-		libService:       libService,
 		kbService:        kbService,
 		ragWorkflow:      ragWorkflow,
 		vectorSearch:     vectorSearch,
@@ -445,7 +440,7 @@ func NewAgentChatService(
 // SetChatModel sets the main chat model (for streaming chat with tools)
 //
 //wails:ignore
-func (s *AgentChatService) SetChatModel(model fantasy.LanguageModel) {
+func (s *AgentChatService) SetChatModel(model unillm.LanguageModel) {
 	s.chatModel = model
 	if model != nil {
 		log.Printf("✅ AgentChatService: Chat model set (%s/%s)", model.Provider(), model.Model())
@@ -455,7 +450,7 @@ func (s *AgentChatService) SetChatModel(model fantasy.LanguageModel) {
 // SetTitleModel sets the title generation model
 //
 //wails:ignore
-func (s *AgentChatService) SetTitleModel(model fantasy.LanguageModel) {
+func (s *AgentChatService) SetTitleModel(model unillm.LanguageModel) {
 	if s.topicService != nil {
 		s.topicService.SetTitleModel(model)
 	}
@@ -469,7 +464,7 @@ func (s *AgentChatService) SetTitleModel(model fantasy.LanguageModel) {
 // SetSummaryModel sets the summary generation model
 //
 //wails:ignore
-func (s *AgentChatService) SetSummaryModel(model fantasy.LanguageModel) {
+func (s *AgentChatService) SetSummaryModel(model unillm.LanguageModel) {
 	s.summaryModel = model
 	if model != nil {
 		log.Printf("✅ AgentChatService: Summary model set (%s/%s)", model.Provider(), model.Model())
@@ -529,7 +524,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 			req.SessionID, topicID, len(dbMessages))
 
 		// Convert DB messages to message format
-		yzmaMessages := make([]fantasy.Message, 0, len(dbMessages))
+		yzmaMessages := make([]unillm.Message, 0, len(dbMessages))
 		for _, dbMsg := range dbMessages {
 			if msg, ok := convertDBMessageToYzma(&dbMsg); ok {
 				yzmaMessages = append(yzmaMessages, msg)
@@ -598,7 +593,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 			}
 
 			// Convert DB messages to message format
-			yzmaMessages := make([]fantasy.Message, 0, len(dbMessages))
+			yzmaMessages := make([]unillm.Message, 0, len(dbMessages))
 			for _, dbMsg := range dbMessages {
 				if msg, ok := convertDBMessageToYzma(&dbMsg); ok {
 					yzmaMessages = append(yzmaMessages, msg)
@@ -639,7 +634,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 	session := &AgentSession{
 		SessionID:       req.SessionID,
 		UserID:          req.UserID,
-		Messages:        make([]fantasy.Message, 0),
+		Messages:        make([]unillm.Message, 0),
 		KnowledgeBaseID: req.KnowledgeBaseID,
 		ToolNames:       toolNames,
 		Context:         req.Context,
@@ -747,8 +742,8 @@ If the user writes in a specific language, always respond in that same language.
 	return base
 }
 
-// buildSystemPrompt builds the system prompt string for fantasy.Agent
-// This is optimized for use with fantasy.WithSystemPrompt() which handles
+// buildSystemPrompt builds the system prompt string for unillm.Agent
+// This is optimized for use with unillm.WithSystemPrompt() which handles
 // system prompt injection internally. Returns just the prompt string.
 // The userMessage parameter is used to detect the user's language for response.
 func (s *AgentChatService) buildSystemPrompt(session *AgentSession, memoryContext string, userMessage string) string {
@@ -820,16 +815,16 @@ func (s *AgentChatService) buildSystemPrompt(session *AgentSession, memoryContex
 }
 
 // getHistoryMessages returns message history from session, excluding system messages
-// This is optimized for use with fantasy.Agent which handles system prompt separately
-func (s *AgentChatService) getHistoryMessages(session *AgentSession) []fantasy.Message {
+// This is optimized for use with unillm.Agent which handles system prompt separately
+func (s *AgentChatService) getHistoryMessages(session *AgentSession) []unillm.Message {
 	if len(session.Messages) == 0 {
 		return nil
 	}
 
-	// Filter out system messages - fantasy.Agent handles system prompt via WithSystemPrompt()
-	history := make([]fantasy.Message, 0, len(session.Messages))
+	// Filter out system messages - unillm.Agent handles system prompt via WithSystemPrompt()
+	history := make([]unillm.Message, 0, len(session.Messages))
 	for _, msg := range session.Messages {
-		if msg.Role != fantasy.MessageRoleSystem {
+		if msg.Role != unillm.MessageRoleSystem {
 			history = append(history, msg)
 		}
 	}
@@ -961,7 +956,7 @@ func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessio
 
 // convertDBMessageToYzma converts a database message to native message
 // Returns the message and a boolean indicating if conversion was successful
-func convertDBMessageToYzma(dbMsg *db.Message) (fantasy.Message, bool) {
+func convertDBMessageToYzma(dbMsg *db.Message) (unillm.Message, bool) {
 	role := dbMsg.Role
 	content := ""
 	if dbMsg.Content.Valid {
@@ -970,26 +965,26 @@ func convertDBMessageToYzma(dbMsg *db.Message) (fantasy.Message, bool) {
 
 	// Check for tool calls
 	if dbMsg.Tools.Valid && dbMsg.Tools.String != "" {
-		var toolCalls []fantasy.ToolCall
+		var toolCalls []unillm.ToolCall
 		if err := json.Unmarshal([]byte(dbMsg.Tools.String), &toolCalls); err == nil && len(toolCalls) > 0 {
-			return fantasy.NewToolCallMessage(toolCalls), true
+			return unillm.NewToolCallMessage(toolCalls), true
 		}
 	}
 
 	// Check for tool response
 	if role == "tool" && content != "" {
-		return fantasy.NewToolResultMessage("", "", content), true
+		return unillm.NewToolResultMessage("", "", content), true
 	}
 
 	// Skip empty messages
 	if role == "" && content == "" {
-		return fantasy.Message{}, false
+		return unillm.Message{}, false
 	}
 
 	// Regular chat message
-	return fantasy.Message{
-		Role:    fantasy.MessageRole(role),
-		Content: []fantasy.MessagePart{fantasy.TextPart{Text: content}},
+	return unillm.Message{
+		Role:    unillm.MessageRole(role),
+		Content: []unillm.MessagePart{unillm.TextPart{Text: content}},
 	}, true
 }
 
@@ -1087,21 +1082,6 @@ func (s *AgentChatService) updateSessionTimestamp(ctx context.Context, sessionID
 	return err
 }
 
-// detectReasoningCapability detects if the loaded model supports reasoning
-// Updates s.isReasoningModel based on model name
-func (s *AgentChatService) detectReasoningCapability() {
-	modelPath := s.libService.GetLoadedChatModel()
-	if modelPath == "" {
-		s.isReasoningModel = false
-		return
-	}
-
-	modelName := strings.ToLower(filepath.Base(modelPath))
-	// Nemotron and Qwen models support <think> tags
-	s.isReasoningModel = strings.Contains(modelName, "nemotron") || strings.Contains(modelName, "qwen")
-	log.Printf("🧠 Detected model capability: reasoning=%v (model: %s)", s.isReasoningModel, filepath.Base(modelPath))
-}
-
 // ============================================================================
 // History Summary Functions
 // ============================================================================
@@ -1155,7 +1135,7 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 	oldMessages := messages[:len(messages)-keepCount]
 
 	// 6. Convert to message format
-	yzmaMessages := make([]fantasy.Message, 0, len(oldMessages))
+	yzmaMessages := make([]unillm.Message, 0, len(oldMessages))
 	for _, dbMsg := range oldMessages {
 		if msg, ok := convertDBMessageToYzma(&dbMsg); ok {
 			yzmaMessages = append(yzmaMessages, msg)
@@ -1223,7 +1203,7 @@ func (s *AgentChatService) getKeepMessageCount() int {
 
 // generateHistorySummary generates summary using summaryModel
 // ChainLanguageModel handles fallback internally if configured
-func (s *AgentChatService) generateHistorySummary(ctx context.Context, messages []fantasy.Message) (string, error) {
+func (s *AgentChatService) generateHistorySummary(ctx context.Context, messages []unillm.Message) (string, error) {
 	if len(messages) == 0 {
 		return "", fmt.Errorf("no messages to summarize")
 	}
@@ -1247,7 +1227,7 @@ Rules:
 	var conversationText string
 	for _, msg := range messages {
 		role := msg.Role
-		text := fantasy.GetMessageText(msg)
+		text := unillm.GetMessageText(msg)
 		if text != "" {
 			conversationText += fmt.Sprintf("%s: %s\n\n", role, text)
 		}
@@ -1260,13 +1240,13 @@ Rules:
 Please summarize the above conversation and retain key information. The summarized content will be used as context for subsequent prompts.`, conversationText)
 
 	// Create messages for summary generation
-	summaryMessages := fantasy.Prompt{
-		fantasy.NewSystemMessage(systemPrompt),
-		fantasy.NewUserMessage(conversationContent),
+	summaryMessages := unillm.Prompt{
+		unillm.NewSystemMessage(systemPrompt),
+		unillm.NewUserMessage(conversationContent),
 	}
 
 	// Use summaryModel directly (ChainLanguageModel handles fallback)
-	resp, err := s.summaryModel.Generate(ctx, fantasy.Call{Prompt: summaryMessages})
+	resp, err := s.summaryModel.Generate(ctx, unillm.Call{Prompt: summaryMessages})
 	if err != nil {
 		return "", fmt.Errorf("summary generation failed: %w", err)
 	}
@@ -1358,7 +1338,7 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 	messagesToSummarize := newMessages[:len(newMessages)-keepCount]
 
 	// 9. Convert DB messages to messages
-	yzmaMessages := make([]fantasy.Message, 0, len(messagesToSummarize))
+	yzmaMessages := make([]unillm.Message, 0, len(messagesToSummarize))
 	for _, dbMsg := range messagesToSummarize {
 		if msg, ok := convertDBMessageToYzma(&dbMsg); ok {
 			yzmaMessages = append(yzmaMessages, msg)
@@ -1419,7 +1399,7 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 
 // generateIncrementalSummary creates updated summary by merging existing summary with new messages
 // Uses summaryModel directly (ChainLanguageModel handles fallback internally)
-func (s *AgentChatService) generateIncrementalSummary(ctx context.Context, existingSummary string, newMessages []fantasy.Message) (string, error) {
+func (s *AgentChatService) generateIncrementalSummary(ctx context.Context, existingSummary string, newMessages []unillm.Message) (string, error) {
 	// Check if summary model is configured
 	if s.summaryModel == nil {
 		return "", fmt.Errorf("summary model not configured")
@@ -1429,10 +1409,10 @@ func (s *AgentChatService) generateIncrementalSummary(ctx context.Context, exist
 	var messagesText strings.Builder
 	for i, msg := range newMessages {
 		role := "User"
-		if msg.Role == fantasy.MessageRoleAssistant {
+		if msg.Role == unillm.MessageRoleAssistant {
 			role = "Assistant"
 		}
-		text := fantasy.GetMessageText(msg)
+		text := unillm.GetMessageText(msg)
 		if text != "" {
 			messagesText.WriteString(fmt.Sprintf("%s: %s\n", role, text))
 		}
@@ -1465,12 +1445,12 @@ INSTRUCTIONS:
 UPDATED SUMMARY:`, existingSummary, messagesText.String())
 
 	// Create messages for incremental summary
-	summaryMessages := fantasy.Prompt{
-		fantasy.NewUserMessage(prompt),
+	summaryMessages := unillm.Prompt{
+		unillm.NewUserMessage(prompt),
 	}
 
 	// Use summaryModel directly (ChainLanguageModel handles fallback)
-	resp, err := s.summaryModel.Generate(ctx, fantasy.Call{Prompt: summaryMessages})
+	resp, err := s.summaryModel.Generate(ctx, unillm.Call{Prompt: summaryMessages})
 	if err != nil {
 		return "", fmt.Errorf("failed to generate incremental summary: %w", err)
 	}

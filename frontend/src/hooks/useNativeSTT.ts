@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
-import * as WhisperService from '@@/github.com/kawai-network/veridium/internal/whisper/service';
 import * as AudioRecorderService from '@@/github.com/kawai-network/veridium/internal/audio_recorder/audiorecorderservice';
 
 interface UseNativeSTTConfig {
@@ -82,37 +81,9 @@ export const useNativeSTT = (config: UseNativeSTTConfig): UseNativeSTTReturn => 
     try {
       // Stop native audio recording and get the file path
       const audioPath: string = await AudioRecorderService.StopRecording();
-      
+
       console.log('Audio file saved to:', audioPath);
-
-      // Check if whisper-cpp is installed
-      const isInstalled = await WhisperService.IsWhisperInstalled();
-      
-      if (!isInstalled) {
-        throw new Error('Whisper is still being installed. Please wait a moment and try again.');
-      }
-
-      // Transcribe using Whisper
-      // First, check if we have a model
-      const models: string[] = await WhisperService.ListModels();
-      
-      if (!models || models.length === 0) {
-        throw new Error('No Whisper models installed. Whisper is downloading a model in the background. Please wait a moment and try again.');
-      }
-
-      // Use the first available model (typically ggml-base)
-      const modelId = models[0] || 'base';
-      
-      console.log('Transcribing with model:', modelId);
-      
-      // Transcribe
-      const text = await WhisperService.Transcribe(modelId, audioPath);
-
-      console.log('Transcription result:', text);
-
-      // Update input with transcribed text
-      config.onTextChange(text.trim());
-      config.onSuccess?.();
+      throw new Error('Native STT backend is not available in this build.');
     } catch (error) {
       console.error('Transcription failed:', error);
       config.onError?.(error);
@@ -180,4 +151,3 @@ export const useNativeSTT = (config: UseNativeSTTConfig): UseNativeSTTReturn => 
     time,
   };
 };
-

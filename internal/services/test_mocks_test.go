@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/contracts/otcmarket"
 	"github.com/kawai-network/veridium/internal/services"
+	"github.com/kawai-network/x/jarvis"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -27,9 +28,9 @@ func (m *MockWalletProvider) HasWallet() bool {
 	return args.Bool(0)
 }
 
-func (m *MockWalletProvider) GetWallets() []services.WalletInfo {
+func (m *MockWalletProvider) GetWallets() []jarvis.WalletInfo {
 	args := m.Called()
-	return args.Get(0).([]services.WalletInfo)
+	return args.Get(0).([]jarvis.WalletInfo)
 }
 
 func (m *MockWalletProvider) GenerateMnemonic() (string, error) {

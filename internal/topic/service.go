@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kawai-network/veridium/internal/database"
-	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/pkg/fantasy"
+	unillm "github.com/getkawai/unillm"
+	"github.com/getkawai/database"
+	db "github.com/getkawai/database/db"
 	"github.com/kawai-network/x/constant"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -20,7 +20,7 @@ import (
 type TopicService struct {
 	db         *database.Service
 	app        *application.App
-	titleModel fantasy.LanguageModel
+	titleModel unillm.LanguageModel
 }
 
 // NewService creates a new Topic Service
@@ -34,7 +34,7 @@ func NewService(db *database.Service, app *application.App) *TopicService {
 // SetTitleModel sets the model used for title generation
 //
 //wails:ignore
-func (s *TopicService) SetTitleModel(model fantasy.LanguageModel) {
+func (s *TopicService) SetTitleModel(model unillm.LanguageModel) {
 	s.titleModel = model
 	if model != nil {
 		log.Printf("✅ TopicService: Title model set (%s/%s)", model.Provider(), model.Model())
@@ -42,7 +42,7 @@ func (s *TopicService) SetTitleModel(model fantasy.LanguageModel) {
 }
 
 // GenerateTitle generates a concise title for the conversation using titleModel
-func (s *TopicService) GenerateTitle(ctx context.Context, messages []fantasy.Message, locale string) (string, error) {
+func (s *TopicService) GenerateTitle(ctx context.Context, messages []unillm.Message, locale string) (string, error) {
 	if len(messages) == 0 {
 		return "New Conversation", nil
 	}
@@ -69,27 +69,27 @@ Example: Sleep Functions for Body and Mind`, locale)
 	var conversationText string
 	for _, msg := range messages {
 		if msg.Role == "user" {
-			conversationText += fmt.Sprintf("user: %s\n", fantasy.GetMessageText(msg))
+			conversationText += fmt.Sprintf("user: %s\n", unillm.GetMessageText(msg))
 		}
 	}
 
 	// Fallback: if no user messages found (unlikely but possible), use all messages
 	if conversationText == "" {
 		for _, msg := range messages {
-			conversationText += fmt.Sprintf("%s: %s\n", msg.Role, fantasy.GetMessageText(msg))
+			conversationText += fmt.Sprintf("%s: %s\n", msg.Role, unillm.GetMessageText(msg))
 		}
 	}
 
 	log.Printf("📝 Generating title for conversation (%d messages, %d chars)", len(messages), len(conversationText))
 
 	// Create messages for title generation
-	titleMessages := fantasy.Prompt{
-		fantasy.NewSystemMessage(systemPrompt),
-		fantasy.NewUserMessage(conversationText),
+	titleMessages := unillm.Prompt{
+		unillm.NewSystemMessage(systemPrompt),
+		unillm.NewUserMessage(conversationText),
 	}
 
 	// Use titleModel directly (ChainLanguageModel handles fallback)
-	resp, err := s.titleModel.Generate(ctx, fantasy.Call{Prompt: titleMessages})
+	resp, err := s.titleModel.Generate(ctx, unillm.Call{Prompt: titleMessages})
 	if err != nil {
 		log.Printf("⚠️  Title generation failed: %v, using default", err)
 		return "New Conversation", nil
@@ -143,8 +143,8 @@ Example: Sleep Functions for Body and Mind`, locale)
 // GenerateTitleFromPrompt generates a title from a single prompt (e.g., image generation prompt)
 func (s *TopicService) GenerateTitleFromPrompt(ctx context.Context, prompt string, locale string) (string, error) {
 	// Wrap prompt in a user message
-	messages := []fantasy.Message{
-		fantasy.NewUserMessage(prompt),
+	messages := []unillm.Message{
+		unillm.NewUserMessage(prompt),
 	}
 	return s.GenerateTitle(ctx, messages, locale)
 }
@@ -152,17 +152,17 @@ func (s *TopicService) GenerateTitleFromPrompt(ctx context.Context, prompt strin
 // UpdateTopicTitleFromPrompt updates an existing topic with LLM-generated title from a prompt
 func (s *TopicService) UpdateTopicTitleFromPrompt(ctx context.Context, topicID string, prompt string) error {
 	// Wrap prompt in a user message
-	messages := []fantasy.Message{
-		fantasy.NewUserMessage(prompt),
+	messages := []unillm.Message{
+		unillm.NewUserMessage(prompt),
 	}
 	return s.UpdateTopicTitle(ctx, topicID, messages)
 }
 
 // UpdateTopicTitle updates an existing topic with LLM-generated title
 // It runs in the background
-func (s *TopicService) UpdateTopicTitle(ctx context.Context, topicID string, messages []fantasy.Message) error {
+func (s *TopicService) UpdateTopicTitle(ctx context.Context, topicID string, messages []unillm.Message) error {
 	// Create a copy of messages to avoid race conditions
-	messagesCopy := make([]fantasy.Message, len(messages))
+	messagesCopy := make([]unillm.Message, len(messages))
 	copy(messagesCopy, messages)
 
 	log.Printf("📌 [TITLE] UpdateTopicTitle called for topic %s with %d messages", topicID, len(messagesCopy))
@@ -229,8 +229,8 @@ func (s *TopicService) UpdateTopicTitle(ctx context.Context, topicID string, mes
 // UpdateGenerationTopicTitleFromPrompt updates an existing generation topic with LLM-generated title from a prompt
 func (s *TopicService) UpdateGenerationTopicTitleFromPrompt(ctx context.Context, topicID string, prompt string) error {
 	// Wrap prompt in a user message
-	messages := []fantasy.Message{
-		fantasy.NewUserMessage(prompt),
+	messages := []unillm.Message{
+		unillm.NewUserMessage(prompt),
 	}
 	// Use UpdateGenerationTopicTitle instead of UpdateTopicTitle
 	return s.UpdateGenerationTopicTitle(ctx, topicID, messages)
@@ -238,9 +238,9 @@ func (s *TopicService) UpdateGenerationTopicTitleFromPrompt(ctx context.Context,
 
 // UpdateGenerationTopicTitle updates an existing generation topic with LLM-generated title
 // It runs in the background. It targets the 'generation_topics' table.
-func (s *TopicService) UpdateGenerationTopicTitle(ctx context.Context, topicID string, messages []fantasy.Message) error {
+func (s *TopicService) UpdateGenerationTopicTitle(ctx context.Context, topicID string, messages []unillm.Message) error {
 	// Create a copy of messages to avoid race conditions
-	messagesCopy := make([]fantasy.Message, len(messages))
+	messagesCopy := make([]unillm.Message, len(messages))
 	copy(messagesCopy, messages)
 
 	log.Printf("📌 [TITLE] UpdateGenerationTopicTitle called for topic %s with %d messages", topicID, len(messagesCopy))

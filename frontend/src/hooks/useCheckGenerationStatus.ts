@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { GetGenerationWithAsyncTask } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
+import { GetGenerationWithAsyncTask } from '@@/github.com/getkawai/database/db/queries';
 import { AsyncTaskStatus } from '@/types/asyncTask';
 import { useImageStore } from '@/store/image';
 import { generationTopicSelectors } from '@/store/image/slices/generationTopic/selectors';

@@ -1,4 +1,4 @@
-import type { WalletInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import type { WalletInfo } from '@@/github.com/kawai-network/x/jarvis/models';
 
 export interface WalletState {
   walletAddress: string;

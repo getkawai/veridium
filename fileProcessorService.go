@@ -11,18 +11,15 @@ import (
 
 	"log/slog"
 
+	unillm "github.com/getkawai/unillm"
+	llamaembed "github.com/getkawai/unillm/providers/llama-embed"
 	"github.com/kawai-network/veridium/internal/services"
-	"github.com/kawai-network/veridium/internal/whisper"
-	"github.com/kawai-network/veridium/pkg/fantasy"
-	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
-	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 )
 
 // FileProcessorService is the Wails-exposed service
 type FileProcessorService struct {
-	processor      *services.FileProcessorService
-	libraryService *llamalib.Service
-	fileBaseDir    string // Base directory for file storage
+	processor   *services.FileProcessorService
+	fileBaseDir string // Base directory for file storage
 }
 
 // NewFileProcessorService creates a new Wails file processor service
@@ -31,8 +28,6 @@ func NewFileProcessorService(
 	fileLoader *services.FileLoader,
 	vectorSearchService *services.VectorSearchService,
 	duckDB *services.DuckDBStore,
-	libraryService *llamalib.Service,
-	whisperService *whisper.Service,
 	fileBaseDir string,
 ) *FileProcessorService {
 	// Get embedding function from vector search service (may be nil if embedder failed)
@@ -44,27 +39,24 @@ func NewFileProcessorService(
 	// Create RAG processor with Eino embedder and file loader
 	ragProcessor := services.NewRAGProcessor(db, duckDB, fileLoader, embedder)
 
-	// Create file processor with whisper service for video transcription
+	// Create file processor service
 	processor := services.NewFileProcessorService(
 		db,
 		fileLoader,
 		ragProcessor,
-		libraryService,
-		whisperService,
 		fileBaseDir,
 	)
 
 	return &FileProcessorService{
-		processor:      processor,
-		libraryService: libraryService,
-		fileBaseDir:    fileBaseDir,
+		processor:   processor,
+		fileBaseDir: fileBaseDir,
 	}
 }
 
 // SetLanguageModel sets the language model for OCR/transcript cleanup
 //
 //wails:ignore
-func (f *FileProcessorService) SetLanguageModel(model fantasy.LanguageModel) {
+func (f *FileProcessorService) SetLanguageModel(model unillm.LanguageModel) {
 	f.processor.SetLanguageModel(model)
 }
 

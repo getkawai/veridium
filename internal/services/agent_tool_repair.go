@@ -23,8 +23,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/kawai-network/veridium/pkg/fantasy"
-	"github.com/kawai-network/veridium/pkg/fantasy/schema"
+	unillm "github.com/getkawai/unillm"
+	"github.com/getkawai/unillm/schema"
 )
 
 // RepairToolCall attempts to repair a malformed tool call.
@@ -34,7 +34,7 @@ import (
 // - Wrong tool name (fuzzy matching)
 //
 // Returns the repaired tool call or an error if repair is not possible.
-func RepairToolCall(ctx context.Context, opts fantasy.ToolCallRepairOptions) (*fantasy.ToolCallContent, error) {
+func RepairToolCall(ctx context.Context, opts unillm.ToolCallRepairOptions) (*unillm.ToolCallContent, error) {
 	log.Printf("🔧 [REPAIR] Attempting to repair tool call: %s (error: %v)", opts.OriginalToolCall.ToolName, opts.ValidationError)
 
 	repaired := opts.OriginalToolCall
@@ -100,7 +100,7 @@ func RepairToolCall(ctx context.Context, opts fantasy.ToolCallRepairOptions) (*f
 	return nil, fmt.Errorf("unable to repair tool call: %w", opts.ValidationError)
 }
 
-// repairJSON attempts to fix common JSON syntax errors using fantasy/schema package
+// repairJSON attempts to fix common JSON syntax errors using unillm/schema package
 func repairJSON(input string) (string, error) {
 	if input == "" {
 		return "{}", nil
@@ -122,7 +122,7 @@ func repairJSON(input string) (string, error) {
 }
 
 // fuzzyMatchTool tries to find the closest matching tool name
-func fuzzyMatchTool(name string, availableTools []fantasy.AgentTool) string {
+func fuzzyMatchTool(name string, availableTools []unillm.AgentTool) string {
 	nameLower := strings.ToLower(name)
 
 	// Exact match (case-insensitive)
@@ -179,9 +179,9 @@ func fuzzyMatchTool(name string, availableTools []fantasy.AgentTool) string {
 }
 
 // fillMissingFields attempts to fill missing required fields with reasonable defaults
-func fillMissingFields(toolCall fantasy.ToolCallContent, availableTools []fantasy.AgentTool, messages []fantasy.Message) (string, error) {
+func fillMissingFields(toolCall unillm.ToolCallContent, availableTools []unillm.AgentTool, messages []unillm.Message) (string, error) {
 	// Find the tool
-	var tool fantasy.AgentTool
+	var tool unillm.AgentTool
 	for _, t := range availableTools {
 		if t.Info().Name == toolCall.ToolName {
 			tool = t
@@ -239,20 +239,20 @@ func fillMissingFields(toolCall fantasy.ToolCallContent, availableTools []fantas
 }
 
 // inferFieldValue tries to infer a field value from conversation context
-func inferFieldValue(fieldName string, params map[string]any, messages []fantasy.Message) any {
+func inferFieldValue(fieldName string, params map[string]any, messages []unillm.Message) any {
 	// Common field inference based on field name
 	fieldNameLower := strings.ToLower(fieldName)
 
 	// Try to find relevant content in recent messages
 	for i := len(messages) - 1; i >= 0 && i >= len(messages)-5; i-- {
 		msg := messages[i]
-		if msg.Role != fantasy.MessageRoleUser {
+		if msg.Role != unillm.MessageRoleUser {
 			continue
 		}
 
 		// Get text content
 		for _, part := range msg.Content {
-			if textPart, ok := part.(fantasy.TextPart); ok {
+			if textPart, ok := part.(unillm.TextPart); ok {
 				text := textPart.Text
 
 				// For query/search fields, use user message

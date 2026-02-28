@@ -31,7 +31,7 @@ import {
 } from '@/types/database';
 
 // Import transaction methods (Optimization 4A)
-import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
+import { Service as DBService } from '@@/github.com/getkawai/database';
 
 export class MessageModel {
   private userId: string;

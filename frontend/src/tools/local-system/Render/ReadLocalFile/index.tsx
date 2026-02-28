@@ -1,10 +1,10 @@
-import { LocalReadFileParams } from '@@/github.com/kawai-network/veridium/pkg/localfs';
+import { LocalReadFileParams } from '@@/github.com/getkawai/tools/localfs';
 import { ChatMessagePluginError } from '@/types';
 import { memo } from 'react';
 
 import { useChatStore } from '@/store/chat';
 import { chatToolSelectors } from '@/store/chat/slices/builtinTool/selectors';
-import { LocalReadFileState } from '@@/github.com/kawai-network/veridium/pkg/yzma/tools/builtin';
+import { LocalReadFileState } from '@@/github.com/getkawai/tools/builtin';
 
 import ReadFileSkeleton from './ReadFileSkeleton';
 import ReadFileView from './ReadFileView';

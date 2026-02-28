@@ -23,20 +23,20 @@ import (
 	"log"
 	"strings"
 
-	"github.com/kawai-network/veridium/pkg/fantasy"
+	unillm "github.com/getkawai/unillm"
 )
 
 // MemoryEnrichmentService converts raw chat messages into enriched facts
 // This implements the "Summary-Based RAG" strategy for infinite memory
 type MemoryEnrichmentService struct {
 	memoryService *MemoryService
-	llm           fantasy.LanguageModel // For summarization
+	llm           unillm.LanguageModel // For summarization
 }
 
 // MemoryEnrichmentConfig holds configuration for enrichment service
 type MemoryEnrichmentConfig struct {
 	MemoryService *MemoryService
-	LLM           fantasy.LanguageModel `json:"-"`
+	LLM           unillm.LanguageModel `json:"-"`
 }
 
 // NewMemoryEnrichmentService creates a new memory enrichment service
@@ -83,7 +83,7 @@ type ExtractedFact struct {
 }
 
 // EnrichMessages extracts facts from messages and stores as memories
-func (s *MemoryEnrichmentService) EnrichMessages(ctx context.Context, messages []fantasy.Message) (*EnrichmentResult, error) {
+func (s *MemoryEnrichmentService) EnrichMessages(ctx context.Context, messages []unillm.Message) (*EnrichmentResult, error) {
 	if len(messages) == 0 {
 		return &EnrichmentResult{}, nil
 	}
@@ -136,7 +136,7 @@ func (s *MemoryEnrichmentService) EnrichMessages(ctx context.Context, messages [
 }
 
 // AutoArchive checks buffer size and archives old messages if needed
-func (s *MemoryEnrichmentService) AutoArchive(ctx context.Context, messages []fantasy.Message, config BufferConfig) ([]fantasy.Message, error) {
+func (s *MemoryEnrichmentService) AutoArchive(ctx context.Context, messages []unillm.Message, config BufferConfig) ([]unillm.Message, error) {
 	if len(messages) <= config.ArchiveThreshold {
 		return messages, nil
 	}
@@ -157,25 +157,25 @@ func (s *MemoryEnrichmentService) AutoArchive(ctx context.Context, messages []fa
 }
 
 // formatMessagesForAnalysis formats messages for LLM analysis
-func (s *MemoryEnrichmentService) formatMessagesForAnalysis(messages []fantasy.Message) string {
+func (s *MemoryEnrichmentService) formatMessagesForAnalysis(messages []unillm.Message) string {
 	var sb strings.Builder
 	sb.WriteString("<conversation>\n")
 
 	for _, msg := range messages {
 		role := "unknown"
 		switch msg.Role {
-		case fantasy.MessageRoleUser:
+		case unillm.MessageRoleUser:
 			role = "user"
-		case fantasy.MessageRoleAssistant:
+		case unillm.MessageRoleAssistant:
 			role = "assistant"
-		case fantasy.MessageRoleSystem:
+		case unillm.MessageRoleSystem:
 			role = "system"
 		}
 
 		content := ""
 		for _, part := range msg.Content {
-			if part.GetType() == fantasy.ContentTypeText {
-				if textPart, ok := fantasy.AsContentType[fantasy.TextPart](part); ok {
+			if part.GetType() == unillm.ContentTypeText {
+				if textPart, ok := unillm.AsContentType[unillm.TextPart](part); ok {
 					content = textPart.Text
 					break
 				}
@@ -218,10 +218,10 @@ If no important facts found, return: []`
 	userPrompt := fmt.Sprintf("Extract important facts from this conversation:\n\n%s", conversation)
 
 	// Build call for LLM
-	call := fantasy.Call{
-		Prompt: fantasy.Prompt{
-			fantasy.NewSystemMessage(systemPrompt),
-			fantasy.NewUserMessage(userPrompt),
+	call := unillm.Call{
+		Prompt: unillm.Prompt{
+			unillm.NewSystemMessage(systemPrompt),
+			unillm.NewUserMessage(userPrompt),
 		},
 	}
 
@@ -246,18 +246,18 @@ If no important facts found, return: []`
 }
 
 // extractFactsRuleBased extracts facts using simple rules (fallback)
-func (s *MemoryEnrichmentService) extractFactsRuleBased(messages []fantasy.Message) []ExtractedFact {
+func (s *MemoryEnrichmentService) extractFactsRuleBased(messages []unillm.Message) []ExtractedFact {
 	var facts []ExtractedFact
 
 	for _, msg := range messages {
-		if msg.Role != fantasy.MessageRoleUser {
+		if msg.Role != unillm.MessageRoleUser {
 			continue
 		}
 
 		content := ""
 		for _, part := range msg.Content {
-			if part.GetType() == fantasy.ContentTypeText {
-				if textPart, ok := fantasy.AsContentType[fantasy.TextPart](part); ok {
+			if part.GetType() == unillm.ContentTypeText {
+				if textPart, ok := unillm.AsContentType[unillm.TextPart](part); ok {
 					content = textPart.Text
 					break
 				}
@@ -330,8 +330,8 @@ func (s *MemoryEnrichmentService) factTypeToCategory(factType string) MemoryCate
 }
 
 // extractMessageIDs extracts message IDs from messages (if available)
-func (s *MemoryEnrichmentService) extractMessageIDs(messages []fantasy.Message) []string {
-	// Note: fantasy.Message doesn't have ID field by default
+func (s *MemoryEnrichmentService) extractMessageIDs(messages []unillm.Message) []string {
+	// Note: unillm.Message doesn't have ID field by default
 	// This would need to be extended or use metadata
 	return []string{}
 }

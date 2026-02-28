@@ -24,7 +24,7 @@ import {
   RunCommandResult,
   WriteLocalFileParams,
   Service,
-} from '@@/github.com/kawai-network/veridium/pkg/localfs';
+} from '@@/github.com/getkawai/tools/localfs';
 
 class LocalFileService {
   // File Operations

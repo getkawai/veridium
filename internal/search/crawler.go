@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/htmltomarkdown"
-	"github.com/kawai-network/veridium/pkg/htmltomarkdown/converter"
+	"github.com/getkawai/tools/htmltomarkdown"
+	"github.com/getkawai/tools/htmltomarkdown/converter"
 )
 
 // Crawler handles web page crawling

@@ -3,7 +3,7 @@
 # ==============================================================================
 
 .PHONY: help dev dev-fast dev-hot dev-rebuild build clean test generate \
-        db-generate bindings-generate constants-generate \
+        bindings-generate constants-generate \
         admin-register admin-register-dry \
         release-prepare release-version \
         release-darwin release-darwin-package release-darwin-archive \
@@ -45,8 +45,7 @@ help:
 	@echo "  make release-clean           Clean release artifacts"
 	@echo ""
 	@echo "Code Generation:"
-	@echo "  make generate         Run db-generate + bindings-generate + constants-generate"
-	@echo "  make db-generate      Generate Go code from SQL (sqlc)"
+	@echo "  make generate         Run bindings-generate + constants-generate"
 	@echo "  make bindings-generate Generate TypeScript bindings (wails)"
 	@echo "  make constants-generate Generate constants from .env"
 	@echo "  make api-docs-generate Generate API documentation (Markdown + TSX)"
@@ -213,13 +212,8 @@ release-clean:
 # ==============================================================================
 # Code Generation
 # ==============================================================================
-generate: db-generate bindings-generate constants-generate
+generate: bindings-generate constants-generate
 	@echo "✅ All code generated!"
-
-db-generate:
-	@echo "🔄 Generating Go code from SQL queries..."
-	sqlc generate
-	@echo "✅ Database code generated!"
 
 bindings-generate:
 	@echo "🔄 Generating TypeScript bindings..."

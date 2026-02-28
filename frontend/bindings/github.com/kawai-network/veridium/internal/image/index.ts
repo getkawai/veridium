@@ -8,6 +8,5 @@ export {
 
 export {
     CreateImageRequest,
-    GenerationOptions,
     RuntimeImageGenParams
 } from "./models.js";

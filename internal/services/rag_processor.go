@@ -9,9 +9,9 @@ import (
 
 	"log/slog"
 
+	llamaembed "github.com/getkawai/unillm/providers/llama-embed"
 	"github.com/google/uuid"
-	db "github.com/kawai-network/veridium/internal/database/generated"
-	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
+	db "github.com/getkawai/database/db"
 	"github.com/kawai-network/veridium/types"
 )
 

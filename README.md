@@ -90,7 +90,7 @@ All smart contracts are deployed on **Monad Blockchain** (Testnet).
 -   **Frontend:** React 19, Vite, @lobehub/ui, Zustand.
 -   **Contributor Node:** Go (Golang), `llama.cpp` (via llamalib).
 -   **Blockchain:** Monad (EVM-compatible).
--   **Network Toolkit:** `github.com/kawai-network/y/jarvis` (Multi-chain support incl. Monad).
+-   **Network Toolkit:** `github.com/kawai-network/x/jarvis` (Multi-chain support incl. Monad).
 
 ---
 

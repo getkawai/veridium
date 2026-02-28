@@ -1,7 +1,7 @@
 import { isEqual } from 'lodash-es';
 import { StateCreator } from 'zustand';
 
-import { ListGenerationBatchesWithGenerations } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
+import { ListGenerationBatchesWithGenerations } from '@@/github.com/getkawai/database/db/queries';
 import { Generation, GenerationBatch } from '@/types/generation';
 import { setNamespace } from '@/utils/storeDebug';
 

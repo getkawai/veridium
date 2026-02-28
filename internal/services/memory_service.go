@@ -24,9 +24,9 @@ import (
 	"log/slog"
 	"time"
 
+	llamaembed "github.com/getkawai/unillm/providers/llama-embed"
 	"github.com/google/uuid"
-	db "github.com/kawai-network/veridium/internal/database/generated"
-	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
+	db "github.com/getkawai/database/db"
 )
 
 // MemoryCategory defines the type of memory

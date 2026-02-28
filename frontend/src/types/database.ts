@@ -6,10 +6,10 @@
  */
 
 // Re-export all models from generated bindings
-export * from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
+export * from '@@/github.com/getkawai/database/db/models';
 
 // Re-export queries
-export * as DB from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
+export * as DB from '@@/github.com/getkawai/database/db/queries';
 
 // Re-export database/sql types
 export * from '@@/database/sql/models';

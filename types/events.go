@@ -17,13 +17,13 @@
 package types
 
 import (
-	"github.com/kawai-network/veridium/pkg/fantasy"
+	unillm "github.com/getkawai/unillm"
 )
 
 // ============================================================================
 // Event Types
 // ============================================================================
-// Note: Tool types moved to pkg/yzma/tools - use fantasy.AgentTool interface
+// Note: Tool types moved to pkg/yzma/tools - use unillm.AgentTool interface
 
 // ChatStreamEvent represents the type of event during LLM interaction
 // This is used for both streaming events and tool execution events
@@ -56,4 +56,4 @@ type StreamCallback func(token string, isLast bool)
 // eventType: ChatEventToolCall (before execution) or ChatEventToolResult (after execution)
 // toolCall: the tool call being processed
 // result: tool execution result (only for ChatEventToolResult event)
-type ToolEventCallback func(eventType ChatStreamEvent, toolCall fantasy.ToolCall, result string)
+type ToolEventCallback func(eventType ChatStreamEvent, toolCall unillm.ToolCall, result string)

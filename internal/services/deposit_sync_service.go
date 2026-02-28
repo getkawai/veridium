@@ -10,10 +10,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/kawai-network/contracts/vault"
-	"github.com/kawai-network/x/store"
-	"github.com/kawai-network/x/constant"
 	"github.com/kawai-network/contracts"
+	"github.com/kawai-network/contracts/vault"
+	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/x/store"
 )
 
 // DepositSyncService handles manual deposit synchronization from user client

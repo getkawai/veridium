@@ -14,26 +14,24 @@ import (
 	"sync"
 	"time"
 
+	"github.com/getkawai/database"
+	"github.com/getkawai/database/db"
 	"github.com/google/uuid"
-	"github.com/kawai-network/veridium/internal/database"
-	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/topic"
-	"github.com/kawai-network/veridium/pkg/stablediffusion/local"
+	"github.com/kawai-network/x/remote"
+	"github.com/kawai-network/y/paths"
 )
 
 // Service handles high-level image generation operations with database persistence
 type Service struct {
-	*StableDiffusion // Embedded Engine
-	DB               *database.Service
-	TopicService     *topic.TopicService
+	DB           *database.Service
+	TopicService *topic.TopicService
 }
 
 // NewService creates a new image generation service
-func NewService(db *database.Service, engine *StableDiffusion) *Service {
+func NewService(db *database.Service) *Service {
 	return &Service{
-		StableDiffusion: engine,
-		DB:              db,
+		DB: db,
 	}
 }
 
@@ -42,29 +40,11 @@ func (s *Service) SetTopicService(ts *topic.TopicService) {
 	s.TopicService = ts
 }
 
-// GetFirstAvailableModel returns the first available SD model
-func (s *Service) GetFirstAvailableModel() string {
-	binaryPath := s.getBinaryPath()
-	modelsPath := s.GetModelsPath()
-
-	// Use local.NewGeneratorWithExecutor to preserve process tracking for cleanup
-	localGen := local.NewGeneratorWithExecutor(binaryPath, modelsPath, s.Executor)
-	return localGen.GetFirstAvailableModel()
-}
-
 // CreateImage handles frontend CreateImageRequest and generates images asynchronously
 func (s *Service) CreateImage(req CreateImageRequest) error {
 	ctx := context.Background()
 
 	log.Printf("[CreateImage] Starting image generation for topic: %s", req.GenerationTopicId)
-
-	// 1. Get first available model if not specified
-	modelPath := s.GetFirstAvailableModel()
-	if modelPath == "" {
-		log.Printf("[CreateImage] ERROR: No SD model found")
-		return fmt.Errorf("no SD model found")
-	}
-	log.Printf("[CreateImage] Using model: %s", modelPath)
 
 	// 2. Resolve UserID and Topic
 	log.Printf("[CreateImage] Checking database service...")
@@ -122,7 +102,6 @@ func (s *Service) CreateImage(req CreateImageRequest) error {
 	// Convert params to GenerationOptions for background worker
 	opts := GenerationOptions{
 		Prompt:      req.Params.Prompt,
-		ModelPath:   modelPath,
 		ImageUrl:    req.Params.ImageUrl,
 		ImageUrls:   req.Params.ImageUrls,
 		Size:        req.Params.Size,
@@ -310,6 +289,7 @@ func (s *Service) generateImagesInBackground(batchID string, imageNum int, opts 
 			// Rotate through models with retry strategy
 			startModelIndex := index % len(availableModels)
 			var remoteErr error
+			remoteGen := remote.NewGenerator()
 
 			// Try all available models until one succeeds
 			for attempt := 0; attempt < len(availableModels); attempt++ {
@@ -318,7 +298,7 @@ func (s *Service) generateImagesInBackground(batchID string, imageNum int, opts 
 				log.Printf("[Background] Image %d: Attempt %d/%d using model: %s", index, attempt+1, len(availableModels), localOpts.Model)
 
 				// Try remote generation
-				remoteErr = s.generateImageRemote(localOpts)
+				remoteErr = remoteGen.Generate(ctx, localOpts)
 				if remoteErr == nil {
 					log.Printf("[Background] Image %d: Success with model %s", index, localOpts.Model)
 					break

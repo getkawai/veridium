@@ -8,18 +8,18 @@ import (
 	"os"
 	"time"
 
+	"github.com/getkawai/tools/builtin"
 	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/internal/app"
 	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/internal/lifecycle"
-	"github.com/kawai-network/veridium/internal/machineid"
-	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/topic"
+	"github.com/getkawai/tools/localfs"
 	"github.com/kawai-network/y/config"
-	"github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
-	"github.com/kawai-network/veridium/pkg/localfs"
+	"github.com/kawai-network/y/machineid"
+	"github.com/kawai-network/y/paths"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
@@ -71,17 +71,11 @@ func main() {
 		ctx.FileLoader,
 		ctx.VectorSearch,
 		ctx.DuckDBStore,
-		ctx.LibService,
-		ctx.WhisperService,
 		paths.FileBase(),
 	)
 
-	// Initialize Stable Diffusion in background
-	sdEngine := image.NewEngine()
-	sdEngine.InitializeInBackground()
-
 	// Create Service wrapper (with DB)
-	sdService := image.NewService(ctx.DB, sdEngine)
+	sdService := image.NewService(ctx.DB)
 
 	// Create Wails app
 	wailsApp := createWailsApp(ctx, fileProcessor, sdService)
@@ -120,7 +114,6 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdS
 		// Core Features
 		application.NewService(ctx.SearchService),
 		application.NewService(ctx.TTSService),
-		application.NewService(ctx.WhisperService),
 		application.NewService(ctx.AudioRecorder),
 	}
 
@@ -188,9 +181,10 @@ func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProc
 	// Register TopicService
 	wailsApp.RegisterService(application.NewService(topicService))
 
-	if ctx.LibService != nil && ctx.KBService != nil {
+	if ctx.KBService != nil {
+		// TODO: Reconnect local lib service dependency after Context.LibService removal.
 		agentService := services.NewAgentChatService(
-			wailsApp, ctx.DB, ctx.LibService, ctx.KBService, ctx.VectorSearch, threadService, topicService, ctx.ToolRegistry, ctx.KVStore,
+			wailsApp, ctx.DB, ctx.KBService, ctx.VectorSearch, threadService, topicService, ctx.ToolRegistry, ctx.KVStore,
 		)
 
 		if ctx.ChatModel != nil {
@@ -233,17 +227,7 @@ func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProc
 		})
 	}
 
-	// Stable Diffusion cleanup
-	lifecycleManager.RegisterCleanup("Stable Diffusion Engine", func() {
-		sdService.Cleanup()
-	})
-
-	// Llama Library cleanup
-	if ctx.LibService != nil {
-		lifecycleManager.RegisterCleanup("Llama Library", func() {
-			ctx.LibService.Cleanup()
-		})
-	}
+	// TODO: Add replacement cleanup for local lib service after Context.LibService removal.
 
 	// DuckDB cleanup
 	if ctx.DuckDBStore != nil {

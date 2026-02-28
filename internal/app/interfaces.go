@@ -12,9 +12,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/contracts/otcmarket"
-	"github.com/kawai-network/veridium/internal/services"
+	db "github.com/getkawai/database/db"
+	"github.com/kawai-network/x/jarvis"
 )
 
 // ============================================================================
@@ -75,7 +75,7 @@ type WalletProvider interface {
 	HasWallet() bool
 
 	// GetWallets returns a list of all stored wallets
-	GetWallets() []WalletInfo
+	GetWallets() []jarvis.WalletInfo
 
 	// GenerateMnemonic creates a new 12-word bip39 mnemonic
 	GenerateMnemonic() (string, error)
@@ -111,7 +111,7 @@ type WalletProvider interface {
 	UpdateWalletDescription(address string, description string) error
 
 	// GetStatus returns the current state of the wallet
-	GetStatus() services.WalletStatus
+	GetStatus() jarvis.WalletStatus
 
 	// GetCurrentAddress returns the currently unlocked wallet address
 	GetCurrentAddress() string
@@ -135,14 +135,6 @@ type WalletProvider interface {
 	// GetCurrentAccountAddress returns the current account address if unlocked
 	GetCurrentAccountAddress() string
 }
-
-// WalletInfo represents a wallet in the list
-// Alias to services.WalletInfo for compatibility
-type WalletInfo = services.WalletInfo
-
-// WalletStatus represents the current state of the wallet
-// Alias to services.WalletStatus for compatibility
-type WalletStatus = services.WalletStatus
 
 // ============================================================================
 // BLOCKCHAIN PROVIDER INTERFACE
