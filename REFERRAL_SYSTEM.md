@@ -6,13 +6,25 @@ The Kawai DeAI Network referral system incentivizes viral growth by rewarding bo
 
 ## Incentive Structure
 
+### Canonical Bonus Values (Source of Truth)
+
+The canonical values below follow current implementation in:
+- `internal/services/referralservice.go` (`GetReferralBonusAmounts`)
+- `internal/services/referralservice.go` (`ClaimFreeTrialWithReferral`)
+
+| Rule | Value |
+|------|-------|
+| Base trial (no referral) | 5 USDT + 100 KAWAI |
+| Trial with referral code | 10 USDT + 200 KAWAI |
+| Referrer one-time reward (per successful referral) | 5 USDT + 100 KAWAI |
+
 ### One-Time Bonuses
 
 | User Type | Bonus Amount | Description |
 |-----------|--------------|-------------|
-| **New User (No Referral)** | 5 USDT | Base trial bonus |
-| **New User (With Referral)** | 10 USDT | Enhanced trial bonus (+100%) |
-| **Referrer** | 5 USDT | One-time reward per successful referral |
+| **New User (No Referral)** | 5 USDT + 100 KAWAI | Base trial bonus |
+| **New User (With Referral)** | 10 USDT + 200 KAWAI | Enhanced trial bonus (+100%) |
+| **Referrer** | 5 USDT + 100 KAWAI | One-time reward per successful referral |
 
 ### Lifetime Mining Commission (NEW) 🌟
 
@@ -29,7 +41,7 @@ The Kawai DeAI Network referral system incentivizes viral growth by rewarding bo
 ### Why This Works
 
 - **Win-Win:** Both parties benefit
-- **Strong Incentive:** 5 USDT one-time + 5% lifetime commission
+- **Strong Incentive:** 5 USDT + 100 KAWAI one-time + 5% lifetime commission
 - **Passive Income:** Earn while your referrals mine
 - **Viral Potential:** Coefficient of 2.0-3.0x
 - **No Limit:** Unlimited referrals = unlimited earnings
@@ -140,9 +152,9 @@ func (s *KVStore) ClaimFreeTrialWithReferral(
 **Logic:**
 1. Validate referral code (if provided)
 2. Check for self-referral
-3. Determine bonus amount (5 or 10 USDT)
+3. Determine bonus amount (5 or 10 USDT + corresponding KAWAI bonus)
 4. Claim trial with atomic operation
-5. Reward referrer (5 USDT)
+5. Reward referrer (5 USDT + 100 KAWAI)
 6. Update referral stats
 
 #### 2. Auto-Claim Trial on Wallet Unlock (NEW ✨)
@@ -212,7 +224,7 @@ func (s *WalletService) AutoClaimTrialIfNeeded(referralCode string) (bool, float
 - Collapsible input field
 - Code validation (6 alphanumeric)
 - Success animation
-- Bonus comparison (5 vs 10 USDT)
+- Bonus comparison (5 vs 10 USDT, and 100 vs 200 KAWAI)
 - **Saves code to localStorage** for auto-claim
 
 #### 2. Auto-Claim on Unlock (NEW ✨)
@@ -461,8 +473,8 @@ Your friend ABC123 will also earn 5 USDT + 100 KAWAI
 analytics.track('referral_code_created', { user_address });
 analytics.track('referral_link_shared', { code, method: 'twitter' });
 analytics.track('referral_applied', { code, new_user_address });
-analytics.track('referral_bonus_claimed', { code, amount: 8 });
-analytics.track('referrer_rewarded', { code, amount: 3 });
+analytics.track('referral_bonus_claimed', { code, usdt: 10, kawai: 200 });
+analytics.track('referrer_rewarded', { code, usdt: 5, kawai: 100 });
 ```
 
 ---
@@ -477,7 +489,7 @@ analytics.track('referrer_rewarded', { code, amount: 3 });
 - [ ] Prevent self-referral
 - [ ] Claim trial with referral (10 USDT)
 - [ ] Claim trial without referral (5 USDT)
-- [ ] Reward referrer (5 USDT)
+- [ ] Reward referrer (5 USDT + 100 KAWAI)
 - [ ] Update referral stats
 - [ ] Handle invalid referral code
 - [ ] Prevent double-claiming
@@ -487,7 +499,7 @@ analytics.track('referrer_rewarded', { code, amount: 3 });
 - [ ] Detect referral code from URL
 - [ ] Display referral banner
 - [ ] Apply referral code manually
-- [ ] Show bonus upgrade (5→8 USDT)
+- [ ] Show bonus upgrade (5→10 USDT and 100→200 KAWAI)
 - [ ] Generate referral code
 - [ ] Display referral dashboard
 - [ ] Copy referral code
@@ -599,11 +611,11 @@ bun run build
 
 ### Q: Is there a limit to referrals?
 
-**A:** No! Refer unlimited friends and earn 5 USDT per referral.
+**A:** No! Refer unlimited friends and earn 5 USDT + 100 KAWAI per successful referral.
 
 ### Q: When do I receive my referral reward?
 
-**A:** Instantly! As soon as your friend claims their trial, you get 5 USDT.
+**A:** Instantly! As soon as your friend claims their trial, you get 5 USDT + 100 KAWAI.
 
 ### Q: What if my friend doesn't use my code?
 
@@ -826,4 +838,3 @@ For questions or issues:
 ---
 
 **Built with ❤️ by the Kawai Team**
-

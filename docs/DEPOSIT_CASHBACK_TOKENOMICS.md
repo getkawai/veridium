@@ -62,9 +62,10 @@ Minting Mechanism: Proof of Computation only
 ```
 ┌─────────────────────────────────────────────────────┐
 │  MINING (Contributor Rewards):  60% of max supply   │
-│  DEVELOPER (Platform):          20% of max supply   │
-│  CASHBACK (User Deposits):      15% of max supply   │
-│  REFERRAL (Growth):              5% of max supply    │
+│  NON-MINING REWARDS:            40% of max supply   │
+│    - Cashback, referral, and other user incentives  │
+│  DEVELOPER:                     No dedicated bucket  │
+│    - Funded via mining split only (5% protocol cut) │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -72,9 +73,8 @@ Minting Mechanism: Proof of Computation only
 | Program | Allocation | Amount (KAWAI) | Purpose |
 |---------|-----------|----------------|---------|
 | **Mining** | 60% | 600,000,000 | Contributor rewards (compute) |
-| **Developer** | 20% | 200,000,000 | Platform development |
-| **Cashback** | 15% | 150,000,000 | User deposit incentive |
-| **Referral** | 5% | 50,000,000 | Viral growth (existing) |
+| **Non-Mining Rewards** | 40% | 400,000,000 | Cashback, referral, and user growth incentives |
+| **Developer Dedicated Allocation** | 0% | 0 | No dedicated mint bucket |
 | **Total** | 100% | **1,000,000,000** | Max supply |
 
 ---
@@ -223,8 +223,7 @@ Assuming growth pattern with **realistic tier distribution**:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  MINING (Contributor):   55% = 550,000,000 KAWAI    │
-│  DEVELOPER (Platform):   20% = 200,000,000 KAWAI    │
+│  MINING (incl. protocol cut): 75% = 750,000,000 KAWAI│
 │  CASHBACK (Deposits):    20% = 200,000,000 KAWAI    │
 │  REFERRAL (Growth):      5%  =  50,000,000 KAWAI    │
 └─────────────────────────────────────────────────────┘
@@ -671,4 +670,3 @@ The cashback program is economically viable, sustainable, and will significantly
 *Document prepared by: AI Analysis*  
 *Date: January 5, 2026*  
 *Version: 1.0*
-
