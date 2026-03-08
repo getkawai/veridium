@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/scrypster/muninndb/pkg/embedded"
 )
@@ -24,13 +25,7 @@ func TestMuninnMemoryBackend_StorePersistsConversation(t *testing.T) {
 		t.Fatalf("failed to store conversation memory: %v", err)
 	}
 
-	memories, err := backend.GetRelevantMemories(ctx, token, 5)
-	if err != nil {
-		t.Fatalf("failed to recall memories: %v", err)
-	}
-	if memories != "" && !strings.Contains(memories, token) {
-		t.Fatalf("expected recalled memories to contain token %q when non-empty, got: %s", token, memories)
-	}
+	requireRecallContainsToken(t, backend, token)
 
 	if err := backend.Close(); err != nil {
 		t.Fatalf("failed to close backend: %v", err)
@@ -83,13 +78,7 @@ func TestMuninnMemoryBackend_StoreAndRecallConversation(t *testing.T) {
 		t.Fatalf("failed to store conversation memory: %v", err)
 	}
 
-	memories, err := backend.GetRelevantMemories(ctx, token, 5)
-	if err != nil {
-		t.Fatalf("failed to recall memories: %v", err)
-	}
-	if memories != "" && !strings.Contains(memories, token) {
-		t.Fatalf("expected recalled memories to contain token %q, got: %s", token, memories)
-	}
+	requireRecallContainsToken(t, backend, token)
 }
 
 func TestMuninnMemoryBackend_GetRelevantMemoriesEmptyQuery(t *testing.T) {
@@ -110,4 +99,32 @@ func TestMuninnMemoryBackend_GetRelevantMemoriesEmptyQuery(t *testing.T) {
 	if memories != "" {
 		t.Fatalf("expected empty memories for empty query, got: %q", memories)
 	}
+}
+
+func requireRecallContainsToken(t *testing.T, backend *MuninnMemoryBackend, token string) {
+	t.Helper()
+
+	ctx := context.Background()
+	deadline := time.Now().Add(2 * time.Second)
+	var lastMemories string
+
+	for {
+		memories, err := backend.GetRelevantMemories(ctx, token, 5)
+		if err != nil {
+			t.Fatalf("failed to recall memories: %v", err)
+		}
+		lastMemories = memories
+		if strings.Contains(memories, token) {
+			return
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if strings.TrimSpace(lastMemories) == "" {
+		t.Fatalf("expected recalled memories to be non-empty for token %q", token)
+	}
+	t.Fatalf("expected recalled memories to contain token %q, got: %s", token, lastMemories)
 }
