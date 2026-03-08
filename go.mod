@@ -119,7 +119,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/getkawai/llamalib v0.2.4
 	github.com/getkawai/tools v0.1.5
-	github.com/getkawai/unillm v0.1.1
+	github.com/getkawai/unillm v0.1.2
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.7.0 // indirect
 	github.com/go-git/go-git/v5 v5.16.4 // indirect
