@@ -21,7 +21,6 @@ import (
 	"log"
 
 	"github.com/getkawai/tools"
-	"github.com/getkawai/tools/builtin"
 	unillm "github.com/getkawai/unillm"
 )
 
@@ -29,6 +28,7 @@ import (
 type MemoryIntegration struct {
 	memoryService     *MemoryService
 	enrichmentService *MemoryEnrichmentService
+	muninnBackend     *MuninnMemoryBackend
 	bufferConfig      BufferConfig
 }
 
@@ -36,6 +36,7 @@ type MemoryIntegration struct {
 type MemoryIntegrationConfig struct {
 	MemoryService     *MemoryService
 	EnrichmentService *MemoryEnrichmentService
+	MuninnBackend     *MuninnMemoryBackend
 	BufferConfig      *BufferConfig
 }
 
@@ -49,68 +50,18 @@ func NewMemoryIntegration(config *MemoryIntegrationConfig) (*MemoryIntegration, 
 	return &MemoryIntegration{
 		memoryService:     config.MemoryService,
 		enrichmentService: config.EnrichmentService,
+		muninnBackend:     config.MuninnBackend,
 		bufferConfig:      bufferConfig,
 	}, nil
 }
 
 // RegisterMemoryTool registers the search_memory tool with the given registry
 func (m *MemoryIntegration) RegisterMemoryTool(registry *tools.ToolRegistry) error {
-	if m.memoryService == nil {
-		log.Println("⚠️  Memory service not available, skipping memory tool registration")
-		return nil
-	}
-
-	// Create adapter that converts MemoryService to MemorySearcher interface
-	adapter := builtin.NewMemoryServiceAdapter(
-		// SemanticSearch adapter
-		func(ctx context.Context, query string, limit int) ([]builtin.MemorySearchResult, error) {
-			results, err := m.memoryService.SemanticSearch(ctx, query, limit)
-			if err != nil {
-				return nil, err
-			}
-
-			searchResults := make([]builtin.MemorySearchResult, len(results))
-			for i, r := range results {
-				searchResults[i] = builtin.MemorySearchResult{
-					ID:         r.Memory.ID,
-					Category:   string(r.Memory.Category),
-					Title:      r.Memory.Title,
-					Summary:    r.Memory.Summary,
-					Similarity: r.Similarity,
-				}
-			}
-			return searchResults, nil
-		},
-		// SemanticSearchByCategory adapter (uses same function for now)
-		func(ctx context.Context, query, category string, limit int) ([]builtin.MemorySearchResult, error) {
-			results, err := m.memoryService.SemanticSearch(ctx, query, limit)
-			if err != nil {
-				return nil, err
-			}
-
-			// Filter by category
-			var filtered []*MemorySearchResult
-			for _, r := range results {
-				if category == "" || string(r.Memory.Category) == category {
-					filtered = append(filtered, r)
-				}
-			}
-
-			searchResults := make([]builtin.MemorySearchResult, len(filtered))
-			for i, r := range filtered {
-				searchResults[i] = builtin.MemorySearchResult{
-					ID:         r.Memory.ID,
-					Category:   string(r.Memory.Category),
-					Title:      r.Memory.Title,
-					Summary:    r.Memory.Summary,
-					Similarity: r.Similarity,
-				}
-			}
-			return searchResults, nil
-		},
-	)
-
-	return builtin.RegisterMemorySearch(registry, adapter)
+	_ = registry
+	// Big-bang migration: memory is served by MuninnDB backend and muninn_* tools.
+	// Legacy search_memory tool is intentionally disabled.
+	log.Println("ℹ️  Legacy search_memory tool disabled (using MuninnDB backend)")
+	return nil
 }
 
 // ProcessSessionBuffer processes the session buffer for auto-archiving
@@ -134,6 +85,9 @@ func (m *MemoryIntegration) EnrichAndStoreMessages(ctx context.Context, messages
 
 // GetRelevantMemories retrieves memories relevant to a query
 func (m *MemoryIntegration) GetRelevantMemories(ctx context.Context, query string, limit int) (string, error) {
+	if m.muninnBackend != nil {
+		return m.muninnBackend.GetRelevantMemories(ctx, query, limit)
+	}
 	if m.memoryService == nil {
 		return "", nil
 	}
@@ -149,6 +103,14 @@ func (m *MemoryIntegration) GetRelevantMemories(ctx context.Context, query strin
 // BuildHybridContext builds context combining short-term buffer and long-term memory
 // This implements the "RAM vs Hard Disk" analogy from MemGPT
 func (m *MemoryIntegration) BuildHybridContext(ctx context.Context, currentQuery string, shortTermMessages []unillm.Message) (string, error) {
+	if m.muninnBackend != nil {
+		relevantMemories, err := m.muninnBackend.GetRelevantMemories(ctx, currentQuery, 5)
+		if err != nil {
+			log.Printf("⚠️  Failed to retrieve Muninn memories: %v", err)
+			return "", err
+		}
+		return relevantMemories, nil
+	}
 	if m.memoryService == nil {
 		return "", nil
 	}
@@ -168,6 +130,12 @@ func (m *MemoryIntegration) BuildHybridContext(ctx context.Context, currentQuery
 
 // ArchiveOldMemories archives memories that haven't been accessed recently
 func (m *MemoryIntegration) ArchiveOldMemories(ctx context.Context, olderThanDays int) error {
+	_ = ctx
+	_ = olderThanDays
+	if m.muninnBackend != nil {
+		// Muninn memory lifecycle is managed internally by scoring/activation.
+		return nil
+	}
 	if m.memoryService == nil {
 		return nil
 	}
@@ -188,6 +156,14 @@ func (m *MemoryIntegration) GetEnrichmentService() *MemoryEnrichmentService {
 // StoreConversationMemory stores a conversation exchange as memory
 // This is called automatically after each chat response
 func (m *MemoryIntegration) StoreConversationMemory(ctx context.Context, userMessage, assistantResponse string) error {
+	if m.muninnBackend != nil {
+		if err := m.muninnBackend.StoreConversationMemory(ctx, userMessage, assistantResponse); err != nil {
+			return err
+		}
+		log.Printf("🧠 [Memory] Stored conversation in MuninnDB")
+		return nil
+	}
+
 	if m.enrichmentService == nil {
 		return nil
 	}

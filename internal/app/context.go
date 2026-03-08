@@ -8,6 +8,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/getkawai/database"
@@ -410,39 +411,20 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel unillm.Lan
 }
 
 func (ctx *Context) InitMemoryServices() {
-	if ctx.DB == nil || ctx.DuckDBStore == nil || ctx.Embedder == nil {
-		log.Printf("Warning: Prerequisites not met for Memory services")
-		return
-	}
-
-	memService, err := services.NewMemoryService(ctx.DB, &services.MemoryServiceConfig{
-		DuckDB: ctx.DuckDBStore, Embedder: ctx.Embedder, EmbeddingDim: EmbeddingDims,
-	})
+	muninnDataDir := filepath.Join(paths.Base(), "muninndb", "veridium")
+	backend, err := services.NewMuninnMemoryBackend(muninnDataDir, "veridium_default", 10000, false)
 	if err != nil {
-		log.Printf("Warning: MemoryService init failed: %v", err)
+		log.Printf("Warning: Muninn memory backend init failed: %v", err)
 		return
 	}
-	ctx.MemoryService = memService
-
-	var llm unillm.LanguageModel
-	if ctx.ChatModel != nil {
-		llm = ctx.ChatModel
-		log.Printf("Memory enrichment: using LLM")
-	} else {
-		log.Printf("Memory enrichment: rule-based fallback")
-	}
-
-	enrichService, err := services.NewMemoryEnrichmentService(&services.MemoryEnrichmentConfig{
-		MemoryService: memService, LLM: llm,
+	ctx.AddCleanup(func() {
+		if err := backend.Close(); err != nil {
+			log.Printf("Warning: failed to close Muninn memory backend: %v", err)
+		}
 	})
-	if err != nil {
-		log.Printf("Warning: MemoryEnrichment init failed: %v", err)
-		return
-	}
-	ctx.MemoryEnrichment = enrichService
 
 	integration, err := services.NewMemoryIntegration(&services.MemoryIntegrationConfig{
-		MemoryService: memService, EnrichmentService: enrichService,
+		MuninnBackend: backend,
 	})
 	if err != nil {
 		log.Printf("Warning: MemoryIntegration init failed: %v", err)
@@ -450,7 +432,7 @@ func (ctx *Context) InitMemoryServices() {
 	}
 	ctx.MemoryIntegration = integration
 
-	log.Printf("Memory services initialized (MemGPT-style)")
+	log.Printf("Memory services initialized (MuninnDB big-bang mode)")
 }
 
 // InitAll initializes all services in the correct order
