@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"log/slog"
@@ -42,6 +44,8 @@ type HNSWConfig struct {
 	M int
 }
 
+var reEmbeddingDim = regexp.MustCompile(`(?i)FLOAT\s*\[\s*(\d+)\s*\]`)
+
 // DefaultHNSWConfig returns default HNSW configuration
 func DefaultHNSWConfig() *HNSWConfig {
 	return &HNSWConfig{
@@ -59,6 +63,8 @@ func NewDuckDBStore(path string, embeddingDim int) (*DuckDBStore, error) {
 
 // NewDuckDBStoreWithConfig creates a new DuckDB store with custom HNSW configuration
 func NewDuckDBStoreWithConfig(path string, embeddingDim int, config *HNSWConfig) (*DuckDBStore, error) {
+	resolvedConfig := normalizeHNSWConfig(config)
+
 	// Open DuckDB connection
 	// If path is empty, it uses in-memory DB (useful for testing)
 	dsn := path
@@ -76,7 +82,7 @@ func NewDuckDBStoreWithConfig(path string, embeddingDim int, config *HNSWConfig)
 
 	store := &DuckDBStore{
 		db:     db,
-		config: config,
+		config: resolvedConfig,
 	}
 
 	// Initialize VSS extension and schema
@@ -120,43 +126,286 @@ func (s *DuckDBStore) init(dim int) error {
 	// 4. Create vectors table
 	// We use FLOAT[] for embeddings (32-bit float, required by HNSW index)
 	// Note: Go's float64 will be converted to float32 when inserting
-
-	// Drop existing table if it exists (for schema migration from DOUBLE to FLOAT)
-	if _, err := s.db.Exec("DROP TABLE IF EXISTS vectors"); err != nil {
-		slog.Warn("Failed to drop existing vectors table", "error", err)
+	query := buildCreateVectorsTableQuery(dim)
+	slog.Info("Creating vectors table", "query", query)
+	if _, err := s.db.Exec(query); err != nil {
+		return fmt.Errorf("failed to create vectors table: %w", err)
+	}
+	if err := s.verifyEmbeddingDimension(dim); err != nil {
+		return err
 	}
 
-	query := fmt.Sprintf(`
+	// 5. Ensure HNSW index exists and configuration matches.
+	// Reference: https://duckdb.org/docs/stable/core_extensions/vss
+	if err := s.ensureHNSWIndex(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func normalizeHNSWConfig(config *HNSWConfig) *HNSWConfig {
+	if config == nil {
+		return DefaultHNSWConfig()
+	}
+
+	normalized := *config
+	defaults := DefaultHNSWConfig()
+	if normalized.Metric == "" {
+		normalized.Metric = defaults.Metric
+	}
+	if normalized.EfConstruction <= 0 {
+		normalized.EfConstruction = defaults.EfConstruction
+	}
+	if normalized.EfSearch <= 0 {
+		normalized.EfSearch = defaults.EfSearch
+	}
+	if normalized.M <= 0 {
+		normalized.M = defaults.M
+	}
+	return &normalized
+}
+
+func (s *DuckDBStore) verifyEmbeddingDimension(expectedDim int) error {
+	var dataType string
+	row := s.db.QueryRow(`
+		SELECT type
+		FROM pragma_table_info('vectors')
+		WHERE name = 'embedding'
+		LIMIT 1
+	`)
+	if err := row.Scan(&dataType); err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("vectors.embedding column not found")
+		}
+		return fmt.Errorf("failed to inspect vectors.embedding schema: %w", err)
+	}
+
+	existingDim, err := parseEmbeddingDimension(dataType)
+	if err != nil {
+		return fmt.Errorf("failed to parse vectors.embedding type %q: %w", dataType, err)
+	}
+	if existingDim != expectedDim {
+		return fmt.Errorf("embedding dimension mismatch: existing %d vs expected %d", existingDim, expectedDim)
+	}
+	return nil
+}
+
+func parseEmbeddingDimension(dataType string) (int, error) {
+	match := reEmbeddingDim.FindStringSubmatch(strings.TrimSpace(dataType))
+	if len(match) != 2 {
+		return 0, fmt.Errorf("unsupported embedding type format: %s", dataType)
+	}
+	dim, err := strconv.Atoi(match[1])
+	if err != nil {
+		return 0, fmt.Errorf("invalid embedding dimension %q: %w", match[1], err)
+	}
+	return dim, nil
+}
+
+func buildCreateVectorsTableQuery(dim int) string {
+	return fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS vectors (
 			id TEXT PRIMARY KEY,
 			file_id TEXT,
 			embedding FLOAT[%d]
 		)
 	`, dim)
-	slog.Info("Creating vectors table", "query", query)
-	if _, err := s.db.Exec(query); err != nil {
-		return fmt.Errorf("failed to create vectors table: %w", err)
-	}
+}
 
-	// 4. Create HNSW index with configuration
-	// Reference: https://duckdb.org/docs/stable/core_extensions/vss
-	indexQuery := fmt.Sprintf(`
-		CREATE INDEX IF NOT EXISTS vec_idx ON vectors 
-		USING HNSW (embedding) 
+func buildCreateHNSWIndexQuery(config *HNSWConfig) string {
+	resolved := normalizeHNSWConfig(config)
+	return fmt.Sprintf(`
+		CREATE INDEX IF NOT EXISTS vec_idx ON vectors
+		USING HNSW (embedding)
 		WITH (
 			metric = '%s',
 			ef_construction = %d,
 			ef_search = %d,
 			M = %d
 		)
-	`, s.config.Metric, s.config.EfConstruction, s.config.EfSearch, s.config.M)
+	`, resolved.Metric, resolved.EfConstruction, resolved.EfSearch, resolved.M)
+}
 
-	slog.Info("Creating HNSW index", "query", indexQuery, "config", s.config)
-	if _, err := s.db.Exec(indexQuery); err != nil {
-		return fmt.Errorf("failed to create HNSW index: %w", err)
+func (s *DuckDBStore) ensureHNSWIndex() error {
+	existingSQL, exists, err := s.getExistingHNSWIndexSQL()
+	if err != nil {
+		return err
 	}
 
+	if !exists {
+		indexQuery := buildCreateHNSWIndexQuery(s.config)
+		slog.Info("Creating HNSW index", "query", indexQuery, "config", s.config)
+		if _, err := s.db.Exec(indexQuery); err != nil {
+			return fmt.Errorf("failed to create HNSW index: %w", err)
+		}
+		return nil
+	}
+
+	existingConfig, err := parseHNSWConfigFromCreateIndexSQL(existingSQL)
+	if err != nil {
+		return fmt.Errorf("failed to parse existing vec_idx configuration: %w", err)
+	}
+
+	needsRebuild := !hnswConfigEqual(existingConfig, s.config)
+
+	existingMetric, metricKnown, err := s.getExistingHNSWIndexMetric()
+	if err != nil {
+		return err
+	}
+	if metricKnown && !strings.EqualFold(existingMetric, s.config.Metric) {
+		needsRebuild = true
+	}
+
+	if !needsRebuild {
+		slog.Info("HNSW index configuration matches current settings", "index", "vec_idx")
+		return nil
+	}
+
+	slog.Warn(
+		"HNSW index configuration drift detected, rebuilding vec_idx",
+		"existing_metric", existingConfig.Metric,
+		"existing_ef_construction", existingConfig.EfConstruction,
+		"existing_ef_search", existingConfig.EfSearch,
+		"existing_M", existingConfig.M,
+		"expected_metric", s.config.Metric,
+		"expected_ef_construction", s.config.EfConstruction,
+		"expected_ef_search", s.config.EfSearch,
+		"expected_M", s.config.M,
+	)
+
+	indexQuery := buildCreateHNSWIndexQuery(s.config)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to start transaction for vec_idx rebuild: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec("DROP INDEX IF EXISTS vec_idx"); err != nil {
+		return fmt.Errorf("failed to drop mismatched vec_idx: %w", err)
+	}
+	if _, err := tx.Exec(indexQuery); err != nil {
+		return fmt.Errorf("failed to recreate vec_idx with expected config: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit vec_idx rebuild transaction: %w", err)
+	}
+
+	slog.Info("Rebuilt HNSW index with expected configuration", "index", "vec_idx")
 	return nil
+}
+
+func (s *DuckDBStore) getExistingHNSWIndexMetric() (string, bool, error) {
+	var metric sql.NullString
+	row := s.db.QueryRow(`
+		SELECT metric
+		FROM pragma_hnsw_index_info()
+		WHERE table_name = 'vectors' AND index_name = 'vec_idx'
+		LIMIT 1
+	`)
+	if err := row.Scan(&metric); err != nil {
+		if err == sql.ErrNoRows {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("failed to read vec_idx metric from pragma_hnsw_index_info: %w", err)
+	}
+	if !metric.Valid || strings.TrimSpace(metric.String) == "" {
+		return "", false, nil
+	}
+	return metric.String, true, nil
+}
+
+func (s *DuckDBStore) getExistingHNSWIndexSQL() (string, bool, error) {
+	var sqlText sql.NullString
+	row := s.db.QueryRow(`
+		SELECT sql
+		FROM duckdb_indexes()
+		WHERE table_name = 'vectors' AND index_name = 'vec_idx'
+		LIMIT 1
+	`)
+	if err := row.Scan(&sqlText); err != nil {
+		if err == sql.ErrNoRows {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("failed to read vec_idx metadata: %w", err)
+	}
+	if !sqlText.Valid || strings.TrimSpace(sqlText.String) == "" {
+		return "", false, nil
+	}
+	return sqlText.String, true, nil
+}
+
+func parseHNSWConfigFromCreateIndexSQL(createSQL string) (*HNSWConfig, error) {
+	getString := func(pattern string) (string, bool, error) {
+		re := regexp.MustCompile(pattern)
+		match := re.FindStringSubmatch(createSQL)
+		if len(match) != 2 {
+			return "", false, nil
+		}
+		return strings.TrimSpace(match[1]), true, nil
+	}
+	getInt := func(pattern string) (int, bool, error) {
+		value, ok, err := getString(pattern)
+		if err != nil {
+			return 0, false, err
+		}
+		if !ok {
+			return 0, false, nil
+		}
+		n, convErr := strconv.Atoi(value)
+		if convErr != nil {
+			return 0, false, fmt.Errorf("invalid integer %q: %w", value, convErr)
+		}
+		return n, true, nil
+	}
+
+	metric, metricFound, err := getString(`(?i)metric\s*=\s*'([^']+)'`)
+	if err != nil {
+		return nil, err
+	}
+	efConstruction, efConstructionFound, err := getInt(`(?i)ef_construction\s*=\s*(\d+)`)
+	if err != nil {
+		return nil, err
+	}
+	efSearch, efSearchFound, err := getInt(`(?i)ef_search\s*=\s*(\d+)`)
+	if err != nil {
+		return nil, err
+	}
+	mValue, mFound, err := getInt(`(?i)\bM\s*=\s*(\d+)`)
+	if err != nil {
+		return nil, err
+	}
+
+	defaults := DefaultHNSWConfig()
+	if !metricFound {
+		metric = defaults.Metric
+	}
+	if !efConstructionFound {
+		efConstruction = defaults.EfConstruction
+	}
+	if !efSearchFound {
+		efSearch = defaults.EfSearch
+	}
+	if !mFound {
+		mValue = defaults.M
+	}
+
+	return &HNSWConfig{
+		Metric:         metric,
+		EfConstruction: efConstruction,
+		EfSearch:       efSearch,
+		M:              mValue,
+	}, nil
+}
+
+func hnswConfigEqual(a, b *HNSWConfig) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	return strings.EqualFold(a.Metric, b.Metric) &&
+		a.EfConstruction == b.EfConstruction &&
+		a.EfSearch == b.EfSearch &&
+		a.M == b.M
 }
 
 // UpsertVector inserts or updates a vector
@@ -200,11 +449,24 @@ const (
 	DistanceInnerProduct DistanceMetric = "inner_product"
 )
 
+func metricNameToDistanceMetric(metric string) DistanceMetric {
+	switch strings.ToLower(strings.TrimSpace(metric)) {
+	case "cosine":
+		return DistanceCosine
+	case "ip":
+		return DistanceInnerProduct
+	case "l2sq":
+		fallthrough
+	default:
+		return DistanceEuclidean
+	}
+}
+
 // SearchVectors searches for similar vectors and returns IDs with similarity scores
 // Uses Euclidean distance (L2) by default, which is accelerated by HNSW index
 // Reference: https://duckdb.org/2024/10/23/whats-new-in-the-vss-extension
 func (s *DuckDBStore) SearchVectors(ctx context.Context, embedding []float32, limit int) ([]VectorSearchResult, error) {
-	return s.SearchVectorsWithMetric(ctx, embedding, limit, DistanceEuclidean)
+	return s.SearchVectorsWithMetric(ctx, embedding, limit, metricNameToDistanceMetric(s.config.Metric))
 }
 
 // SearchVectorsWithMetric searches for similar vectors using specified distance metric
@@ -340,6 +602,19 @@ func (s *DuckDBStore) BatchSearchVectors(ctx context.Context, queries []BatchSea
 
 	valuesBuilder.WriteString(") AS t(query_id, embedding)) ")
 
+	metric := metricNameToDistanceMetric(s.config.Metric)
+	var distanceFunc string
+	switch metric {
+	case DistanceCosine:
+		distanceFunc = "array_cosine_distance"
+	case DistanceInnerProduct:
+		distanceFunc = "array_negative_inner_product"
+	case DistanceEuclidean:
+		fallthrough
+	default:
+		distanceFunc = "array_distance"
+	}
+
 	// Build LATERAL join query
 	// This will use HNSW index for each query efficiently
 	query := valuesBuilder.String() + fmt.Sprintf(`
@@ -350,13 +625,13 @@ func (s *DuckDBStore) BatchSearchVectors(ctx context.Context, queries []BatchSea
 		FROM queries, LATERAL (
 			SELECT
 				vectors.id,
-				array_distance(queries.embedding, vectors.embedding) AS distance
+				%s(queries.embedding, vectors.embedding) AS distance
 			FROM vectors
 			ORDER BY distance ASC
 			LIMIT %d
 		) AS items
 		ORDER BY queries.query_id, items.distance
-	`, limit)
+	`, distanceFunc, limit)
 
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
