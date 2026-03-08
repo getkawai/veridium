@@ -5,6 +5,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -77,9 +78,7 @@ type Context struct {
 	SummaryModel unillm.LanguageModel `json:"-"`
 	CleanupModel unillm.LanguageModel `json:"-"`
 
-	// Memory Services (MemGPT-style)
-	MemoryService     *services.MemoryService
-	MemoryEnrichment  *services.MemoryEnrichmentService
+	// Memory Services
 	MemoryIntegration *services.MemoryIntegration
 
 	cleanupFuncs []func()
@@ -196,7 +195,7 @@ func (ctx *Context) InitVectorStore() {
 	}
 	ctx.DuckDBStore = duckDBStore
 	ctx.AddCleanup(func() { _ = duckDBStore.Close() })
-	log.Printf("DuckDB initialized (path: %s)", paths.DuckDB())
+	log.Printf("DuckDB initialized for RAG/vector retrieval (path: %s)", paths.DuckDB())
 }
 
 func (ctx *Context) InitEmbedder() {
@@ -410,6 +409,23 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel unillm.Lan
 	return chain
 }
 
+func buildMuninnMemoryIntegration(backend *services.MuninnMemoryBackend) (*services.MemoryIntegration, error) {
+	if backend == nil {
+		return nil, fmt.Errorf("muninn backend is required")
+	}
+
+	integration, err := services.NewMemoryIntegration(&services.MemoryIntegrationConfig{
+		MuninnBackend: backend,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !integration.UsesMuninnBackend() {
+		return nil, fmt.Errorf("memory integration is not in muninn mode")
+	}
+	return integration, nil
+}
+
 func (ctx *Context) InitMemoryServices() {
 	muninnDataDir := filepath.Join(paths.Base(), "muninndb", "veridium")
 	backend, err := services.NewMuninnMemoryBackend(muninnDataDir, "veridium_default", 10000, false)
@@ -423,16 +439,15 @@ func (ctx *Context) InitMemoryServices() {
 		}
 	})
 
-	integration, err := services.NewMemoryIntegration(&services.MemoryIntegrationConfig{
-		MuninnBackend: backend,
-	})
+	integration, err := buildMuninnMemoryIntegration(backend)
 	if err != nil {
 		log.Printf("Warning: MemoryIntegration init failed: %v", err)
 		return
 	}
+
 	ctx.MemoryIntegration = integration
 
-	log.Printf("Memory services initialized (MuninnDB big-bang mode)")
+	log.Printf("Memory services initialized (MuninnDB active, legacy search_memory disabled)")
 }
 
 // InitAll initializes all services in the correct order

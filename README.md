@@ -94,6 +94,16 @@ All smart contracts are deployed on **Monad Blockchain** (Testnet).
 
 ---
 
+## 🧠 Memory & Retrieval Architecture
+
+- **Conversation Memory:** Uses **MuninnDB** only (`internal/services/muninn_memory.go` + `memory_integration.go`).
+- **RAG / Vector Retrieval:** Uses **DuckDB** only (`internal/services/duckdb_store.go`, `vector_search.go`, `rag_processor.go`).
+- **Important:** DuckDB is **not** used as the conversational memory backend.
+
+For implementation details, see [`docs/memory-architecture.md`](docs/memory-architecture.md).
+
+---
+
 ## 🎨 AI Image Generation (NEW)
 
 **Gemini API Integration** - Production-ready image generation with Google's latest models.
