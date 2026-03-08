@@ -126,7 +126,7 @@ func (a *app) chatCompletions(ctx context.Context, r *http.Request) web.Encoder 
 
 ```bash
 curl https://api.veridium.io/v1/chat/completions \
-  -H "Authorization: Bearer vk-pZGxRO0bGVooc0e8ucLkolHGVjXyaDuBMsT8..." \
+  -H "Authorization: Bearer <YOUR_VERIDIUM_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"model": "llama-3.1-8b", "messages": [...]}'
 ```
@@ -135,7 +135,7 @@ curl https://api.veridium.io/v1/chat/completions \
 from openai import OpenAI
 
 client = OpenAI(
-    api_key="vk-pZGxRO0bGVooc0e8ucLkolHGVjXyaDuBMsT8...",
+    api_key="<YOUR_VERIDIUM_API_KEY>",
     base_url="https://api.veridium.io/v1"
 )
 ```

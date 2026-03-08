@@ -15,22 +15,39 @@ if ! circleci project secret list github kawai-network veridium &>/dev/null; the
   exit 1
 fi
 
+# Require values from local environment instead of hardcoded secrets.
+required_vars=(
+  R2_ACCOUNT_ID
+  R2_ACCESS_KEY_ID
+  R2_SECRET_ACCESS_KEY
+  R2_ENDPOINT_URL
+)
+
+for var in "${required_vars[@]}"; do
+  if [ -z "${!var}" ]; then
+    echo "❌ Missing required environment variable: ${var}"
+    echo "   Export values first, for example:"
+    echo "   export ${var}=<your-value>"
+    exit 1
+  fi
+done
+
 # Add environment variables
 echo "Adding R2_ACCOUNT_ID..."
 circleci project secret create github kawai-network veridium R2_ACCOUNT_ID \
-  --env-value "ceab218751d33cd804878196ad7bef74"
+  --env-value "$R2_ACCOUNT_ID"
 
 echo "Adding R2_ACCESS_KEY_ID..."
 circleci project secret create github kawai-network veridium R2_ACCESS_KEY_ID \
-  --env-value "a71e802dd7c1ab8cf407ffb937cdf6a8"
+  --env-value "$R2_ACCESS_KEY_ID"
 
 echo "Adding R2_SECRET_ACCESS_KEY..."
 circleci project secret create github kawai-network veridium R2_SECRET_ACCESS_KEY \
-  --env-value "0e3ce0d92faa9b337c83131efc7a4a64bb6f313171c309d5cb9a0fb76926d0ca"
+  --env-value "$R2_SECRET_ACCESS_KEY"
 
 echo "Adding R2_ENDPOINT_URL..."
 circleci project secret create github kawai-network veridium R2_ENDPOINT_URL \
-  --env-value "https://ceab218751d33cd804878196ad7bef74.r2.cloudflarestorage.com"
+  --env-value "$R2_ENDPOINT_URL"
 
 echo ""
 echo "⚠️  GITHUB_TOKEN needs to be added manually:"
