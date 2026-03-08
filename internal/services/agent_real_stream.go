@@ -205,10 +205,11 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 4. Build hybrid context from memory (if available)
 	var memoryContext string
 	if s.memoryIntegration != nil {
+		scopeKey := buildMemoryScopeKey(req.UserID, req.SessionID)
 		log.Printf("🧠 [REAL STREAM] Fetching hybrid context memories for query: %s", req.Message)
 		// We use nil for shortTermMessages here as they are already in the session history
 		// and handled by the agent. We only need the memory text to inject into system prompt.
-		memCtx, err := s.memoryIntegration.BuildHybridContext(ctx, req.Message, nil)
+		memCtx, err := s.memoryIntegration.BuildHybridContextForScope(ctx, scopeKey, req.Message, nil)
 		if err != nil {
 			log.Printf("⚠️  [REAL STREAM] Failed to build hybrid context: %v", err)
 		} else if memCtx != "" {
@@ -700,6 +701,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 
 	// 15.5. Store conversation to memory (background) - MemGPT-style
 	if s.memoryIntegration != nil && finalContentStr != "" {
+		scopeKey := buildMemoryScopeKey(req.UserID, req.SessionID)
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
@@ -711,7 +713,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
-			if err := s.memoryIntegration.StoreConversationMemory(bgCtx, req.Message, finalContentStr); err != nil {
+			if err := s.memoryIntegration.StoreConversationMemoryForScope(bgCtx, scopeKey, req.Message, finalContentStr); err != nil {
 				log.Printf("⚠️  [Memory] Failed to store conversation: %v", err)
 			}
 		}()

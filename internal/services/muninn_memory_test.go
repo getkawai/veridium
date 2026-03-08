@@ -101,6 +101,64 @@ func TestMuninnMemoryBackend_GetRelevantMemoriesEmptyQuery(t *testing.T) {
 	}
 }
 
+func TestMuninnMemoryBackend_UserScopedVaultIsolation(t *testing.T) {
+	ctx := context.Background()
+	backend, err := NewMuninnMemoryBackend(t.TempDir(), "test_vault", 1024, true)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := backend.Close(); closeErr != nil {
+			t.Fatalf("failed to close backend: %v", closeErr)
+		}
+	})
+
+	if err := backend.StoreConversationMemoryForScope(ctx, "user-a", "remember alpha-token", "stored alpha-token"); err != nil {
+		t.Fatalf("failed to store scoped memory: %v", err)
+	}
+
+	alphaStatus, err := backend.service.Status(ctx, embedded.StatusInput{
+		Connection: backend.connection,
+		Vault:      backend.vaultForScope("user-a"),
+	})
+	if err != nil {
+		t.Fatalf("failed to read user-a status: %v", err)
+	}
+	if alphaStatus.EngramCount < 1 {
+		t.Fatalf("expected at least one engram in user-a vault, got %d", alphaStatus.EngramCount)
+	}
+
+	betaStatus, err := backend.service.Status(ctx, embedded.StatusInput{
+		Connection: backend.connection,
+		Vault:      backend.vaultForScope("user-b"),
+	})
+	if err != nil {
+		t.Fatalf("failed to read user-b status: %v", err)
+	}
+	if betaStatus.EngramCount != 0 {
+		t.Fatalf("expected empty user-b vault, got %d engrams", betaStatus.EngramCount)
+	}
+}
+
+func TestMuninnMemoryBackend_VaultForScopeFallback(t *testing.T) {
+	backend, err := NewMuninnMemoryBackend(t.TempDir(), "test_vault", 1024, true)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := backend.Close(); closeErr != nil {
+			t.Fatalf("failed to close backend: %v", closeErr)
+		}
+	})
+
+	if got := backend.vaultForScope(""); got != "test_vault" {
+		t.Fatalf("expected default vault for empty scope, got %q", got)
+	}
+	if got := backend.vaultForScope("   "); got != "test_vault" {
+		t.Fatalf("expected default vault for whitespace scope, got %q", got)
+	}
+}
+
 func requireRecallContainsToken(t *testing.T, backend *MuninnMemoryBackend, token string) {
 	t.Helper()
 

@@ -132,20 +132,28 @@ func (m *MemoryIntegration) EnrichAndStoreMessages(ctx context.Context, messages
 
 // GetRelevantMemories retrieves memories relevant to a query
 func (m *MemoryIntegration) GetRelevantMemories(ctx context.Context, query string, limit int) (string, error) {
+	return m.GetRelevantMemoriesForScope(ctx, "", query, limit)
+}
+
+func (m *MemoryIntegration) GetRelevantMemoriesForScope(ctx context.Context, scopeKey, query string, limit int) (string, error) {
 	if m == nil || m.muninnBackend == nil {
 		return "", ErrMuninnBackendRequired()
 	}
-	return m.muninnBackend.GetRelevantMemories(ctx, query, limit)
+	return m.muninnBackend.GetRelevantMemoriesForScope(ctx, scopeKey, query, limit)
 }
 
 // BuildHybridContext builds context combining short-term buffer and long-term memory
 // This implements the "RAM vs Hard Disk" analogy from MemGPT
 func (m *MemoryIntegration) BuildHybridContext(ctx context.Context, currentQuery string, shortTermMessages []unillm.Message) (string, error) {
+	return m.BuildHybridContextForScope(ctx, "", currentQuery, shortTermMessages)
+}
+
+func (m *MemoryIntegration) BuildHybridContextForScope(ctx context.Context, scopeKey, currentQuery string, shortTermMessages []unillm.Message) (string, error) {
 	if m == nil || m.muninnBackend == nil {
 		return "", ErrMuninnBackendRequired()
 	}
 
-	relevantMemories, err := m.muninnBackend.GetRelevantMemories(ctx, currentQuery, 5)
+	relevantMemories, err := m.muninnBackend.GetRelevantMemoriesForScope(ctx, scopeKey, currentQuery, 5)
 	if err != nil {
 		log.Printf("⚠️  Failed to retrieve Muninn memories: %v", err)
 		return "", err
@@ -183,10 +191,14 @@ func (m *MemoryIntegration) UsesMuninnBackend() bool {
 // StoreConversationMemory stores a conversation exchange as memory
 // This is called automatically after each chat response
 func (m *MemoryIntegration) StoreConversationMemory(ctx context.Context, userMessage, assistantResponse string) error {
+	return m.StoreConversationMemoryForScope(ctx, "", userMessage, assistantResponse)
+}
+
+func (m *MemoryIntegration) StoreConversationMemoryForScope(ctx context.Context, scopeKey, userMessage, assistantResponse string) error {
 	if m == nil || m.muninnBackend == nil {
 		return ErrMuninnBackendRequired()
 	}
-	if err := m.muninnBackend.StoreConversationMemory(ctx, userMessage, assistantResponse); err != nil {
+	if err := m.muninnBackend.StoreConversationMemoryForScope(ctx, scopeKey, userMessage, assistantResponse); err != nil {
 		return err
 	}
 	log.Printf("🧠 [Memory] Stored conversation in MuninnDB")

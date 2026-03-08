@@ -447,7 +447,7 @@ func (ctx *Context) InitMemoryServices() {
 
 	ctx.MemoryIntegration = integration
 
-	log.Printf("Memory services initialized (MuninnDB active, legacy search_memory disabled)")
+	log.Printf("Memory services initialized (MuninnDB active, connection=veridium-memory, vault strategy=user+session scoped)")
 }
 
 // InitAll initializes all services in the correct order
