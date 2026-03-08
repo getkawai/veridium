@@ -154,6 +154,8 @@ github.com/getkawai/database v0.1.2 h1:33CmbOOFVK7TA+xZH8bbdlZ0J1IQm1mSPerBolmbX
 github.com/getkawai/database v0.1.2/go.mod h1:2052COZ9mrp9R5pHxv687ndB1XRIGL4X+O2RtXPml04=
 github.com/getkawai/llamalib v0.2.3 h1:Jn6uHRqxjK1fTriZEfJqqn21lD/gSr41vNDOd/21Q/U=
 github.com/getkawai/llamalib v0.2.3/go.mod h1:PWJFfpb8FTShwwMgFtYT6CbNvF9vR9ZWCTxeSUTcMVc=
+github.com/getkawai/llamalib v0.2.4 h1://ADVa1dTV8Lb0pY9dCPEIv23mU26J11PgPxpU578/g=
+github.com/getkawai/llamalib v0.2.4/go.mod h1:FK/AlntM54HXd56epgNfOIYlA7dQtUt+VzQWHGfG9n4=
 github.com/getkawai/muninndb v0.3.9 h1:jRm6D3BNEmWV07zA2BOtGp5/R6nk6z4IOCg2+ONkGVA=
 github.com/getkawai/muninndb v0.3.9/go.mod h1:vsiBEBtaxhfK9S9adLeImExUAuq/i+/MyZNhcmVKoM0=
 github.com/getkawai/tools v0.1.5 h1:bNQaUTS+oOwGROZGDPl5ikZa527TtPqrH/tGnIt9rLQ=

@@ -117,7 +117,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/ferranbt/fastssz v0.1.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
-	github.com/getkawai/llamalib v0.2.3
+	github.com/getkawai/llamalib v0.2.4
 	github.com/getkawai/tools v0.1.5
 	github.com/getkawai/unillm v0.1.1
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
