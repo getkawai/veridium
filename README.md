@@ -91,6 +91,202 @@ All smart contracts are deployed on **Monad Blockchain** (Testnet).
 -   **Contributor Node:** Go (Golang), `llama.cpp` (via llamalib).
 -   **Blockchain:** Monad (EVM-compatible).
 -   **Network Toolkit:** `github.com/kawai-network/x/jarvis` (Multi-chain support incl. Monad).
+-   **Dependency Injection:** Uber FX (`go.uber.org/fx`) for service lifecycle management.
+
+---
+
+## 💉 Dependency Injection with Uber FX
+
+**New in v2.0** - The application now uses [Uber FX](https://uber-go.github.io/fx/) for dependency injection and lifecycle management.
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      main.go                                 │
+│  fx.New(                                                     │
+│    app.Module,           // All service providers            │
+│    fx.Provide(...),      // App-specific providers           │
+│    fx.Invoke(...),       // Service registration             │
+│  ).Run()                                                     │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  internal/app/module.go                      │
+│  fx.Module("app",                                            │
+│    fx.Provide(                                               │
+│      ProvideDatabase,      // *database.Service              │
+│      ProvideKVStore,       // *store.KVStore                 │
+│      ProvideWalletService, // *services.WalletService        │
+│      ProvideChatModel,     // unillm.LanguageModel           │
+│      ...                                                   │
+│    ),                                                        │
+│  )                                                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Concepts
+
+#### 1. **Providers** (`fx.Provide`)
+Functions that create and return dependencies. FX calls them lazily when needed.
+
+```go
+func ProvideDatabase(lc fx.Lifecycle) (*database.Service, error) {
+    dbService, err := database.NewService()
+    if err != nil {
+        return nil, err
+    }
+    
+    // Register cleanup hook
+    lc.Append(fx.Hook{
+        OnStop: func(ctx context.Context) error {
+            return dbService.Close()
+        },
+    })
+    
+    return dbService, nil
+}
+```
+
+#### 2. **Consumers** (`fx.Invoke`)
+Functions that receive dependencies. Called after all providers are ready.
+
+```go
+func RegisterWailsServices(
+    wailsApp *application.App,
+    ctx *app.Context,
+    fileProcessor *FileProcessorService,
+    // ... more dependencies auto-injected
+) {
+    wailsApp.RegisterService(application.NewService(ctx.Queries))
+    // ...
+}
+```
+
+#### 3. **Named Dependencies**
+For multiple instances of the same type (e.g., different language models):
+
+```go
+// In module.go
+fx.Annotate(ProvideChatModel, fx.ResultTags(`name:"chatModel"`)),
+fx.Annotate(ProvideTitleModel, fx.ResultTags(`name:"titleModel"`)),
+
+// In consumer
+type Params struct {
+    fx.In
+    ChatModel  unillm.LanguageModel `name:"chatModel"`
+    TitleModel unillm.LanguageModel `name:"titleModel"`
+}
+```
+
+#### 4. **Lifecycle Hooks**
+Automatic cleanup on application shutdown:
+
+```go
+lc.Append(fx.Hook{
+    OnStart: func(ctx context.Context) error {
+        log.Println("Service starting...")
+        return nil
+    },
+    OnStop: func(ctx context.Context) error {
+        log.Println("Service stopping...")
+        return cleanup()
+    },
+})
+```
+
+### Service Dependency Graph
+
+```
+database.Service
+    ├── Queries (*db.Queries)
+    ├── WalletService
+    │   ├── BlockchainClient
+    │   └── DeAIService
+    ├── VectorSearchService
+    │   └── KnowledgeBaseService
+    │       └── AgentChatService
+    └── ThreadManagementService
+        └── TopicService
+
+KVStore (*store.KVStore)
+    ├── WalletService
+    ├── MarketplaceService
+    ├── ReferralService
+    └── CashbackService
+
+Language Models (named)
+    ├── chatModel → AgentChatService
+    ├── titleModel → TopicService
+    ├── summaryModel → (future use)
+    └── cleanupModel → FileProcessorService
+```
+
+### Testing with DI
+
+Mocking services is now straightforward:
+
+```go
+func TestMyService(t *testing.T) {
+    // Create mock dependencies
+    mockDB := &MockDatabase{}
+    mockKV := &mocks.KVStore{}
+    
+    // Inject mocks into service
+    svc := services.NewMyService(mockDB, mockKV)
+    
+    // Setup expectations
+    mockDB.On("Query", mock.Anything).Return(expectedData, nil)
+    
+    // Run test
+    result := svc.DoSomething()
+    
+    // Verify
+    mockDB.AssertExpectations(t)
+}
+```
+
+### Migration Guide (Old → New)
+
+| Old Pattern | New Pattern |
+|-------------|-------------|
+| `ctx.InitDatabase()` | `ProvideDatabase(lc fx.Lifecycle)` |
+| `ctx.InitWalletService()` | `ProvideWalletService(kv *store.KVStore)` |
+| Manual `defer cleanup()` | `lc.Append(fx.Hook{OnStop: ...})` |
+| `ctx.DB` direct access | Injected via constructor params |
+
+### File Locations
+
+| File | Purpose |
+|------|---------|
+| `internal/app/module.go` | All FX providers and module definition |
+| `internal/app/context.go` | Context struct (now a simple container) |
+| `internal/llm/chain.go` | LLM chain building logic |
+| `main.go` | FX app initialization and wiring |
+
+### Debugging Tips
+
+1. **Enable FX logging:**
+   ```bash
+   export FX_VERBOSE=1
+   ```
+
+2. **View dependency graph:**
+   ```bash
+   go run main.go 2>&1 | grep "provided\|invoking"
+   ```
+
+3. **Common errors:**
+   - `missing dependencies`: Add provider to `fx.Provide()`
+   - `duplicate provides`: Check for duplicate type annotations
+   - `circular dependency`: Refactor to break the cycle
+
+### Resources
+
+- [Uber FX Documentation](https://uber-go.github.io/fx/)
+- [FX GitHub Repository](https://github.com/uber-go/fx)
+- [FX Introductory Blog Post](https://eng.uber.com/fx/)
 
 ---
 
