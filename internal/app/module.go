@@ -274,7 +274,7 @@ func ProvideLocalLanguageModel() unillm.LanguageModel {
 type DummyLanguageModel struct{}
 
 func (d *DummyLanguageModel) Generate(ctx context.Context, call unillm.Call) (*unillm.Response, error) {
-	return &unillm.Response{Content: unillm.ResponseContent{unillm.TextContent{Text: "Dummy response from local model."}}}, nil
+	return nil, fmt.Errorf("local model unavailable: fallback dummy invoked")
 }
 
 func (d *DummyLanguageModel) Stream(ctx context.Context, call unillm.Call) (unillm.StreamResponse, error) {

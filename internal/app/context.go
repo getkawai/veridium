@@ -130,6 +130,8 @@ func NewContext(p Params) *Context {
 		SummaryModel:       p.SummaryModel,
 		CleanupModel:       p.CleanupModel,
 		RAGProcessor:       p.RAGProcessor, // Provided by ProvideRAGProcessor
+		Embedder:           p.Embedder,     // Provided by ProvideEmbedder
+		CacheManager:       p.CacheManager, // Provided by ProvideCacheManager
 	}
 }
 
