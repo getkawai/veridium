@@ -101,7 +101,7 @@ All smart contracts are deployed on **Monad Blockchain** (Testnet).
 
 ### Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                      main.go                                 │
 │  fx.New(                                                     │
@@ -198,7 +198,7 @@ lc.Append(fx.Hook{
 
 ### Service Dependency Graph
 
-```
+```text
 database.Service
     ├── Queries (*db.Queries)
     ├── WalletService

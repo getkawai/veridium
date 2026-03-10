@@ -65,18 +65,24 @@ func BuildModelChain(bgCtx context.Context, localModel unillm.LanguageModel, cri
 		if pollinationsModel, err := provider.LanguageModel(bgCtx, "openai"); err == nil {
 			chain = append(chain, pollinationsModel)
 			log.Printf("%s: Pollinations AI (openai)", taskName)
+		} else {
+			log.Printf("❌ %s: Pollinations provider initialized but failed to get model: %v", taskName, err)
 		}
+	} else {
+		log.Printf("❌ %s: Failed to initialize Pollinations provider: %v", taskName, err)
 	}
 
-	// 4. ZAI GLM-4.6 (fallback before local)
-	if provider, err := openaicompat.New(
-		openaicompat.WithName("zai"),
-		openaicompat.WithBaseURL("https://api.z.ai/api/coding/paas/v4"),
-		openaicompat.WithAPIKey(constant.GetRandomZaiApiKey()),
-	); err == nil {
-		if zaiModel, err := provider.LanguageModel(bgCtx, "glm-4.7"); err == nil {
-			chain = append(chain, zaiModel)
-			log.Printf("%s: ZAI (glm-4.7)", taskName)
+	// 4. ZAI GLM-4.7 (fallback before local)
+	if apiKey := constant.GetRandomZaiApiKey(); apiKey != "" {
+		if provider, err := openaicompat.New(
+			openaicompat.WithName("zai"),
+			openaicompat.WithBaseURL("https://api.z.ai/api/coding/paas/v4"),
+			openaicompat.WithAPIKey(apiKey),
+		); err == nil {
+			if zaiModel, err := provider.LanguageModel(bgCtx, "glm-4.7"); err == nil {
+				chain = append(chain, zaiModel)
+				log.Printf("%s: ZAI (glm-4.7)", taskName)
+			}
 		}
 	}
 

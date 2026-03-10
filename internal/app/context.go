@@ -107,15 +107,6 @@ type Params struct {
 
 // NewContext creates a new application context with all services initialized via dependency injection.
 func NewContext(p Params) *Context {
-	// RAGProcessor is currently created inside ProvideKnowledgeBase, not as a standalone provider.
-	// We need to decide if RAGProcessor should be its own provider or remain an internal detail.
-	// For now, setting it to nil, and it will be populated if KBService is not nil.
-	var ragProcessor *services.RAGProcessor
-	if p.KBService != nil && p.VectorSearch != nil && p.FileLoader != nil && p.DB != nil && p.DuckDBStore != nil {
-		// Note: Embedder is currently nil/TODO in original code, so we handle it gracefully
-		ragProcessor = services.NewRAGProcessor(p.DB.DB(), p.DuckDBStore, p.FileLoader, nil)
-	}
-
 	return &Context{
 		DB:                 p.DB,
 		Queries:            p.Queries,
@@ -138,7 +129,7 @@ func NewContext(p Params) *Context {
 		TitleModel:         p.TitleModel,
 		SummaryModel:       p.SummaryModel,
 		CleanupModel:       p.CleanupModel,
-		RAGProcessor:       ragProcessor, // Populated here based on dependencies
+		RAGProcessor:       p.RAGProcessor, // Provided by ProvideRAGProcessor
 	}
 }
 

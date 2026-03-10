@@ -110,7 +110,9 @@ func ProvideToolRegistry(ds *database.Service) *tools.ToolRegistry {
 }
 
 func ProvideDuckDBStore(lc fx.Lifecycle) (*services.DuckDBStore, error) {
-	_ = os.MkdirAll(paths.FileBase(), 0755)
+	if err := os.MkdirAll(paths.FileBase(), 0755); err != nil {
+		return nil, fmt.Errorf("creating base dir %s: %w", paths.FileBase(), err)
+	}
 	s, err := services.NewDuckDBStore(paths.DuckDB(), EmbeddingDims)
 	if err != nil {
 		return nil, err
@@ -138,13 +140,12 @@ func ProvideVectorSearch(ds *database.Service, duck *services.DuckDBStore) *serv
 	return vs
 }
 
-func ProvideKnowledgeBase(ds *database.Service, vs *services.VectorSearchService, fl *services.FileLoader, duck *services.DuckDBStore) *services.KnowledgeBaseService {
+func ProvideKnowledgeBase(ds *database.Service, vs *services.VectorSearchService, fl *services.FileLoader, duck *services.DuckDBStore, rag *services.RAGProcessor) *services.KnowledgeBaseService {
 	if vs == nil || fl == nil {
 		return nil
 	}
-	ragProcessor := services.NewRAGProcessor(ds.DB(), duck, fl, nil)
 	kb, err := services.NewKnowledgeBaseService(ds, &services.KnowledgeBaseConfig{
-		RAGProcessor: ragProcessor,
+		RAGProcessor: rag,
 		VectorSearch: vs,
 		FileLoader:   fl,
 		AssetDir:     paths.KBAssets(),
