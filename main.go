@@ -1,25 +1,27 @@
-// Package main is the entry point for the Kawai desktop application.
 package main
 
 import (
+	"context"
 	"embed"
 	"log"
 	"log/slog"
 	"os"
-	"time"
 
+	"github.com/getkawai/database"
+	"github.com/getkawai/tools"
 	"github.com/getkawai/tools/builtin"
-	"github.com/getsentry/sentry-go"
+	"github.com/getkawai/tools/localfs"
+	unillm "github.com/getkawai/unillm"
+	"github.com/kawai-network/x/store"
+	"github.com/kawai-network/y/config"
+	"github.com/kawai-network/y/machineid"
+	"github.com/kawai-network/y/paths"
 	"github.com/kawai-network/veridium/internal/app"
 	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/internal/lifecycle"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/topic"
-	"github.com/getkawai/tools/localfs"
-	"github.com/kawai-network/y/config"
-	"github.com/kawai-network/y/machineid"
-	"github.com/kawai-network/y/paths"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
@@ -27,6 +29,7 @@ import (
 	wailslog "github.com/wailsapp/wails/v3/pkg/services/log"
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 	"github.com/wailsapp/wails/v3/pkg/services/sqlite"
+	"go.uber.org/fx"
 )
 
 // Version is set at build time
@@ -37,8 +40,6 @@ var assets embed.FS
 
 // main is the application entry point
 func main() {
-	// Production-only build
-
 	// Force local data directory in development mode.
 	if os.Getenv("VERIDIUM_DEV") == "1" {
 		paths.SetDataDir("data")
@@ -58,43 +59,64 @@ func main() {
 	log.Printf("Environment: %s", config.GetEnvironment())
 	log.Printf("Network: %s (Chain ID: %d)", config.GetNetworkName(), config.GetChainID())
 
-	// Initialize core services using internal/app (SINGLE SOURCE OF TRUTH)
-	ctx := app.NewContext()
-
-	if err := ctx.InitAll(); err != nil {
-		sentry.CaptureException(err)
-		log.Fatalf("Failed to initialize: %v", err)
-	}
-
-	fileProcessor := NewFileProcessorService(
-		ctx.DB.DB(),
-		ctx.FileLoader,
-		ctx.VectorSearch,
-		ctx.DuckDBStore,
-		paths.FileBase(),
-	)
-
-	// Create Service wrapper (with DB)
-	sdService := image.NewService(ctx.DB)
-
-	// Create Wails app
-	wailsApp := createWailsApp(ctx, fileProcessor, sdService)
-	registerAgentServices(wailsApp, ctx, fileProcessor, sdService)
-	createMainWindow(wailsApp, ctx, fileProcessor)
-
-	if err := wailsApp.Run(); err != nil {
-		// Use slog.Error which will be captured by SentryHandler
-		slog.Error("Application crashed", "error", err)
-		os.Exit(1)
-	}
+	// Use fx.App to manage dependencies
+	fx.New(
+		app.Module,
+		fx.Provide(
+			NewFileProcessorServiceWrapper,
+			NewImageServiceWrapper,
+			NewWailsApp,
+			NewThreadManagementServiceWrapper,
+			NewTopicServiceWrapper,
+			NewAgentChatServiceWrapper,
+			NewLifecycleManagerWrapper,
+		),
+		fx.Invoke(RegisterWailsServices),
+		fx.Invoke(SetupMainWindow),
+	).Run()
 }
 
-func createWailsApp(ctx *app.Context, fileProcessor *FileProcessorService, sdService *image.Service) *application.App {
-	return application.New(application.Options{
+// FileProcessorServiceWrapper is an fx provider for FileProcessorService
+type FileProcessorServiceWrapper struct {
+	fx.In
+	DB           *database.Service
+	FileLoader   *services.FileLoader
+	VectorSearch *services.VectorSearchService
+	DuckDBStore  *services.DuckDBStore
+	CleanupModel unillm.LanguageModel `name:"cleanupModel"`
+}
+
+func NewFileProcessorServiceWrapper(p FileProcessorServiceWrapper) *FileProcessorService {
+	fileProcessor := NewFileProcessorService(
+		p.DB.DB(),
+		p.FileLoader,
+		p.VectorSearch,
+		p.DuckDBStore,
+		paths.FileBase(),
+	)
+	if p.CleanupModel != nil {
+		fileProcessor.SetLanguageModel(p.CleanupModel)
+		log.Printf("FileProcessor: LLM cleanup model injected")
+	}
+	return fileProcessor
+}
+
+// NewImageServiceWrapper is an fx provider for image.Service
+type ImageServiceWrapper struct {
+	fx.In
+	DB *database.Service
+}
+
+func NewImageServiceWrapper(p ImageServiceWrapper) *image.Service {
+	return image.NewService(p.DB)
+}
+
+// NewWailsApp creates the Wails application instance
+func NewWailsApp(lc fx.Lifecycle, ctx *app.Context, fileProcessor *FileProcessorService, sdService *image.Service) *application.App {
+	wailsApp := application.New(application.Options{
 		Name:        "Kawai",
 		Description: "Kawai Network - AI-Powered Blockchain Platform",
 		Logger:      slog.Default(),
-		Services:    buildServiceList(ctx, fileProcessor, sdService),
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
 		},
@@ -102,154 +124,158 @@ func createWailsApp(ctx *app.Context, fileProcessor *FileProcessorService, sdSer
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
+
+	lc.Append(fx.Hook{
+		OnStart: func(c context.Context) error {
+			log.Printf("Wails App Starting...")
+			go func() { // Run Wails app in a goroutine
+				if err := wailsApp.Run(); err != nil {
+					slog.Error("Application crashed", "error", err)
+					os.Exit(1)
+				}
+			}()
+			return nil
+		},
+		OnStop: func(c context.Context) error {
+			log.Printf("Wails App Stopping...")
+			wailsApp.Quit()
+			return nil
+		},
+	})
+
+	return wailsApp
 }
 
-func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdService *image.Service) []application.Service {
-	serviceList := []application.Service{
-		// Database
-		application.NewService(ctx.Queries),
-		application.NewService(ctx.DB),
-		application.NewService(tableviewer.NewService(ctx.DB.DB())),
+// RegisterWailsServices defines how services are registered to the Wails app.
+// This is an fx.Invoke function as it has side effects (registering services).
+func RegisterWailsServices(wailsApp *application.App, ctx *app.Context, fileProcessor *FileProcessorService, sdService *image.Service, threadService *services.ThreadManagementService, topicService *topic.TopicService, agentService *services.AgentChatService, lifecycleManager *lifecycle.Manager) {
+	// Register services from buildServiceList
+	wailsApp.RegisterService(application.NewService(ctx.Queries))
+	wailsApp.RegisterService(application.NewService(ctx.DB))
+	wailsApp.RegisterService(application.NewService(tableviewer.NewService(ctx.DB.DB())))
 
-		// Core Features
-		application.NewService(ctx.SearchService),
-		application.NewService(ctx.TTSService),
-		application.NewService(ctx.AudioRecorder),
-	}
+	wailsApp.RegisterService(application.NewService(ctx.SearchService))
+	wailsApp.RegisterService(application.NewService(ctx.TTSService))
+	wailsApp.RegisterService(application.NewService(ctx.AudioRecorder))
 
-	// AI/ML (may be nil if embedder failed)
 	if ctx.VectorSearch != nil {
-		serviceList = append(serviceList, application.NewService(ctx.VectorSearch))
+		wailsApp.RegisterService(application.NewService(ctx.VectorSearch))
 	}
-	serviceList = append(serviceList, application.NewService(fileProcessor))
+	wailsApp.RegisterService(application.NewService(fileProcessor))
 	if ctx.KBService != nil {
-		serviceList = append(serviceList, application.NewService(ctx.KBService))
+		wailsApp.RegisterService(application.NewService(ctx.KBService))
 	}
 
-	// File & Storage
-	serviceList = append(serviceList,
-		application.NewService(services.NewFileService(paths.FileBase())),
-		application.NewService(localfs.NewService()),
-		application.NewService(builtin.NewLocalSystemService()),
+	wailsApp.RegisterService(application.NewService(services.NewFileService(paths.FileBase())))
+	wailsApp.RegisterService(application.NewService(localfs.NewService()))
+	wailsApp.RegisterService(application.NewService(builtin.NewLocalSystemService()))
 
-		// Utilities
-		application.NewService(&machineid.Service{}),
-		application.NewService(sdService), // Use the initialized sdService
-		application.NewService(notifications.New()),
-		application.NewService(wailslog.New()),
-		application.NewService(sqlite.New()),
-		application.NewService(kvstore.New()),
-		application.NewService(ctx.WalletService),
-		application.NewService(ctx.DeAIService),
-		application.NewService(ctx.JarvisService),
+	wailsApp.RegisterService(application.NewService(&machineid.Service{}))
+	wailsApp.RegisterService(application.NewService(sdService))
+	wailsApp.RegisterService(application.NewService(notifications.New()))
+	wailsApp.RegisterService(application.NewService(wailslog.New()))
+	wailsApp.RegisterService(application.NewService(sqlite.New()))
+	wailsApp.RegisterService(application.NewService(kvstore.New()))
+	wailsApp.RegisterService(application.NewService(ctx.WalletService))
+	wailsApp.RegisterService(application.NewService(ctx.DeAIService))
+	wailsApp.RegisterService(application.NewService(ctx.JarvisService))
 
-		// Blockchain Services
-		application.NewService(ctx.DepositSyncService),
+	wailsApp.RegisterService(application.NewService(ctx.DepositSyncService))
+	wailsApp.RegisterService(application.NewService(services.NewMarketplaceService(ctx.KVStore, ctx.BlockchainClient, ctx.WalletService)))
+	wailsApp.RegisterService(application.NewService(services.NewReferralService(ctx.KVStore)))
+	wailsApp.RegisterService(application.NewService(services.NewCashbackService(ctx.KVStore)))
+	wailsApp.RegisterService(application.NewService(&services.ConfigService{}))
+	wailsApp.RegisterService(application.NewServiceWithOptions(
+		fileserver.NewWithConfig(&fileserver.Config{RootPath: paths.FileBase()}),
+		application.ServiceOptions{Route: "/files"},
+	))
 
-		// Marketplace
-		application.NewService(services.NewMarketplaceService(ctx.KVStore, ctx.BlockchainClient, ctx.WalletService)),
-
-		// Referral System
-		application.NewService(services.NewReferralService(ctx.KVStore)),
-
-		// Cashback System
-		application.NewService(services.NewCashbackService(ctx.KVStore)),
-
-		// Config Service - Exposes backend environment to frontend
-		application.NewService(&services.ConfigService{}),
-
-		// File Server
-		application.NewServiceWithOptions(
-			fileserver.NewWithConfig(&fileserver.Config{RootPath: paths.FileBase()}),
-			application.ServiceOptions{Route: "/files"},
-		),
-	)
-
-	return serviceList
-}
-
-func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProcessor *FileProcessorService, sdService *image.Service) {
-	ctx.AudioRecorder.SetApp(wailsApp)
-
-	threadService := services.NewThreadManagementService(wailsApp, ctx.DB)
+	// Agent services (from registerAgentServices)
+	ctx.AudioRecorder.SetApp(wailsApp) // AudioRecorder is now a regular provider
 	wailsApp.RegisterService(application.NewService(threadService))
 
-	// Initialize TopicService (for title generation)
-	topicService := topic.NewService(ctx.DB, wailsApp)
-	// Inject TopicService into StableDiffusion
 	sdService.SetTopicService(topicService)
-	// Register TopicService
 	wailsApp.RegisterService(application.NewService(topicService))
 
 	if ctx.KBService != nil {
-		// TODO: Reconnect local lib service dependency after Context.LibService removal.
-		agentService := services.NewAgentChatService(
-			wailsApp, ctx.DB, ctx.KBService, ctx.VectorSearch, threadService, topicService, ctx.ToolRegistry, ctx.KVStore,
-		)
-
-		if ctx.ChatModel != nil {
-			agentService.SetChatModel(ctx.ChatModel)
-		}
-		if ctx.TitleModel != nil {
-			agentService.SetTitleModel(ctx.TitleModel) // This will also set it on topicService
-		}
-		if ctx.SummaryModel != nil {
-			agentService.SetSummaryModel(ctx.SummaryModel)
-		}
-
-		// Register memory tool for recalling stored memories
-		if ctx.MemoryIntegration != nil {
-			if err := agentService.RegisterMemoryTool(ctx.MemoryIntegration); err != nil {
-				log.Printf("⚠️  Failed to register memory tool: %v", err)
-			}
-		}
-
 		wailsApp.RegisterService(application.NewService(agentService))
 	}
 
-	if ctx.CleanupModel != nil {
-		fileProcessor.SetLanguageModel(ctx.CleanupModel)
-		log.Printf("FileProcessor: LLM cleanup model injected")
-	}
+	// No need for lifecycleManager.RegisterCleanup directly in main.go now,
+	// as fx.Lifecycle hooks are handled in provider functions.
 
-	// Initialize centralized lifecycle manager for graceful shutdown
-	lifecycleManager := lifecycle.NewManager()
-
-	// Register cleanup functions in initialization order
-	// They will be executed in LIFO order (reverse) during shutdown
-
-	// Database cleanup (should be last to cleanup, first registered)
-	if ctx.DB != nil {
-		lifecycleManager.RegisterCleanup("Database Connection", func() {
-			if err := ctx.DB.Close(); err != nil {
-				log.Printf("Error closing database: %v", err)
-			}
-		})
-	}
-
-	// TODO: Add replacement cleanup for local lib service after Context.LibService removal.
-
-	// DuckDB cleanup
-	if ctx.DuckDBStore != nil {
-		lifecycleManager.RegisterCleanup("DuckDB Store", func() {
-			if err := ctx.DuckDBStore.Close(); err != nil {
-				log.Printf("Error closing DuckDB: %v", err)
-			}
-		})
-	}
-
-	// Sentry flush (should be one of the last things to cleanup)
-	lifecycleManager.RegisterCleanupWithTimeout("Sentry Flush", func() {
-		sentry.Flush(2 * time.Second)
-	}, 3*time.Second)
-
-	// Register the centralized shutdown handler
+	// Register the centralized shutdown handler for Wails
 	wailsApp.OnShutdown(lifecycleManager.Shutdown)
-
-	log.Printf("✅ Registered %d cleanup handlers", lifecycleManager.Count())
 }
 
-func createMainWindow(wailsApp *application.App, ctx *app.Context, fileProcessor *FileProcessorService) {
+// NewThreadManagementServiceWrapper is an fx provider for services.ThreadManagementService
+type ThreadManagementServiceWrapperParams struct {
+	fx.In
+	WailsApp *application.App
+	DB       *database.Service
+}
+
+func NewThreadManagementServiceWrapper(p ThreadManagementServiceWrapperParams) *services.ThreadManagementService {
+	return services.NewThreadManagementService(p.WailsApp, p.DB)
+}
+
+// NewTopicServiceWrapper is an fx provider for topic.Service
+type TopicServiceWrapperParams struct {
+	fx.In
+	DB       *database.Service
+	WailsApp *application.App
+}
+
+func NewTopicServiceWrapper(p TopicServiceWrapperParams) *topic.TopicService {
+	return topic.NewService(p.DB, p.WailsApp)
+}
+
+// NewAgentChatServiceWrapper is an fx provider for services.AgentChatService
+type AgentChatServiceWrapperParams struct {
+	fx.In
+	WailsApp          *application.App
+	DB                *database.Service
+	KBService         *services.KnowledgeBaseService
+	VectorSearch      *services.VectorSearchService
+	ThreadService     *services.ThreadManagementService
+	TopicService      *topic.TopicService
+	ToolRegistry      *tools.ToolRegistry
+	KVStore           *store.KVStore
+	ChatModel         unillm.LanguageModel `name:"chatModel"`
+	TitleModel        unillm.LanguageModel `name:"titleModel"`
+	SummaryModel      unillm.LanguageModel `name:"summaryModel"`
+	MemoryIntegration *services.MemoryIntegration
+}
+
+func NewAgentChatServiceWrapper(p AgentChatServiceWrapperParams) *services.AgentChatService {
+	agentService := services.NewAgentChatService(
+		p.WailsApp, p.DB, p.KBService, p.VectorSearch, p.ThreadService, p.TopicService, p.ToolRegistry, p.KVStore,
+	)
+	if p.ChatModel != nil {
+		agentService.SetChatModel(p.ChatModel)
+	}
+	if p.TitleModel != nil {
+		agentService.SetTitleModel(p.TitleModel)
+	}
+	if p.SummaryModel != nil {
+		agentService.SetSummaryModel(p.SummaryModel)
+	}
+
+	if p.MemoryIntegration != nil {
+		if err := agentService.RegisterMemoryTool(p.MemoryIntegration); err != nil {
+			log.Printf("⚠️  Failed to register memory tool: %v", err)
+		}
+	}
+	return agentService
+}
+
+// NewLifecycleManagerWrapper is an fx provider for lifecycle.Manager
+func NewLifecycleManagerWrapper() *lifecycle.Manager {
+	return lifecycle.NewManager()
+}
+
+// SetupMainWindow is an fx.Invoke function to configure the main window
+func SetupMainWindow(wailsApp *application.App, ctx *app.Context, fileProcessor *FileProcessorService) {
 	win := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:          "Kawai",
 		StartState:     application.WindowStateMaximised,
