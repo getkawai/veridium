@@ -7,11 +7,11 @@ A "Lean Startup" approach to DePIN, leveraging consumer-grade GPUs for `llama.cp
 
 ## 🚀 Core Concept
 
--   **Service:** Low-cost LLM Inference API (compatible with OpenAI format) + **AI Image Generation** (Gemini API).
+-   **Service:** Low-cost AI Generation and API (compatible with OpenAI format).
 -   **Contributors:** Gamers & Devs running `llama.cpp` nodes.
 -   **Rewards:** 
-    -   **Contributor:** Earn KAWAI tokens via "Mining" (85-90% split). Rewards follow a **Halving Schedule** based on total supply (100 -> 50 -> 25 -> 12 per 1M tokens).
-    -   **User:** Earn 5% cashback on every AI request (use-to-earn) + 1-5% deposit cashback (tiered).
+    -   **Contributor:** Install kawai-contributor, earn KAWAI tokens via "Mining" (85-90% split). Rewards follow a **Halving Schedule** based on total supply (100 -> 50 -> 25 -> 12 per 1M tokens).
+    -   **User:** Install kawai-desktop, earn 5% cashback on every AI request (use-to-earn) + 1-5% deposit cashback (tiered).
     -   **Affiliator:** Earn 5% commission from referrals' mining rewards (lifetime passive income).
     -   **Developer:** Earn 5% from mining rewards (distributed to treasury pool).
     -   **Holder:** ✅ Earn 100% of Platform Revenue (USDT) proportional to KAWAI holdings via **Hybrid Holder Registry** (Production Ready).

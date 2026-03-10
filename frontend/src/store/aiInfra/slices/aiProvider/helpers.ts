@@ -4,8 +4,7 @@
  */
 
 import { NullString as NullStringClass, NullInt64 as NullInt64Class } from '@@/database/sql/models';
-
-const DEFAULT_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
+import { getResolvedUserId } from '@/utils/userId';
 
 /**
  * Parse NullString from Wails binding
@@ -130,7 +129,7 @@ export const mapRuntimeConfigFromDB = (c: any) => ({
 /**
  * Get default user ID for desktop single-user app
  */
-export const getUserId = (): string => DEFAULT_USER_ID;
+export const getUserId = (): string => getResolvedUserId();
 
 /**
  * Build provider-model lists grouped by provider
@@ -149,4 +148,3 @@ export const groupModelsByProvider = (
         .sort((a, b) => (a.sort || 0) - (b.sort || 0)),
     }));
 };
-

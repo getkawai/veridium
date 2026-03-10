@@ -11,13 +11,12 @@ import {
   getNullableInt,
   parseNullableJSON,
 } from '@/types/database';
-
-const DEFAULT_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
+import { getResolvedUserId } from '@/utils/userId';
 
 /**
  * Get the default user ID
  */
-export const getUserId = () => DEFAULT_USER_ID;
+export const getUserId = () => getResolvedUserId();
 
 /**
  * Map Chat Group from database to frontend type

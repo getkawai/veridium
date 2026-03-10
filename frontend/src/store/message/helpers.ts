@@ -5,13 +5,12 @@
  */
 
 import { INBOX_SESSION_ID } from '@/const/session';
-
-const DEFAULT_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
+import { getResolvedUserId } from '@/utils/userId';
 
 /**
  * Get the default user ID
  */
-export const getUserId = () => DEFAULT_USER_ID;
+export const getUserId = () => getResolvedUserId();
 
 /**
  * Convert session ID to DB session ID
@@ -30,4 +29,3 @@ export const fromDbSessionId = (dbSessionId: string | null | undefined): string 
   if (!dbSessionId || dbSessionId === '') return INBOX_SESSION_ID;
   return dbSessionId;
 };
-

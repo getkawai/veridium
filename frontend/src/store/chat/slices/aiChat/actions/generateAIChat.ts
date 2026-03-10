@@ -34,6 +34,7 @@ import { ChatStore } from '@/store/chat/store';
 import { useSessionStore } from '@/store/session/store';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { setNamespace } from '@/utils/storeDebug';
+import { getResolvedUserId } from '@/utils/userId';
 import { chatSelectors } from '../../../selectors';
 import { idGenerator } from '@/database/utils/idGenerator';
 import {
@@ -47,9 +48,6 @@ import { agentSelectors } from '@/store/agent/slices/chat';
 
 // Re-export StreamEventPayload for consumers
 export type { StreamEventPayload };
-
-// User ID constant for backend calls
-const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
 
 // ================================================================
 // API MODE CONFIGURATION
@@ -108,6 +106,30 @@ export const generateAIChat: StateCreator<
 
     const threadId = activeThreadId;
     const mapKey = messageMapKey(activeId, activeTopicId);
+    const userID = getResolvedUserId();
+
+    if (!userID) {
+      set(produce((state: ChatStore) => {
+        if (!state.messagesMap[mapKey]) {
+          state.messagesMap[mapKey] = [];
+        }
+        state.messagesMap[mapKey].push({
+          id: `error-${Date.now()}`,
+          role: 'assistant',
+          content: '❌ Error: Wallet is not connected. Please connect wallet first.',
+          sessionId: activeId,
+          topicId: activeTopicId,
+          error: {
+            type: ChatErrorType.CreateMessageError,
+            message: 'Wallet is not connected',
+          },
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          meta: {},
+        } as UIChatMessage);
+      }), false, n('error/noWallet'));
+      return;
+    }
 
     // Extract file IDs from uploaded files (already processed by FileProcessorService)
     const fileIds = files?.map(f => f.id).filter(Boolean) || [];
@@ -177,7 +199,7 @@ export const generateAIChat: StateCreator<
       // Events are handled by internal_handleStreamEvent (called from App.tsx)
       const request = new ChatRequest({
         session_id: activeId,
-        user_id: FALLBACK_CLIENT_DB_USER_ID,
+        user_id: userID,
         message: message,
         topic_id: activeTopicId || undefined,
         thread_id: threadId || undefined,
@@ -567,4 +589,3 @@ export const generateAIChat: StateCreator<
     };
   })(),
 });
-
