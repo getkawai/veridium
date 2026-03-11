@@ -163,11 +163,12 @@ export const createCommonSlice: StateCreator<
               false,
               n('initUserState'),
             );
-            console.log('[useInitUserState] isUserStateInit=true', { userId });
             get().refreshDefaultModelProviderList({ trigger: 'fetchUserState' });
           }
         } catch (error) {
           console.error('[useInitUserState] Error:', error);
+          // Still set isUserStateInit to true to prevent infinite loading
+          set({ isUserStateInit: true }, false, 'initUserState/error');
         }
       };
 
