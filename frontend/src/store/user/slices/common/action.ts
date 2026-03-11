@@ -71,7 +71,6 @@ export const createCommonSlice: StateCreator<
       const initUserState = async () => {
         try {
           const userId = getUserId();
-          console.log('[useInitUserState]', { userId, isLogin, usingDefault: userId === 'DEFAULT_LOBE_CHAT_USER' });
 
           // Get user settings
           // Backend ensures default settings exist on startup

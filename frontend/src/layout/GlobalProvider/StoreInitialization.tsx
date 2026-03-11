@@ -4,7 +4,7 @@ import { memo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createStoreUpdater } from 'zustand-utils';
 
-import { enableNextAuth } from '@/const/auth';
+import { enableAuth, enableNextAuth } from '@/const/auth';
 import { useFetchAiProviderRuntimeState } from '@/hooks/useFetchAiProviderRuntimeState';
 import { useAgentStore } from '@/store/agent';
 import { useGlobalStore } from '@/store/global';
@@ -21,6 +21,9 @@ const StoreInitialization = memo(() => {
   useEffect(() => {
     waitForWailsRuntime().then(() => {
       setIsRuntimeReady(true);
+    }).catch((err) => {
+      console.error('[StoreInitialization] Wails runtime error:', err);
+      setIsRuntimeReady(true);
     });
   }, []);
 
@@ -35,23 +38,6 @@ const StoreInitialization = memo(() => {
 
   const { serverConfig } = useServerConfigStore();
 
-  const useInitSystemStatus = useGlobalStore((s) => s.useInitSystemStatus);
-
-  const useInitInboxAgentStore = useAgentStore((s) => s.useInitInboxAgentStore);
-  const useLoadAllAgentConfigs = useAgentStore((s) => s.useLoadAllAgentConfigs);
-
-  // init the system preference
-  useInitSystemStatus();
-
-  // fetch server config
-  const useFetchServerConfig = useServerConfigStore((s) => s.useInitServerConfig);
-  useFetchServerConfig();
-
-  // Update NextAuth status
-  const useUserStoreUpdater = createStoreUpdater(useUserStore);
-  const oAuthSSOProviders = useServerConfigStore(serverConfigSelectors.oAuthSSOProviders);
-  useUserStoreUpdater('oAuthSSOProviders', oAuthSSOProviders);
-
   /**
    * The store function of `isLogin` will both consider the values of `enableAuth` and `isSignedIn`.
    * But during initialization, the value of `enableAuth` might be incorrect cause of the async fetch.
@@ -64,6 +50,22 @@ const StoreInitialization = memo(() => {
    * "Unable to parse request body as JSON" errors during initialization.
    */
   const isLoginOnInit = Boolean(enableNextAuth ? isSignedIn : isLogin) && isRuntimeReady;
+
+  // init the system preference
+  const useInitSystemStatus = useGlobalStore((s) => s.useInitSystemStatus);
+  useInitSystemStatus();
+
+  // fetch server config
+  const useFetchServerConfig = useServerConfigStore((s) => s.useInitServerConfig);
+  useFetchServerConfig();
+
+  // Update NextAuth status
+  const useUserStoreUpdater = createStoreUpdater(useUserStore);
+  const oAuthSSOProviders = useServerConfigStore(serverConfigSelectors.oAuthSSOProviders);
+  useUserStoreUpdater('oAuthSSOProviders', oAuthSSOProviders);
+
+  const useInitInboxAgentStore = useAgentStore((s) => s.useInitInboxAgentStore);
+  const useLoadAllAgentConfigs = useAgentStore((s) => s.useLoadAllAgentConfigs);
 
   // init inbox agent and default agent config
   useInitInboxAgentStore(isLoginOnInit, serverConfig.defaultAgent?.config);
