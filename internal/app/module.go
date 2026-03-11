@@ -130,9 +130,12 @@ func ProvideFileLoader() *services.FileLoader {
 	return services.NewFileLoader()
 }
 
-func ProvideVectorSearch(ds *database.Service, duck *services.DuckDBStore) *services.VectorSearchService {
-	// Embedder is handled as nil for now to match current state
-	vs, err := services.NewVectorSearchService(ds.DB(), duck, nil)
+func ProvideVectorSearch(ds *database.Service, duck *services.DuckDBStore, embedder llamaembed.Embedder) *services.VectorSearchService {
+	if embedder == nil {
+		log.Printf("Warning: Embedder is nil, VectorSearchService cannot be initialized")
+		return nil
+	}
+	vs, err := services.NewVectorSearchService(ds.DB(), duck, embedder)
 	if err != nil {
 		log.Printf("Warning: VectorSearch init failed: %v", err)
 		return nil
@@ -253,9 +256,21 @@ func ProvideCacheManager() *cache.CacheManager {
 }
 
 func ProvideRAGProcessor(ds *database.Service, duck *services.DuckDBStore, fl *services.FileLoader, embedder llamaembed.Embedder) *services.RAGProcessor {
-	// Check for nil dependencies if they are optional
-	if ds == nil || duck == nil || fl == nil {
-		log.Printf("Warning: RAGProcessor dependencies (DB, DuckDBStore, FileLoader) are nil. RAGProcessor will be nil.")
+	// Fail-closed: all dependencies are required
+	if ds == nil {
+		log.Printf("Warning: RAGProcessor requires database.Service, got nil")
+		return nil
+	}
+	if duck == nil {
+		log.Printf("Warning: RAGProcessor requires DuckDBStore, got nil")
+		return nil
+	}
+	if fl == nil {
+		log.Printf("Warning: RAGProcessor requires FileLoader, got nil")
+		return nil
+	}
+	if embedder == nil {
+		log.Printf("Warning: RAGProcessor requires Embedder, got nil")
 		return nil
 	}
 	return services.NewRAGProcessor(ds.DB(), duck, fl, embedder)
