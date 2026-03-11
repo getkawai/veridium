@@ -8,7 +8,7 @@ require (
 	github.com/getsentry/sentry-go v0.40.0
 	github.com/google/uuid v1.6.0
 	github.com/kawai-network/contracts v0.1.3
-	github.com/kawai-network/x v1.0.30
+	github.com/kawai-network/x v1.0.32
 	github.com/kawai-network/y v0.1.14
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/stretchr/testify v1.11.1
@@ -57,7 +57,7 @@ require (
 	github.com/charmbracelet/x/json v0.2.0 // indirect
 	github.com/cloudflare/cloudflare-go/v6 v6.7.0 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
-	github.com/getkawai/database v0.1.2
+	github.com/getkawai/database v0.1.3
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/jupiterrider/ffi v0.6.0 // indirect
