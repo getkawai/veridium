@@ -2,10 +2,17 @@ package search
 
 import (
 	"context"
+	"os"
 	"testing"
 )
 
 func TestDuckDuckGoProvider_Query(t *testing.T) {
+	// Skip in local development - requires real network access to DuckDuckGo API
+	// which may be blocked by ISP or unavailable in certain regions
+	if os.Getenv("CI") == "" {
+		t.Skip("Skipping DuckDuckGo test - requires network access. Set CI=1 to run.")
+	}
+
 	provider := NewDuckDuckGoProvider()
 
 	tests := []struct {
