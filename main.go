@@ -190,8 +190,7 @@ func RegisterWailsServices(wailsApp *application.App, ctx *app.Context, fileProc
 		application.ServiceOptions{Route: "/files"},
 	))
 
-	// Agent services (from registerAgentServices)
-	ctx.AudioRecorder.SetApp(wailsApp) // AudioRecorder is now a regular provider
+	// Agent services
 	wailsApp.RegisterService(application.NewService(threadService))
 
 	sdService.SetTopicService(topicService)

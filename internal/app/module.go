@@ -24,6 +24,7 @@ import (
 	"github.com/kawai-network/x/blockchain"
 	"github.com/kawai-network/x/store"
 	"github.com/kawai-network/y/paths"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"go.uber.org/fx"
 )
 
@@ -97,8 +98,8 @@ func ProvideTTSService() *tts.TTSService {
 	return ttsService
 }
 
-func ProvideAudioRecorder() *audio_recorder.AudioRecorderService {
-	return audio_recorder.NewAudioRecorderService(nil)
+func ProvideAudioRecorder(wailsApp *application.App) *audio_recorder.AudioRecorderService {
+	return audio_recorder.NewAudioRecorderService(wailsApp)
 }
 
 func ProvideToolRegistry(ds *database.Service) *tools.ToolRegistry {
