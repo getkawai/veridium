@@ -190,7 +190,8 @@ func RegisterWailsServices(wailsApp *application.App, ctx *app.Context, fileProc
 		application.ServiceOptions{Route: "/files"},
 	))
 
-	// Agent services
+	// Agent services - AudioRecorder requires deferred App injection to break cycle
+	ctx.AudioRecorder.SetApp(wailsApp)
 	wailsApp.RegisterService(application.NewService(threadService))
 
 	sdService.SetTopicService(topicService)
