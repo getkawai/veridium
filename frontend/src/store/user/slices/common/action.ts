@@ -64,11 +64,14 @@ export const createCommonSlice: StateCreator<
 
   useInitUserState: (isLogin, serverConfig, options) => {
     useEffect(() => {
-      if (!isLogin) return;
+      // Initialize user state for both logged-in and guest users
+      // Guest users will use wallet address as userId (from getUserId())
+      // Note: App.tsx ensures wallet is unlocked before accessing features
 
       const initUserState = async () => {
         try {
           const userId = getUserId();
+          console.log('[useInitUserState]', { userId, isLogin, usingDefault: userId === 'DEFAULT_LOBE_CHAT_USER' });
 
           // Get user settings
           // Backend ensures default settings exist on startup
@@ -161,6 +164,7 @@ export const createCommonSlice: StateCreator<
               false,
               n('initUserState'),
             );
+            console.log('[useInitUserState] isUserStateInit=true', { userId });
             get().refreshDefaultModelProviderList({ trigger: 'fetchUserState' });
           }
         } catch (error) {
@@ -169,6 +173,6 @@ export const createCommonSlice: StateCreator<
       };
 
       initUserState();
-    }, [isLogin]);
+    }, [isLogin, serverConfig]);
   },
 });
