@@ -181,31 +181,33 @@ func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProc
 	// Register TopicService
 	wailsApp.RegisterService(application.NewService(topicService))
 
-	if ctx.KBService != nil {
-		// TODO: Reconnect local lib service dependency after Context.LibService removal.
-		agentService := services.NewAgentChatService(
-			wailsApp, ctx.DB, ctx.KBService, ctx.VectorSearch, threadService, topicService, ctx.ToolRegistry, ctx.KVStore,
-		)
+	// TODO: Reconnect local lib service dependency after Context.LibService removal.
+	agentService := services.NewAgentChatService(
+		wailsApp, ctx.DB, ctx.KBService, ctx.VectorSearch, threadService, topicService, ctx.ToolRegistry, ctx.KVStore,
+	)
 
-		if ctx.ChatModel != nil {
-			agentService.SetChatModel(ctx.ChatModel)
-		}
-		if ctx.TitleModel != nil {
-			agentService.SetTitleModel(ctx.TitleModel) // This will also set it on topicService
-		}
-		if ctx.SummaryModel != nil {
-			agentService.SetSummaryModel(ctx.SummaryModel)
-		}
-
-		// Register memory tool for recalling stored memories
-		if ctx.MemoryIntegration != nil {
-			if err := agentService.RegisterMemoryTool(ctx.MemoryIntegration); err != nil {
-				log.Printf("⚠️  Failed to register memory tool: %v", err)
-			}
-		}
-
-		wailsApp.RegisterService(application.NewService(agentService))
+	if ctx.KBService == nil {
+		log.Printf("⚠️  AgentChatService registered without KnowledgeBaseService (RAG disabled)")
 	}
+
+	if ctx.ChatModel != nil {
+		agentService.SetChatModel(ctx.ChatModel)
+	}
+	if ctx.TitleModel != nil {
+		agentService.SetTitleModel(ctx.TitleModel) // This will also set it on topicService
+	}
+	if ctx.SummaryModel != nil {
+		agentService.SetSummaryModel(ctx.SummaryModel)
+	}
+
+	// Register memory tool for recalling stored memories
+	if ctx.MemoryIntegration != nil {
+		if err := agentService.RegisterMemoryTool(ctx.MemoryIntegration); err != nil {
+			log.Printf("⚠️  Failed to register memory tool: %v", err)
+		}
+	}
+
+	wailsApp.RegisterService(application.NewService(agentService))
 
 	if ctx.CleanupModel != nil {
 		fileProcessor.SetLanguageModel(ctx.CleanupModel)
