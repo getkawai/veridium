@@ -334,7 +334,50 @@ func (ctx *Context) InitKVStore() {
 }
 
 func (ctx *Context) InitLanguageModels() {
-	// TODO: Re-implement language model chain initialization after Context.LibService removal.
+	bgCtx := context.Background()
+
+	log.Printf("🔍 InitLanguageModels: building model chains...")
+
+	var localModel unillm.LanguageModel
+
+	buildChain := func(taskName string, criteria openrouter.ModelSelectionCriteria) unillm.LanguageModel {
+		models := ctx.buildModelChain(bgCtx, localModel, criteria, taskName)
+		chain, err := unillm.NewChain(models, unillm.WithChainName(taskName))
+		if err != nil {
+			log.Printf("❌ %s: Failed to create model chain: %v", taskName, err)
+			return nil
+		}
+		log.Printf("✅ %s: Chain ready (%s)", taskName, chain.Model())
+		return chain
+	}
+
+	// Chat model: general purpose
+	ctx.ChatModel = buildChain("chat", openrouter.ModelSelectionCriteria{
+		RequireReasoning:   false,
+		RequireAttachments: false,
+		MinContextWindow:   8192,
+	})
+
+	// Title model: short text generation
+	ctx.TitleModel = buildChain("title", openrouter.ModelSelectionCriteria{
+		RequireReasoning:   false,
+		RequireAttachments: false,
+		MinContextWindow:   4096,
+	})
+
+	// Summary model: conversation summarization
+	ctx.SummaryModel = buildChain("summary", openrouter.ModelSelectionCriteria{
+		RequireReasoning:   false,
+		RequireAttachments: false,
+		MinContextWindow:   8192,
+	})
+
+	// Cleanup model: OCR/transcript cleanup
+	ctx.CleanupModel = buildChain("cleanup", openrouter.ModelSelectionCriteria{
+		RequireReasoning:   false,
+		RequireAttachments: false,
+		MinContextWindow:   4096,
+	})
 }
 
 func (ctx *Context) buildModelChain(bgCtx context.Context, localModel unillm.LanguageModel, criteria openrouter.ModelSelectionCriteria, taskName string) []unillm.LanguageModel {
@@ -404,8 +447,18 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel unillm.Lan
 	}
 
 	// 5. Local model (final fallback)
-	chain = append(chain, localModel)
-	log.Printf("%s: Chain created with %d models (fallback: %s/%s)", taskName, len(chain), localModel.Provider(), localModel.Model())
+	if localModel != nil {
+		chain = append(chain, localModel)
+		log.Printf("%s: Added local model (%s/%s) to chain", taskName, localModel.Provider(), localModel.Model())
+	} else {
+		log.Printf("%s: No local model available, skipping local fallback", taskName)
+	}
+
+	if len(chain) == 0 {
+		log.Printf("⚠️  %s: Chain created with 0 models (no providers available)", taskName)
+	} else {
+		log.Printf("%s: Chain created with %d models", taskName, len(chain))
+	}
 	return chain
 }
 
