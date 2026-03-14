@@ -8,7 +8,7 @@ require (
 	github.com/getsentry/sentry-go v0.40.0
 	github.com/google/uuid v1.6.0
 	github.com/kawai-network/contracts v0.1.3
-	github.com/kawai-network/x v1.0.34
+	github.com/kawai-network/x v1.0.35
 	github.com/kawai-network/y v0.1.14
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/stretchr/testify v1.11.1
@@ -230,5 +230,3 @@ replace github.com/quic-go/quic-go => github.com/chungthuang/quic-go v0.45.1-0.2
 replace github.com/modelcontextprotocol/registry => github.com/docker/mcp-community-registry v0.0.0-20251024214917-21000e320421
 
 replace github.com/scrypster/muninndb => github.com/getkawai/muninndb v0.3.9
-
-replace github.com/kawai-network/x => ../x
