@@ -740,7 +740,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 17. Deduct user balance and record job reward to treasury
 	// This runs in background after user receives response to avoid blocking
 	if usage != nil && usage.TotalTokens > 0 && s.kvStore != nil {
-		billing.ProcessDeductionAsyncWithReferrer(context.Background(), s.kvStore, req.UserID, int64(usage.TotalTokens))
+		billing.ProcessDeductionAsyncWithReferrer(s.kvStore, req.UserID, int64(usage.TotalTokens))
 	}
 
 	return nil
