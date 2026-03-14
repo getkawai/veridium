@@ -740,25 +740,9 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 17. Deduct user balance and record job reward to treasury
 	// This runs in background after user receives response to avoid blocking
 	if usage != nil && usage.TotalTokens > 0 && s.kvStore != nil {
-		// Get user's referrer address (if any)
-		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		userBalance, err := s.kvStore.GetUserBalance(bgCtx, req.UserID)
-		referrerAddress := ""
-		if err == nil && userBalance != nil {
-			referrerAddress = userBalance.ReferrerAddress
-		}
-		cancel()
-
 		// Use billing processor for balance deduction and reward recording
 		alerter := s.kvStore.GetTelegramAlerter()
-		processor := billing.NewProcessor(s.kvStore, alerter)
-
-		// Process asynchronously (non-blocking)
-		_ = processor.ProcessDeductionAsync(bgCtx, billing.DeductionRequest{
-			UserID:       req.UserID,
-			TotalTokens:  int64(usage.TotalTokens),
-			ReferrerAddr: referrerAddress,
-		})
+		billing.ProcessDeductionAsyncWithReferrer(context.Background(), s.kvStore, alerter, req.UserID, int64(usage.TotalTokens))
 	}
 
 	return nil
