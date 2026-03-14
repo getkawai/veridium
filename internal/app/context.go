@@ -18,9 +18,7 @@ import (
 	yzmabuiltin "github.com/getkawai/tools/builtin"
 	"github.com/getkawai/tools/search"
 	unillm "github.com/getkawai/unillm"
-	googleprovider "github.com/getkawai/unillm/providers/google"
 	llamaembed "github.com/getkawai/unillm/providers/llama-embed"
-	"github.com/getkawai/unillm/providers/openaicompat"
 	"github.com/getkawai/unillm/providers/openrouter"
 	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/contracts"
@@ -29,7 +27,7 @@ import (
 	"github.com/kawai-network/veridium/internal/services/cache"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/x/blockchain"
-	"github.com/kawai-network/x/constant"
+	"github.com/kawai-network/x/llm"
 	"github.com/kawai-network/x/store"
 	"github.com/kawai-network/y/logger"
 	"github.com/kawai-network/y/paths"
@@ -341,14 +339,12 @@ func (ctx *Context) InitLanguageModels() {
 	var localModel unillm.LanguageModel
 
 	buildChain := func(taskName string, criteria openrouter.ModelSelectionCriteria) unillm.LanguageModel {
-		models := ctx.buildModelChain(bgCtx, localModel, criteria, taskName)
-		chain, err := unillm.NewChain(models, unillm.WithChainName(taskName))
-		if err != nil {
-			log.Printf("❌ %s: Failed to create model chain: %v", taskName, err)
-			return nil
-		}
-		log.Printf("✅ %s: Chain ready (%s)", taskName, chain.Model())
-		return chain
+		return llm.BuildChain(llm.ModelChainConfig{
+			Context:    bgCtx,
+			LocalModel: localModel,
+			TaskName:   taskName,
+			Criteria:   criteria,
+		})
 	}
 
 	// Chat model: general purpose
@@ -378,88 +374,6 @@ func (ctx *Context) InitLanguageModels() {
 		RequireAttachments: false,
 		MinContextWindow:   4096,
 	})
-}
-
-func (ctx *Context) buildModelChain(bgCtx context.Context, localModel unillm.LanguageModel, criteria openrouter.ModelSelectionCriteria, taskName string) []unillm.LanguageModel {
-	var chain []unillm.LanguageModel
-
-	// 1. Google Gemini 2.5 Flash-Lite (free tier with highest limits: 15 RPM, 1000 RPD)
-	if apiKey := constant.GetRandomGeminiApiKey(); apiKey != "" {
-		log.Printf("🔍 %s: Initializing Google Gemini 2.5 Flash-Lite...", taskName)
-		if provider, err := googleprovider.New(googleprovider.WithGeminiAPIKey(apiKey)); err == nil {
-			if geminiModel, err := provider.LanguageModel(bgCtx, "gemini-2.5-flash-lite"); err == nil {
-				chain = append(chain, geminiModel)
-				log.Printf("✅ %s: Added Google Gemini (gemini-2.5-flash-lite) to chain [15 RPM, 1000 RPD]", taskName)
-			} else {
-				log.Printf("❌ %s: Google Gemini provider initialized but failed to get model: %v", taskName, err)
-			}
-		} else {
-			log.Printf("❌ %s: Failed to initialize Google Gemini provider: %v", taskName, err)
-		}
-	} else {
-		log.Printf("ℹ️  %s: Skipping Google Gemini (no API key)", taskName)
-	}
-
-	// 2. OpenRouter (free tier)
-	if apiKey := constant.GetRandomOpenRouterApiKey(); apiKey != "" {
-		log.Printf("🔍 %s: Initializing OpenRouter...", taskName)
-		if provider, err := openrouter.New(openrouter.WithAPIKey(apiKey), openrouter.WithModelSelection(criteria)); err == nil {
-			if remoteModel, err := provider.LanguageModel(bgCtx, ""); err == nil {
-				chain = append(chain, remoteModel)
-				catalog := openrouter.GetCatalog()
-				if selected := catalog.SelectFreeModel(criteria); selected != nil {
-					log.Printf("✅ %s: Added OpenRouter (%s) to chain", taskName, selected.ID)
-				} else {
-					log.Printf("⚠️  %s: OpenRouter initialized but no free model matched criteria", taskName)
-				}
-			} else {
-				log.Printf("❌ %s: OpenRouter provider initialized but failed to get model: %v", taskName, err)
-			}
-		} else {
-			log.Printf("❌ %s: Failed to initialize OpenRouter provider: %v", taskName, err)
-		}
-	} else {
-		log.Printf("ℹ️  %s: Skipping OpenRouter (no API key)", taskName)
-	}
-
-	// 3. Pollinations AI (fallback before local)
-	if provider, err := openaicompat.New(
-		openaicompat.WithName("pollinations"),
-		openaicompat.WithBaseURL("https://text.pollinations.ai/openai"),
-		openaicompat.WithAPIKey("dummy"), // Pollinations doesn't require API key, but SDK needs one
-	); err == nil {
-		if pollinationsModel, err := provider.LanguageModel(bgCtx, "openai"); err == nil {
-			chain = append(chain, pollinationsModel)
-			log.Printf("%s: Pollinations AI (openai)", taskName)
-		}
-	}
-
-	// 4. ZAI GLM-4.6 (fallback before local)
-	if provider, err := openaicompat.New(
-		openaicompat.WithName("zai"),
-		openaicompat.WithBaseURL("https://api.z.ai/api/coding/paas/v4"),
-		openaicompat.WithAPIKey(constant.GetRandomZaiApiKey()),
-	); err == nil {
-		if zaiModel, err := provider.LanguageModel(bgCtx, "glm-4.7"); err == nil {
-			chain = append(chain, zaiModel)
-			log.Printf("%s: ZAI (glm-4.7)", taskName)
-		}
-	}
-
-	// 5. Local model (final fallback)
-	if localModel != nil {
-		chain = append(chain, localModel)
-		log.Printf("%s: Added local model (%s/%s) to chain", taskName, localModel.Provider(), localModel.Model())
-	} else {
-		log.Printf("%s: No local model available, skipping local fallback", taskName)
-	}
-
-	if len(chain) == 0 {
-		log.Printf("⚠️  %s: Chain created with 0 models (no providers available)", taskName)
-	} else {
-		log.Printf("%s: Chain created with %d models", taskName, len(chain))
-	}
-	return chain
 }
 
 func buildMuninnMemoryIntegration(backend *services.MuninnMemoryBackend) (*services.MemoryIntegration, error) {

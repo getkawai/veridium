@@ -8,7 +8,7 @@ require (
 	github.com/getsentry/sentry-go v0.40.0
 	github.com/google/uuid v1.6.0
 	github.com/kawai-network/contracts v0.1.3
-	github.com/kawai-network/x v1.0.32
+	github.com/kawai-network/x v1.0.33
 	github.com/kawai-network/y v0.1.14
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/stretchr/testify v1.11.1
@@ -217,6 +217,8 @@ replace github.com/wailsapp/wails/v3 => github.com/yudaprama/wails/v3 v3.0.0-alp
 replace github.com/urfave/cli/v2 => github.com/ipostelnik/cli/v2 v2.3.1-0.20210324024421-b6ea8234fe3d
 
 replace github.com/cloudflare/cloudflared => github.com/kawai-network/cloudflared v0.2.0-2026.2.0
+
+replace github.com/kawai-network/x => ../x
 
 // Avoid 'CVE-2022-21698'
 replace github.com/prometheus/golang_client => github.com/prometheus/golang_client v1.12.1
