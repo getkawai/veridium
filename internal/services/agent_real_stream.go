@@ -14,7 +14,6 @@ import (
 	unillm "github.com/getkawai/unillm"
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/types"
-	"github.com/kawai-network/x/billing"
 )
 
 // ToolNameMapping maps Yzma tool names to frontend-compatible identifier/apiName pairs
@@ -740,7 +739,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 17. Deduct user balance and record job reward to treasury
 	// This runs in background after user receives response to avoid blocking
 	if usage != nil && usage.TotalTokens > 0 && s.kvStore != nil {
-		billing.ProcessDeductionAsyncWithReferrer(s.kvStore, req.UserID, int64(usage.TotalTokens))
+		s.kvStore.ProcessDeductionAsyncWithReferrer(req.UserID, int64(usage.TotalTokens))
 	}
 
 	return nil
