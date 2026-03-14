@@ -230,3 +230,5 @@ replace github.com/quic-go/quic-go => github.com/chungthuang/quic-go v0.45.1-0.2
 replace github.com/modelcontextprotocol/registry => github.com/docker/mcp-community-registry v0.0.0-20251024214917-21000e320421
 
 replace github.com/scrypster/muninndb => github.com/getkawai/muninndb v0.3.9
+
+replace github.com/kawai-network/x => ../x

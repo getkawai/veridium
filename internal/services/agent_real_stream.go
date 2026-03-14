@@ -14,8 +14,7 @@ import (
 	unillm "github.com/getkawai/unillm"
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/types"
-	"github.com/kawai-network/x/constant"
-	"github.com/kawai-network/x/store"
+	"github.com/kawai-network/x/billing"
 )
 
 // ToolNameMapping maps Yzma tool names to frontend-compatible identifier/apiName pairs
@@ -742,63 +741,28 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// This runs in background after user receives response to avoid blocking
 	if usage != nil && usage.TotalTokens > 0 && s.kvStore != nil {
 		// Get random treasury address to act as "virtual contributor"
-		contributorAddress := constant.GetRandomTreasuryAddress()
+		contributorAddress := billing.GetRandomTreasuryAddress()
 		if contributorAddress != "" {
-			go func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Printf("❌ [PANIC] Balance deduction/recording panic recovered: %v", r)
-					}
-				}()
+			// Get user's referrer address (if any)
+			bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			userBalance, err := s.kvStore.GetUserBalance(bgCtx, req.UserID)
+			referrerAddress := ""
+			if err == nil && userBalance != nil {
+				referrerAddress = userBalance.ReferrerAddress
+			}
+			cancel()
 
-				// Use Background context with timeout - must outlive HTTP request
-				bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				defer cancel()
+			// Use billing processor for balance deduction and reward recording
+			alerter := s.kvStore.GetTelegramAlerter()
+			processor := billing.NewProcessor(s.kvStore, alerter)
 
-				// STEP 1: Deduct user balance for AI usage
-				cost := store.CalculateUsageCost(int64(usage.TotalTokens))
-				if err := s.kvStore.DeductBalanceAtomic(bgCtx, req.UserID, cost); err != nil {
-					log.Printf("[BALANCE] Failed to deduct balance for user %s: %v", req.UserID, err)
-
-					// Record debt for manual recovery
-					if debtErr := s.kvStore.RecordDebt(bgCtx, req.UserID, cost, err.Error()); debtErr != nil {
-						log.Printf("[BALANCE] Failed to record debt for user %s: %v", req.UserID, debtErr)
-					}
-
-					// Send alert to admin
-					if s.kvStore.GetTelegramAlerter() != nil {
-						s.kvStore.GetTelegramAlerter().SendBalanceDeductionFailure(req.UserID, cost.String(), err)
-					}
-
-					// Still record job reward even if deduction failed (contributor deserves reward)
-					// This creates a "debt" situation that needs manual reconciliation
-				} else {
-					// Get updated balance for logging
-					updatedBalance, _ := s.kvStore.GetUserBalance(bgCtx, req.UserID)
-					log.Printf("[BALANCE] Deducted %s micro USDT from user %s for %d tokens. New balance: %s micro USDT",
-						cost.String(), req.UserID, usage.TotalTokens, updatedBalance.USDTBalance)
-				}
-
-				// STEP 2: Get user's referrer address (if any)
-				userBalance, err := s.kvStore.GetUserBalance(bgCtx, req.UserID)
-				referrerAddress := ""
-				if err == nil && userBalance != nil {
-					referrerAddress = userBalance.ReferrerAddress
-				}
-
-				// STEP 3: Record job reward with referral-based splits
-				if err := s.kvStore.RecordJobReward(bgCtx, contributorAddress, req.UserID, int64(usage.TotalTokens), referrerAddress); err != nil {
-					log.Printf("[BALANCE] Failed to record job reward for %s: %v", contributorAddress, err)
-				} else {
-					if referrerAddress != "" && referrerAddress != "0x0000000000000000000000000000000000000000" {
-						log.Printf("[BALANCE] Recorded reward: %d tokens → contributor: %s, user: %s, affiliator: %s (85/5/5/5 split)",
-							usage.TotalTokens, contributorAddress, req.UserID, referrerAddress)
-					} else {
-						log.Printf("[BALANCE] Recorded reward: %d tokens → contributor: %s, user: %s (90/5/5 split)",
-							usage.TotalTokens, contributorAddress, req.UserID)
-					}
-				}
-			}()
+			// Process asynchronously (non-blocking)
+			_ = processor.ProcessDeductionAsync(bgCtx, billing.DeductionRequest{
+				UserID:          req.UserID,
+				TotalTokens:     int64(usage.TotalTokens),
+				ContributorAddr: contributorAddress,
+				ReferrerAddr:    referrerAddress,
+			})
 		}
 	}
 

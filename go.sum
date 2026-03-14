@@ -286,8 +286,6 @@ github.com/kawai-network/contracts v0.1.3 h1:B1TEpqvgtka8xIti3CzQC4pIM99udYyXR7r
 github.com/kawai-network/contracts v0.1.3/go.mod h1:5IlXMg8uQ7GOqM+hu33T51/xbnZEmQ0xknl4UZu0rUI=
 github.com/kawai-network/grab v0.1.0 h1:fqL+IK+AjvyB0F3Rab0xFOw0+jTZawiqQnumgmIWmNs=
 github.com/kawai-network/grab v0.1.0/go.mod h1:yZ+7Bf10u8Dgr3GtAHgLv37wOSXewtU3GlxD/kNhqks=
-github.com/kawai-network/x v1.0.34 h1:CxdkmJJafeljmnOjfNeQmrWnyBh8QPxvklAocHymmgM=
-github.com/kawai-network/x v1.0.34/go.mod h1:06JE2/fWDLQb+XiYTPtREzYAqb57Md9gZE6YaaiA9zA=
 github.com/kawai-network/y v0.1.14 h1:FH+/xIh3KIG3n7BoVZ435nOB6k41o8/7XrBV9jCiByQ=
 github.com/kawai-network/y v0.1.14/go.mod h1:eGBQA+pB+NbTklBBpNwAyEx+rNvN5+dxmeec+L/4TDc=
 github.com/kevinburke/ssh_config v1.4.0 h1:6xxtP5bZ2E4NF5tuQulISpTO2z8XbtH8cg1PWkxoFkQ=
