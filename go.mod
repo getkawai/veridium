@@ -8,7 +8,7 @@ require (
 	github.com/getsentry/sentry-go v0.40.0
 	github.com/google/uuid v1.6.0
 	github.com/kawai-network/contracts v0.1.3
-	github.com/kawai-network/x v1.0.35
+	github.com/kawai-network/x v1.0.38
 	github.com/kawai-network/y v0.1.14
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/stretchr/testify v1.11.1
@@ -38,6 +38,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/onsi/gomega v1.37.0 // indirect
+	github.com/openai/openai-go/v3 v3.28.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af // indirect
@@ -62,8 +63,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/jupiterrider/ffi v0.6.0 // indirect
 	github.com/kaptinlin/jsonschema v0.7.3 // indirect
-	github.com/openai/openai-go/v2 v2.7.1 // indirect
-	github.com/tidwall/gjson v1.14.4 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0 // indirect
@@ -74,7 +74,7 @@ require (
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/term v0.40.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
-	google.golang.org/genai v1.48.0 // indirect
+	google.golang.org/genai v1.50.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
@@ -117,9 +117,9 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/ferranbt/fastssz v0.1.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
-	github.com/getkawai/llamalib v0.2.4
+	github.com/getkawai/llamalib v0.2.5
 	github.com/getkawai/tools v0.1.6
-	github.com/getkawai/unillm v0.1.2
+	github.com/getkawai/unillm v0.1.4
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.7.0 // indirect
 	github.com/go-git/go-git/v5 v5.16.4 // indirect
